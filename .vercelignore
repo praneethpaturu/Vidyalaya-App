@@ -1,0 +1,27 @@
+# Things Vercel must not upload — `vercel deploy` doesn't always respect .gitignore.
+
+# Local dev env (Vercel uses its own dashboard env vars)
+.env
+.env.local
+.env.production
+.env.production.local
+
+# Local SQLite (production = Supabase Postgres)
+prisma/*.db
+prisma/*.db-journal
+
+# User uploads (production = Supabase Storage)
+uploads
+
+# Mobile project — this is a separate Capacitor/Android codebase, not part
+# of the deployable Next.js web build. The wrapper APK is built locally.
+mobile
+
+# Screenshots used for docs/testing
+screenshots
+
+# Build artifacts
+.next
+.vercel
+*.log
+.DS_Store
