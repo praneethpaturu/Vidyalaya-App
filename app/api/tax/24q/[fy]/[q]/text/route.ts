@@ -12,8 +12,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ fy: str
   if (!session) return NextResponse.json({ error: "unauth" }, { status: 401 });
   const u = session.user as any;
   const { fy, q } = await params;
-  const fyStart = parseInt(fy);
-  const quarter = parseInt(q) as 1 | 2 | 3 | 4;
+  // URL examples we accept:
+  //   fy = "2024-25" (FY label) or "2024" (just the start year)
+  //   q  = "Q4" or "4"
+  const fyStart = parseInt(String(fy).split("-")[0], 10);
+  const qNum = parseInt(String(q).replace(/^[Qq]/, ""), 10);
+  if (!Number.isFinite(fyStart) || ![1, 2, 3, 4].includes(qNum)) {
+    return NextResponse.json(
+      { error: "bad params", expected: "fy=2024-25 (or 2024), q=Q1..Q4 (or 1..4)" },
+      { status: 400 },
+    );
+  }
+  const quarter = qNum as 1 | 2 | 3 | 4;
 
   const summary = await form24QFor(u.schoolId, fyStart, quarter);
   const lines: string[] = [];
