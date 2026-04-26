@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --gc-bg: #ffffff;
+  --gc-surface: #f8f9fa;
+  --gc-text: #202124;
+  --gc-text-muted: #5f6368;
+  --gc-divider: #dadce0;
+}
+
+html, body { height: 100%; }
+body {
+  font-family: "Google Sans", "Roboto", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--gc-bg);
+  color: var(--gc-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  /* ---- Cards ---- */
+  .card { @apply bg-white rounded-2xl border border-slate-200 shadow-card; }
+  .card-pad { @apply p-5; }
+
+  /* ---- Buttons (MCB-style: blue for primary, smaller radius) ---- */
+  .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition select-none; }
+  .btn-primary { @apply btn bg-brand-700 text-white hover:bg-brand-800 active:bg-brand-900; }
+  .btn-tonal { @apply btn bg-brand-50 text-brand-700 hover:bg-brand-100; }
+  .btn-outline { @apply btn bg-white border border-slate-300 text-slate-700 hover:bg-slate-50; }
+  .btn-ghost { @apply btn text-brand-700 hover:bg-brand-50; }
+  .btn-danger { @apply btn bg-mcb-red text-white hover:brightness-95; }
+  .btn-coral  { @apply btn bg-mcb-orange text-white hover:brightness-95; }
+
+  /* ---- Inputs ---- */
+  .input {
+    @apply w-full px-3.5 py-2.5 rounded-lg border border-slate-300 bg-white text-sm
+           placeholder:text-slate-400
+           focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600;
+  }
+  .label { @apply text-xs font-medium text-slate-600 mb-1 block; }
+
+  /* ---- Badges ---- */
+  .badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium; }
+  .badge-green { @apply badge bg-emerald-50 text-emerald-700 border border-emerald-200; }
+  .badge-red { @apply badge bg-rose-50 text-rose-700 border border-rose-200; }
+  .badge-amber { @apply badge bg-amber-50 text-amber-800 border border-amber-200; }
+  .badge-blue { @apply badge bg-brand-50 text-brand-700 border border-brand-200; }
+  .badge-slate { @apply badge bg-slate-100 text-slate-700 border border-slate-200; }
+
+  /* ---- Tables ---- */
+  .table { @apply w-full text-sm; }
+  .table th {
+    @apply text-left text-[12px] font-semibold text-slate-700
+           px-3 py-2.5 border-b border-slate-200 bg-slate-50;
+  }
+  .table td { @apply px-3 py-2.5 border-b border-slate-100 align-middle; }
+  .table tr:hover td { @apply bg-slate-50/60; }
+
+  /* ---- Typography ---- */
+  .h-page { @apply text-2xl font-medium text-slate-700 tracking-tight; }
+  .h-section { @apply text-base font-medium text-mcb-blue; }
+  .muted { @apply text-slate-500 text-sm; }
+  .kpi-num { @apply text-3xl font-medium text-slate-900 tracking-tight; }
+  .empty-state { @apply text-center text-mcb-red font-medium py-8; }
+  .section-title { @apply text-mcb-blue font-medium; }
+
+  /* ---- Class card themes (pastel illustrated banners, GC-style) ---- */
+  .theme-card { @apply rounded-2xl overflow-hidden relative shadow-card hover:shadow-cardHover transition; }
+  .theme-pink     { background: linear-gradient(135deg, #fde4ec 0%, #fad1de 100%); }
+  .theme-peach    { background: linear-gradient(135deg, #fde9c9 0%, #f9d9a8 100%); }
+  .theme-mint     { background: linear-gradient(135deg, #ddf3e4 0%, #c1e7cb 100%); }
+  .theme-sky      { background: linear-gradient(135deg, #dfeaff 0%, #c2d6fb 100%); }
+  .theme-lavender { background: linear-gradient(135deg, #ece1ff 0%, #d8c5fa 100%); }
+  .theme-rose     { background: linear-gradient(135deg, #fcd9d6 0%, #f5b8b3 100%); }
+  .theme-sand     { background: linear-gradient(135deg, #f4ead4 0%, #e8d6a8 100%); }
+  .theme-sage     { background: linear-gradient(135deg, #e2eedb 0%, #c8dcb6 100%); }
+
+  /* ---- FAB ---- */
+  .fab {
+    @apply fixed bottom-6 right-6 z-30 w-14 h-14 rounded-2xl
+           bg-brand-100 text-brand-700 hover:bg-brand-200 active:bg-brand-300
+           shadow-fab flex items-center justify-center transition;
+  }
+
+  /* ---- Bottom tab bar (class detail) ---- */
+  .tabbar { @apply flex items-center justify-around bg-white border-t border-slate-200; }
+  .tabbar a {
+    @apply flex flex-col items-center gap-1 px-4 py-3 text-xs text-slate-600 transition;
+  }
+  .tabbar a.active {
+    @apply text-brand-700 font-medium;
+  }
+  .tabbar a.active .tab-pill {
+    @apply bg-brand-100;
+  }
+  .tab-pill { @apply px-4 py-1.5 rounded-full transition; }
+
+  /* ---- Sidebar item ---- */
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-r-full text-sm text-slate-700
+           hover:bg-slate-100 transition cursor-pointer;
+  }
+  .nav-item.active {
+    @apply bg-brand-50 text-brand-700 font-medium;
+  }
+
+  /* ---- Stat triplet (Turned in / Assigned / Graded) ---- */
+  .stat-triplet { @apply grid grid-cols-3 divide-x divide-slate-200; }
+  .stat-triplet > div { @apply text-center px-4 py-3; }
+  .stat-num { @apply text-3xl font-normal text-slate-900; }
+  .stat-label { @apply text-xs text-slate-600 mt-1; }
+}
+
+.leaflet-container { width: 100%; height: 100%; border-radius: 1rem; }

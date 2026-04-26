@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lakshya crest shield (centered in 108x108, safe zone is 66dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+    <!-- Shield body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,28 H78 V64 C78,79 64,87 54,91 C44,87 30,79 30,64 Z" />
+    <!-- Shield outline -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FACC15"
+        android:strokeWidth="1.5"
+        android:pathData="M30,28 H78 V64 C78,79 64,87 54,91 C44,87 30,79 30,64 Z" />
+    <!-- Top circle ornament -->
+    <path
+        android:fillColor="#FACC15"
+        android:pathData="M50,42 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+</vector>

@@ -1,0 +1,38 @@
+node_modules
+.next
+.env
+.env.local
+.env.production
+.env.production.local
+
+# Local SQLite DB (dev only — production uses Supabase Postgres)
+prisma/*.db
+prisma/*.db-journal
+
+# User-uploaded files (production uses Supabase Storage)
+uploads/
+
+# Build artifacts and logs
+*.log
+.DS_Store
+.vercel
+
+# Mobile project — large local toolchain & build outputs
+mobile/node_modules
+mobile/.tools
+mobile/android/.gradle
+mobile/android/build
+mobile/android/app/build
+mobile/android/local.properties
+mobile/android/captures
+mobile/lakshya-mcb-debug.apk
+mobile/*.apk
+mobile/*.aab
+
+# Local screenshots (large; not part of the deployable web app)
+screenshots/
+
+# Editor / OS
+.idea
+.vscode
+Thumbs.db

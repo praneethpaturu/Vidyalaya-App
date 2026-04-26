@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lakshya brand background — deep blue gradient. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+    <path
+        android:fillColor="#0F2D5E"
+        android:pathData="M0,0h108v108h-108z" />
+    <path
+        android:fillColor="#1D4ED8"
+        android:fillAlpha="0.55"
+        android:pathData="M0,0h108v74c-30,18 -78,18 -108,0z" />
+</vector>

@@ -1,0 +1,20 @@
+node_modules
+dist
+
+# Android build artifacts
+android/.gradle
+android/build
+android/app/build
+android/local.properties
+android/key.properties
+android/app/release
+android/captures
+android/.idea
+*.iml
+*.jks
+
+# Firebase config (per-environment)
+android/app/google-services.json
+
+# OS
+.DS_Store

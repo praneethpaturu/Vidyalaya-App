@@ -1,0 +1,32 @@
+{
+  "name": "vidyalaya-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capacitor Android wrapper for the Lakshya / MCB web app. The web (vidyalaya/) is unchanged; this is a separate project that produces an .apk / .aab.",
+  "scripts": {
+    "sync": "cap sync android",
+    "open:android": "cap open android",
+    "run:android": "cap run android",
+    "build:apk": "cd android && ./gradlew assembleDebug",
+    "build:aab": "cd android && ./gradlew bundleRelease",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/browser": "^6.0.5",
+    "@capacitor/camera": "^6.1.2",
+    "@capacitor/core": "^6.2.1",
+    "@capacitor/filesystem": "^6.0.3",
+    "@capacitor/haptics": "^6.0.2",
+    "@capacitor/network": "^6.0.3",
+    "@capacitor/preferences": "^6.0.3",
+    "@capacitor/push-notifications": "^6.0.4",
+    "@capacitor/splash-screen": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.1",
+    "sharp": "^0.33.5"
+  }
+}

@@ -1,0 +1,25 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import Shell from "@/components/Shell";
+
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  const u = session.user as any;
+  // Refresh the school name fresh from DB so a rename takes effect immediately
+  // (without requiring users to sign out / sign back in).
+  let schoolName: string = u.schoolName;
+  if (u.schoolId) {
+    const s = await prisma.school.findUnique({
+      where: { id: u.schoolId },
+      select: { name: true },
+    });
+    if (s?.name) schoolName = s.name;
+  }
+  return (
+    <Shell user={{ name: u.name, email: u.email, role: u.role, schoolName }}>
+      {children}
+    </Shell>
+  );
+}
