@@ -1,16 +1,16 @@
 "use client";
 
-import { Headphones, BookOpen, Calendar, Users, MessageSquare, Video, Phone, Ticket } from "lucide-react";
+import { Headphones, Calendar, Users, MessageSquare, Video, Ticket } from "lucide-react";
 import { useState } from "react";
 
 const ITEMS = [
-  { label: "Raise a Ticket",                          href: "#ticket",   icon: Ticket },
-  { label: "Book a Training Slot with Account Mgr",   href: "#train",    icon: Calendar },
-  { label: "Book a Meeting Slot with CSM",            href: "#csm",      icon: Calendar },
-  { label: "View Scheduled Online Trainings",         href: "#viewtr",   icon: Video },
-  { label: "School Point of Contacts",                href: "#poc",      icon: Users },
-  { label: "Give Feedback",                           href: "#fb",       icon: MessageSquare },
-  { label: "Help Videos",                             href: "#vids",     icon: Video },
+  { label: "Raise a ticket",                href: "#ticket",  icon: Ticket },
+  { label: "Book training with Account Mgr", href: "#train",  icon: Calendar },
+  { label: "Book a meeting with CSM",        href: "#csm",    icon: Calendar },
+  { label: "View scheduled online trainings",href: "#viewtr", icon: Video },
+  { label: "School point of contacts",       href: "#poc",    icon: Users },
+  { label: "Give feedback",                  href: "#fb",     icon: MessageSquare },
+  { label: "Help videos",                    href: "#vids",   icon: Video },
 ];
 
 export default function HelpMenu() {
@@ -19,28 +19,31 @@ export default function HelpMenu() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        title="Get more information"
-        aria-label="Get more information"
-        className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-700 text-slate-100 hover:bg-slate-600 transition"
+        title="Help &amp; resources"
+        aria-label="Help and resources"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-full text-slate-600 hover:bg-white hover:text-brand-700 hover:shadow-sm transition-all duration-150 focus-visible:outline-none focus-visible:shadow-focus"
       >
-        <Headphones className="w-4 h-4" />
+        <Headphones className="w-4 h-4" strokeWidth={2.25} />
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-2 w-72 z-40 card p-1 shadow-lg">
-            <div className="px-3 py-2 text-xs uppercase tracking-wider font-semibold text-slate-500">
-              Get More Information
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div role="menu" className="absolute right-0 mt-2 w-72 z-40 bg-white rounded-2xl border border-slate-200 shadow-xl p-1.5">
+            <div className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500">
+              Help &amp; resources
             </div>
             <ul className="py-1">
               {ITEMS.map((it) => (
-                <li key={it.label}>
+                <li key={it.label} role="none">
                   <a
                     href={it.href}
+                    role="menuitem"
                     onClick={(e) => { e.preventDefault(); setOpen(false); }}
-                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg hover:bg-brand-50 hover:text-brand-700 text-slate-700 transition-colors"
                   >
-                    <it.icon className="w-4 h-4 text-slate-500" />
+                    <it.icon className="w-4 h-4 text-slate-400" aria-hidden="true" />
                     <span>{it.label}</span>
                   </a>
                 </li>

@@ -9,7 +9,7 @@ type Fav = { href: string; label: string };
 function loadLocal(): Fav[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem("mcb:favs") ?? "[]";
+    const raw = localStorage.getItem("vidyalaya:favs") ?? localStorage.getItem("mcb:favs") ?? "[]";
     const arr = JSON.parse(raw);
     return Array.isArray(arr) ? arr.filter((x) => x && typeof x.href === "string") : [];
   } catch {
@@ -18,7 +18,7 @@ function loadLocal(): Fav[] {
 }
 
 function saveLocal(items: Fav[]) {
-  localStorage.setItem("mcb:favs", JSON.stringify(items));
+  localStorage.setItem("vidyalaya:favs", JSON.stringify(items));
 }
 
 export default function FavouritesMenu() {
@@ -36,41 +36,47 @@ export default function FavouritesMenu() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        title="Get Favourite Menus"
+        title="Favourite menus"
         aria-label="Favourite menus"
-        className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-700 text-slate-100 hover:bg-slate-600 transition"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-full text-slate-600 hover:bg-white hover:text-brand-700 hover:shadow-sm transition-all duration-150 focus-visible:outline-none focus-visible:shadow-focus"
       >
-        <Bookmark className="w-4 h-4" />
+        <Bookmark className="w-4 h-4" strokeWidth={2.25} />
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-2 w-72 z-40 card p-1 shadow-lg">
-            <div className="px-3 py-2 text-xs uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5">
-              <Star className="w-3.5 h-3.5" /> Favourite Menus
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div role="menu" className="absolute right-0 mt-2 w-72 z-40 bg-white rounded-2xl border border-slate-200 shadow-xl p-1.5">
+            <div className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5">
+              <Star className="w-3.5 h-3.5" aria-hidden="true" /> Favourite menus
             </div>
             {items.length === 0 ? (
-              <div className="px-3 py-6 text-center text-sm text-slate-500">
-                No favourites yet.<br />
-                <span className="text-xs">Click the ⭐ on any module sub-nav to add.</span>
+              <div className="px-4 py-6 text-center text-sm text-slate-500">
+                No favourites yet.
+                <div className="text-xs mt-1 text-slate-400">
+                  Click the star on any module sub-nav to add it.
+                </div>
               </div>
             ) : (
               <ul className="py-1 max-h-72 overflow-y-auto">
                 {items.map((i) => (
-                  <li key={i.href} className="flex items-center gap-1 px-1.5">
+                  <li key={i.href} className="flex items-center gap-1 px-1">
                     <Link
                       href={i.href}
                       onClick={() => setOpen(false)}
-                      className="flex-1 text-sm py-2 px-2 rounded-lg hover:bg-slate-50 text-slate-700 truncate"
+                      className="flex-1 text-sm py-2 px-2.5 rounded-lg hover:bg-brand-50 hover:text-brand-700 text-slate-700 truncate transition-colors"
+                      role="menuitem"
                     >
                       {i.label}
                     </Link>
                     <button
                       onClick={() => remove(i.href)}
-                      title="Remove"
-                      className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
+                      title="Remove from favourites"
+                      aria-label={`Remove ${i.label} from favourites`}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-amber-500 transition-colors"
                     >
-                      <BookmarkCheck className="w-4 h-4 text-amber-500" />
+                      <BookmarkCheck className="w-4 h-4" />
                     </button>
                   </li>
                 ))}
@@ -98,9 +104,10 @@ export function FavStar({ href, label }: { href: string; label: string }) {
   return (
     <button
       onClick={toggle}
-      title={on ? "Remove from favourites" : "Click here to add this menu to Favourite Menus list"}
+      title={on ? "Remove from favourites" : "Add to favourites"}
       aria-label="Toggle favourite"
-      className={`p-1.5 rounded-full hover:bg-slate-700/40 ${on ? "text-amber-300" : "text-slate-200"}`}
+      aria-pressed={on}
+      className={`p-1.5 rounded-full transition-colors hover:bg-slate-700/40 ${on ? "text-amber-300" : "text-slate-200"}`}
     >
       <Star className={`w-4 h-4 ${on ? "fill-amber-300" : ""}`} />
     </button>
