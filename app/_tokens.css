@@ -1,0 +1,89 @@
+/* ─────────────────────────────────────────────────────────────
+   Vidyalaya design tokens
+   Single source of truth for color / radius / shadow / motion.
+   Tailwind config maps these into utility classes; pages can
+   also use the CSS vars directly via var(--color-*) etc.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: light;
+
+  /* ── Surface / text neutrals ── */
+  --color-bg:            #ffffff;
+  --color-surface:       #f8fafc;   /* slate-50 */
+  --color-surface-2:     #f1f5f9;   /* slate-100 */
+  --color-border:        #e2e8f0;   /* slate-200 */
+  --color-border-strong: #cbd5e1;   /* slate-300 */
+  --color-text:          #0f172a;   /* slate-900 */
+  --color-text-muted:    #475569;   /* slate-600 */
+  --color-text-soft:     #64748b;   /* slate-500 */
+
+  /* ── Brand: refined indigo-blue ── */
+  --color-brand-50:  #eef4ff;
+  --color-brand-100: #dce7ff;
+  --color-brand-200: #b9cfff;
+  --color-brand-300: #8aaeff;
+  --color-brand-400: #5783fb;
+  --color-brand-500: #335ef0;
+  --color-brand-600: #2547d6;
+  --color-brand-700: #1e3aae;
+  --color-brand-800: #1d3088;
+  --color-brand-900: #1b2a6c;
+
+  /* ── Accent: warm coral, used sparingly for highlights / WhatsNew ── */
+  --color-accent-50:  #fff5f1;
+  --color-accent-100: #ffe5db;
+  --color-accent-500: #f97362;
+  --color-accent-600: #e6543d;
+
+  /* ── Semantic ── */
+  --color-success:  #10b981;
+  --color-success-soft: #d1fae5;
+  --color-warning:  #d97706;
+  --color-warning-soft: #fef3c7;
+  --color-danger:   #dc2626;
+  --color-danger-soft:  #fee2e2;
+
+  /* ── Typography ── */
+  --font-sans: var(--font-inter), "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-inter-tight), var(--font-inter), "Inter", system-ui, sans-serif;
+
+  /* ── Radii ── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ── (soft, layered, not Material-heavy) */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.10), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --shadow-focus: 0 0 0 3px rgba(37, 71, 214, 0.18);   /* brand-600 @ 18% */
+
+  /* ── Motion ── */
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:   cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+}
+
+/* Honour user's reduced-motion preference everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

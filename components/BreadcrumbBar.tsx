@@ -63,35 +63,47 @@ export default function BreadcrumbBar() {
   const page = lastSegment(pathname);
 
   return (
-    <div className="bg-slate-800 text-slate-100">
-      <div className="max-w-screen-2xl mx-auto px-4 h-9 flex items-center gap-2 overflow-x-auto">
+    <nav aria-label="Breadcrumb" className="bg-slate-900 text-slate-100">
+      <div className="max-w-screen-2xl mx-auto px-4 h-9 flex items-center gap-2.5 overflow-x-auto">
         <FavStar href={pathname} label={`${moduleTitle} · ${page}`} />
-        <div className="flex items-center gap-2 text-[13px] whitespace-nowrap">
+        <ol className="flex items-center gap-2 text-[13px] whitespace-nowrap">
           {moduleTitle && (
             <>
-              <span className="font-medium underline-offset-4 underline text-white">{moduleTitle}</span>
-              <span className="text-slate-500">|</span>
+              <li className="font-medium text-white">{moduleTitle}</li>
+              <li aria-hidden="true" className="text-slate-500">›</li>
             </>
           )}
           {page && page !== moduleTitle && (
-            <span className="text-slate-300">{page}</span>
+            <li className="text-slate-300">{page}</li>
           )}
-        </div>
+        </ol>
         <div className="ml-auto flex items-center gap-1 text-slate-300">
-          <button title="Help video" className="p-1.5 rounded-md hover:bg-slate-700/50">
-            <Video className="w-4 h-4" />
-          </button>
-          <button title="Information" className="p-1.5 rounded-md hover:bg-slate-700/50">
-            <Info className="w-4 h-4" />
+          <button
+            type="button"
+            aria-label="Help video"
+            title="Help video"
+            className="p-1.5 rounded-md hover:bg-slate-700/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+          >
+            <Video className="w-4 h-4" aria-hidden="true" />
           </button>
           <button
-            title="Help"
-            className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center hover:bg-orange-600"
+            type="button"
+            aria-label="More info"
+            title="More info"
+            className="p-1.5 rounded-md hover:bg-slate-700/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
-            <HelpCircle className="w-4 h-4" />
+            <Info className="w-4 h-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="Help"
+            title="Help"
+            className="w-6 h-6 rounded-full bg-accent-600 text-white flex items-center justify-center hover:bg-accent-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
+          >
+            <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
       </div>
-    </div>
+    </nav>
   );
 }

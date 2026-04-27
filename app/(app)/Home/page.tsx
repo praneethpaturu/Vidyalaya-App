@@ -49,40 +49,43 @@ export default async function HomeMcbPage() {
   return (
     <div className="p-5 max-w-screen-2xl mx-auto">
       <HomePageTabs />
-      {/* Page header (replicates the H1 right above MCB widgets) */}
-      <div className="flex items-end justify-between mb-5">
+      {/* Page header */}
+      <div className="flex items-end justify-between mb-6">
         <div>
-          <h1 className="h-page text-slate-700">Dashboard</h1>
-          <p className="muted mt-0.5">{user.schoolName} · AY 2026-2027</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 font-display">Welcome back</h1>
+          <p className="text-sm text-slate-500 mt-1">{user.schoolName} · Academic year 2026–2027</p>
         </div>
       </div>
 
       {/* Top KPI tiles */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
         {/* Strength counter */}
-        <div className="card card-pad">
-          <div className="flex items-center justify-between mb-2">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 hover:shadow-md transition-shadow duration-200">
+          <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
-              <Users className="w-4 h-4 text-brand-700" /> Strength
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                <Users className="w-4 h-4" />
+              </span>
+              Strength
             </div>
-            <Link href="/Home/SIS" className="text-xs text-brand-700 hover:underline flex items-center gap-0.5">
-              Data Checker <ChevronRight className="w-3.5 h-3.5" />
+            <Link href="/Home/SIS" className="text-xs text-brand-700 hover:text-brand-800 flex items-center gap-0.5 font-medium">
+              Data checker <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
           <div className="grid grid-cols-2 divide-x divide-slate-100">
             <div>
               <div className="text-[11px] text-slate-500">All</div>
-              <div className="text-3xl font-medium tracking-tight">{allCount}</div>
+              <div className="text-3xl font-semibold tracking-tight text-slate-900">{allCount}</div>
             </div>
             <div className="pl-4">
               <div className="text-[11px] text-slate-500">CBSE</div>
-              <div className="text-3xl font-medium tracking-tight">{cbseCount}</div>
+              <div className="text-3xl font-semibold tracking-tight text-slate-900">{cbseCount}</div>
             </div>
           </div>
         </div>
 
         {/* Staff card */}
-        <div className="card card-pad">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 hover:shadow-md transition-shadow duration-200">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
               <Crown className="w-4 h-4 text-violet-700" /> Staff
@@ -100,7 +103,7 @@ export default async function HomeMcbPage() {
         </div>
 
         {/* Communications */}
-        <div className="card card-pad">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 hover:shadow-md transition-shadow duration-200">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-emerald-700" /> Communications
@@ -122,7 +125,7 @@ export default async function HomeMcbPage() {
         </div>
 
         {/* Board-wise Branches */}
-        <div className="card card-pad">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 hover:shadow-md transition-shadow duration-200">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-slate-700" /> Board-wise Branches
@@ -144,7 +147,7 @@ export default async function HomeMcbPage() {
         <ConcernsCard today={concernsToday} d7={concerns7d} d30={concerns30d} />
 
         {/* Inventory */}
-        <div className="card card-pad">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 hover:shadow-md transition-shadow duration-200">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
               <Boxes className="w-4 h-4 text-amber-700" /> Inventory
@@ -162,7 +165,7 @@ export default async function HomeMcbPage() {
         </div>
 
         {/* Login Status */}
-        <div className="card card-pad">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 hover:shadow-md transition-shadow duration-200">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
               <LogIn className="w-4 h-4 text-rose-700" /> Login Status

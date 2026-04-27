@@ -1,73 +1,112 @@
+@import "./_tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
-  --gc-bg: #ffffff;
-  --gc-surface: #f8f9fa;
-  --gc-text: #202124;
-  --gc-text-muted: #5f6368;
-  --gc-divider: #dadce0;
-}
-
+/* ─────────────────────────────────────────────────────────────
+   Base
+   ───────────────────────────────────────────────────────────── */
 html, body { height: 100%; }
 body {
-  font-family: "Google Sans", "Roboto", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  background: var(--gc-bg);
-  color: var(--gc-text);
+  font-family: var(--font-sans);
+  background: var(--color-surface);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
+/* Respect Tailwind's reset for buttons, then add our own focus-visible
+   ring so every interactive element has a clean keyboard outline.       */
+:where(button, [role="button"], a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Selection */
+::selection { background: var(--color-brand-100); color: var(--color-brand-900); }
+
+/* ─────────────────────────────────────────────────────────────
+   Component utility classes (kept backwards-compatible — pages
+   use these heavily; new <Button>/<Card>/etc. components also
+   compose them under the hood).
+   ───────────────────────────────────────────────────────────── */
 @layer components {
   /* ---- Cards ---- */
-  .card { @apply bg-white rounded-2xl border border-slate-200 shadow-card; }
+  .card {
+    @apply bg-white rounded-2xl border border-slate-200;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--duration-base) var(--ease-out),
+                transform var(--duration-base) var(--ease-out);
+  }
+  .card:hover { box-shadow: var(--shadow-md); }
   .card-pad { @apply p-5; }
 
-  /* ---- Buttons (MCB-style: blue for primary, smaller radius) ---- */
-  .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition select-none; }
+  /* ---- Buttons ---- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+           text-sm font-medium select-none whitespace-nowrap;
+    transition: background-color var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out);
+  }
+  .btn:disabled, .btn[aria-disabled="true"] { @apply opacity-50 cursor-not-allowed; }
+  .btn:not(:disabled):active { transform: translateY(0.5px); }
+
   .btn-primary { @apply btn bg-brand-700 text-white hover:bg-brand-800 active:bg-brand-900; }
-  .btn-tonal { @apply btn bg-brand-50 text-brand-700 hover:bg-brand-100; }
+  .btn-tonal   { @apply btn bg-brand-50  text-brand-700 hover:bg-brand-100; }
   .btn-outline { @apply btn bg-white border border-slate-300 text-slate-700 hover:bg-slate-50; }
-  .btn-ghost { @apply btn text-brand-700 hover:bg-brand-50; }
-  .btn-danger { @apply btn bg-mcb-red text-white hover:brightness-95; }
-  .btn-coral  { @apply btn bg-mcb-orange text-white hover:brightness-95; }
+  .btn-ghost   { @apply btn text-brand-700 hover:bg-brand-50; }
+  .btn-danger  { @apply btn bg-rose-600 text-white hover:bg-rose-700; }
+  .btn-coral   { @apply btn text-white;
+                 background: var(--color-accent-600); }
+  .btn-coral:hover { background: var(--color-accent-500); }
 
   /* ---- Inputs ---- */
   .input {
     @apply w-full px-3.5 py-2.5 rounded-lg border border-slate-300 bg-white text-sm
            placeholder:text-slate-400
-           focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600;
+           focus:outline-none focus:border-brand-600
+           disabled:bg-slate-50 disabled:text-slate-400;
+    transition: border-color var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out);
   }
-  .label { @apply text-xs font-medium text-slate-600 mb-1 block; }
+  .input:focus { box-shadow: var(--shadow-focus); }
+  .label { @apply text-xs font-medium text-slate-700 mb-1 block; }
 
   /* ---- Badges ---- */
-  .badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium; }
+  .badge       { @apply inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium; }
   .badge-green { @apply badge bg-emerald-50 text-emerald-700 border border-emerald-200; }
-  .badge-red { @apply badge bg-rose-50 text-rose-700 border border-rose-200; }
+  .badge-red   { @apply badge bg-rose-50 text-rose-700 border border-rose-200; }
   .badge-amber { @apply badge bg-amber-50 text-amber-800 border border-amber-200; }
-  .badge-blue { @apply badge bg-brand-50 text-brand-700 border border-brand-200; }
+  .badge-blue  { @apply badge bg-brand-50 text-brand-700 border border-brand-200; }
   .badge-slate { @apply badge bg-slate-100 text-slate-700 border border-slate-200; }
 
   /* ---- Tables ---- */
   .table { @apply w-full text-sm; }
   .table th {
-    @apply text-left text-[12px] font-semibold text-slate-700
-           px-3 py-2.5 border-b border-slate-200 bg-slate-50;
+    @apply text-left text-[12px] font-semibold text-slate-600
+           px-3 py-2.5 border-b border-slate-200 bg-slate-50/60;
   }
-  .table td { @apply px-3 py-2.5 border-b border-slate-100 align-middle; }
-  .table tr:hover td { @apply bg-slate-50/60; }
+  .table td {
+    @apply px-3 py-2.5 border-b border-slate-100 align-middle text-slate-800;
+  }
+  .table tr:hover td { @apply bg-slate-50/70; }
 
   /* ---- Typography ---- */
-  .h-page { @apply text-2xl font-medium text-slate-700 tracking-tight; }
-  .h-section { @apply text-base font-medium text-mcb-blue; }
-  .muted { @apply text-slate-500 text-sm; }
-  .kpi-num { @apply text-3xl font-medium text-slate-900 tracking-tight; }
-  .empty-state { @apply text-center text-mcb-red font-medium py-8; }
-  .section-title { @apply text-mcb-blue font-medium; }
+  .h-page    { @apply text-2xl font-semibold text-slate-900 tracking-tight; }
+  .h-section { @apply text-base font-semibold text-slate-700; }
+  .muted     { @apply text-slate-500 text-sm; }
+  .kpi-num   { @apply text-3xl font-semibold text-slate-900 tracking-tight; }
+  .empty-state { @apply text-center text-slate-500 py-10 text-sm; }
+  .section-title { @apply text-slate-700 font-semibold; }
 
-  /* ---- Class card themes (pastel illustrated banners, GC-style) ---- */
-  .theme-card { @apply rounded-2xl overflow-hidden relative shadow-card hover:shadow-cardHover transition; }
+  /* ---- Class card themes (pastel banners) — slightly desaturated ---- */
+  .theme-card { @apply rounded-2xl overflow-hidden relative;
+                box-shadow: var(--shadow-sm); transition: box-shadow var(--duration-base) var(--ease-out); }
+  .theme-card:hover { box-shadow: var(--shadow-md); }
   .theme-pink     { background: linear-gradient(135deg, #fde4ec 0%, #fad1de 100%); }
   .theme-peach    { background: linear-gradient(135deg, #fde9c9 0%, #f9d9a8 100%); }
   .theme-mint     { background: linear-gradient(135deg, #ddf3e4 0%, #c1e7cb 100%); }
@@ -80,37 +119,54 @@ body {
   /* ---- FAB ---- */
   .fab {
     @apply fixed bottom-6 right-6 z-30 w-14 h-14 rounded-2xl
-           bg-brand-100 text-brand-700 hover:bg-brand-200 active:bg-brand-300
-           shadow-fab flex items-center justify-center transition;
+           bg-brand-600 text-white hover:bg-brand-700
+           flex items-center justify-center;
+    box-shadow: var(--shadow-lg);
+    transition: background-color var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out);
   }
+  .fab:hover { transform: translateY(-1px); box-shadow: var(--shadow-xl); }
 
-  /* ---- Bottom tab bar (class detail) ---- */
+  /* ---- Bottom tab bar ---- */
   .tabbar { @apply flex items-center justify-around bg-white border-t border-slate-200; }
   .tabbar a {
-    @apply flex flex-col items-center gap-1 px-4 py-3 text-xs text-slate-600 transition;
+    @apply flex flex-col items-center gap-1 px-4 py-3 text-xs text-slate-600;
+    transition: color var(--duration-fast) var(--ease-out);
   }
-  .tabbar a.active {
-    @apply text-brand-700 font-medium;
+  .tabbar a.active        { @apply text-brand-700 font-medium; }
+  .tabbar a.active .tab-pill { @apply bg-brand-100; }
+  .tab-pill {
+    @apply px-4 py-1.5 rounded-full;
+    transition: background-color var(--duration-fast) var(--ease-out);
   }
-  .tabbar a.active .tab-pill {
-    @apply bg-brand-100;
-  }
-  .tab-pill { @apply px-4 py-1.5 rounded-full transition; }
 
   /* ---- Sidebar item ---- */
   .nav-item {
     @apply flex items-center gap-3 px-4 py-2.5 rounded-r-full text-sm text-slate-700
-           hover:bg-slate-100 transition cursor-pointer;
+           hover:bg-slate-100 cursor-pointer;
+    transition: background-color var(--duration-fast) var(--ease-out);
   }
-  .nav-item.active {
-    @apply bg-brand-50 text-brand-700 font-medium;
-  }
+  .nav-item.active { @apply bg-brand-50 text-brand-700 font-medium; }
 
-  /* ---- Stat triplet (Turned in / Assigned / Graded) ---- */
+  /* ---- Stat triplet ---- */
   .stat-triplet { @apply grid grid-cols-3 divide-x divide-slate-200; }
   .stat-triplet > div { @apply text-center px-4 py-3; }
-  .stat-num { @apply text-3xl font-normal text-slate-900; }
-  .stat-label { @apply text-xs text-slate-600 mt-1; }
+  .stat-num    { @apply text-3xl font-semibold text-slate-900; }
+  .stat-label  { @apply text-xs text-slate-600 mt-1; }
+
+  /* ---- Skeleton ---- */
+  .skeleton {
+    @apply bg-slate-100 rounded-md;
+    background-image: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes skeleton-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
 }
 
+/* Map (used by transport live page) */
 .leaflet-container { width: 100%; height: 100%; border-radius: 1rem; }

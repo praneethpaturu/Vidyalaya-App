@@ -1,31 +1,53 @@
 import type { Config } from "tailwindcss";
 
+// Tailwind theme is a thin mapping layer over the CSS variables in
+// app/_tokens.css. Adding a colour or radius? Update the token first.
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // MCB primary blue — used for buttons, blue section headers and active pills.
+        // ─── Brand: indigo-blue (refined) ───
         brand: {
-          50: "#eff6ff", 100: "#dbeafe", 200: "#bfdbfe", 300: "#93c5fd",
-          400: "#60a5fa", 500: "#3b82f6", 600: "#2563eb", 700: "#1d4ed8",
-          800: "#1e40af", 900: "#1e3a8a", 950: "#172554",
+          50:  "var(--color-brand-50)",
+          100: "var(--color-brand-100)",
+          200: "var(--color-brand-200)",
+          300: "var(--color-brand-300)",
+          400: "var(--color-brand-400)",
+          500: "var(--color-brand-500)",
+          600: "var(--color-brand-600)",
+          700: "var(--color-brand-700)",
+          800: "var(--color-brand-800)",
+          900: "var(--color-brand-900)",
+          950: "#1b2a6c",
         },
-        // MCB coral — the school name, the lightbulb halo, primary CTA accents.
+
+        // ─── Accent: warm coral, sparing usage ───
+        accent: {
+          50:  "var(--color-accent-50)",
+          100: "var(--color-accent-100)",
+          500: "var(--color-accent-500)",
+          600: "var(--color-accent-600)",
+        },
+
+        // ─── Backwards-compat: legacy `mcb-*` aliases.
+        // Kept so existing pages keep working during incremental migration.
+        // New code should use `brand-*` and `accent-*`.
         mcb: {
-          50:  "#fff5f3",
-          100: "#ffe6e1",
-          200: "#ffc9bf",
-          300: "#ffa192",
-          400: "#ff7a64",
-          500: "#f06548",
-          orange: "#e55c3f",     // school name + primary brand accent
-          red:    "#dc2626",     // active page-tab underline
-          blue:   "#1e40af",     // section-header text
-          lavender: "#ebe0ff",   // AY pill background
-          lavenderInk: "#7c3aed",// AY pill text
+          50:  "var(--color-accent-50)",
+          100: "var(--color-accent-100)",
+          200: "var(--color-accent-100)",
+          300: "var(--color-accent-500)",
+          400: "var(--color-accent-500)",
+          500: "var(--color-accent-500)",
+          orange:      "var(--color-accent-600)",
+          red:         "var(--color-brand-700)",   // was MCB red — now brand-blue per design call
+          blue:        "var(--color-brand-700)",
+          lavender:    "var(--color-brand-50)",
+          lavenderInk: "var(--color-brand-700)",
         },
-        // Pastel theme palette for class cards (mirrors GC illustrated banners)
+
+        // ─── Pastel theme colours for class cards (kept) ───
         theme: {
           pink:     "#fde4ec",
           peach:    "#fde9c9",
@@ -47,17 +69,37 @@ const config: Config = {
           sage:     "#5a7a3f",
         },
       },
+
       fontFamily: {
-        sans: ['"Google Sans"', "ui-sans-serif", "system-ui", "Inter", "Roboto", "sans-serif"],
-        display: ['"Google Sans"', "ui-sans-serif", "system-ui", "Inter", "sans-serif"],
+        sans:    ["var(--font-sans)"],
+        display: ["var(--font-display)"],
       },
-      boxShadow: {
-        card: "0 1px 2px rgba(60,64,67,.08), 0 1px 3px 1px rgba(60,64,67,.05)",
-        cardHover: "0 1px 3px rgba(60,64,67,.12), 0 4px 8px 3px rgba(60,64,67,.08)",
-        fab: "0 3px 6px rgba(60,64,67,.15), 0 4px 12px rgba(60,64,67,.12)",
-      },
+
       borderRadius: {
+        xs:    "var(--radius-xs)",
+        sm:    "var(--radius-sm)",
+        md:    "var(--radius-md)",
+        lg:    "var(--radius-lg)",
+        xl:    "var(--radius-xl)",
+        "2xl": "var(--radius-2xl)",
         "2.5xl": "1.25rem",
+      },
+
+      boxShadow: {
+        xs:        "var(--shadow-xs)",
+        sm:        "var(--shadow-sm)",
+        md:        "var(--shadow-md)",
+        lg:        "var(--shadow-lg)",
+        xl:        "var(--shadow-xl)",
+        focus:     "var(--shadow-focus)",
+        // Backwards-compat with the old `shadow-card` etc.
+        card:      "var(--shadow-sm)",
+        cardHover: "var(--shadow-md)",
+        fab:       "var(--shadow-lg)",
+      },
+
+      transitionTimingFunction: {
+        "out-soft": "cubic-bezier(0.16, 1, 0.3, 1)",
       },
     },
   },

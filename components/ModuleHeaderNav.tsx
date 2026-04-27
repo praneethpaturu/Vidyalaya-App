@@ -215,6 +215,7 @@ export default function ModuleHeaderNav() {
 
   return (
     <nav
+      aria-label="Module navigation"
       className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-1"
       onMouseLeave={() => setOpenIdx(null)}
     >
@@ -233,31 +234,42 @@ export default function ModuleHeaderNav() {
           >
             <Link
               href={it.href}
-              className={`flex items-center gap-1 text-[15px] font-medium pb-0.5 border-b-2 transition whitespace-nowrap ${
+              aria-current={isActive ? "page" : undefined}
+              aria-haspopup={hasChildren ? "menu" : undefined}
+              aria-expanded={hasChildren ? isOpen : undefined}
+              className={`flex items-center gap-1 text-[14.5px] font-medium pb-0.5 border-b-2 transition-colors duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:rounded-sm focus-visible:shadow-focus ${
                 isActive
-                  ? "text-slate-900 border-mcb-red"
-                  : "text-slate-700 border-transparent hover:text-slate-900"
+                  ? "text-brand-700 border-brand-700"
+                  : "text-slate-700 border-transparent hover:text-slate-900 hover:border-slate-300"
               }`}
             >
               {it.label}
-              <ChevronDown className={`w-3.5 h-3.5 ${hasChildren ? "text-slate-500" : "text-transparent"}`} />
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                  hasChildren ? "text-slate-500" : "text-transparent"
+                } ${isOpen ? "rotate-180" : ""}`}
+                aria-hidden="true"
+              />
             </Link>
             {isOpen && hasChildren && (
               <div
+                role="menu"
                 className="absolute left-0 top-full pt-1 z-40"
                 onMouseEnter={() => setOpenIdx(i)}
               >
-                <ul className="min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                <ul className="min-w-[240px] bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 overflow-hidden">
                   {it.children!.map((child) => {
                     const childActive =
                       pathname === child.href || pathname.startsWith(child.href + "/");
                     return (
-                      <li key={child.href}>
+                      <li key={child.href} role="none">
                         <Link
                           href={child.href}
+                          role="menuitem"
+                          aria-current={childActive ? "page" : undefined}
                           onClick={() => setOpenIdx(null)}
-                          className={`block px-4 py-2 text-sm hover:bg-slate-50 ${
-                            childActive ? "text-mcb-red font-medium" : "text-slate-700"
+                          className={`block px-4 py-2 text-sm transition-colors hover:bg-brand-50 hover:text-brand-700 ${
+                            childActive ? "bg-brand-50 text-brand-700 font-medium" : "text-slate-700"
                           }`}
                         >
                           {child.label}
