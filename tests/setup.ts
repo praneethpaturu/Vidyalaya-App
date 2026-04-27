@@ -1,16 +1,26 @@
-// Vitest global setup — point Prisma at a separate test DB so tests don't
-// clobber dev data. The first test that uses prisma will create the schema.
-import { execSync } from "child_process";
-import path from "path";
-import fs from "fs";
+// Vitest global setup.
+//
+//  • Forces deterministic-stub mode for AI calls (zero OpenAI billing in tests)
+//  • Points Prisma at the *direct* Postgres URL (port 5432) so tests can
+//    use prepared statements / transactions the pooler restricts.
+//  • All test data is scoped to a synthetic schoolId starting with __TEST__,
+//    cleaned up centrally by factories.cleanupAllTestData().
 
-const TEST_DB = path.join(process.cwd(), "prisma", "test.db");
-process.env.DATABASE_URL = `file:./test.db`;
+import * as fs from "fs";
+import * as path from "path";
 
-if (!fs.existsSync(TEST_DB)) {
-  // Push the schema to test.db once.
-  execSync("npx prisma db push --skip-generate", {
-    stdio: "ignore",
-    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
-  });
+process.env.OPENAI_API_KEY = "";
+process.env.ANTHROPIC_API_KEY = "";
+process.env.AI_MODEL = "stub-test";
+
+// Use the direct URL when available locally. CI injects DATABASE_URL through
+// env secrets and we trust whatever's been set there.
+if (!process.env.CI) {
+  try {
+    const env = fs.readFileSync(path.join(process.cwd(), ".env"), "utf8");
+    const direct = env.match(/^DIRECT_URL="([^"]+)"/m)?.[1];
+    if (direct) process.env.DATABASE_URL = direct;
+  } catch { /* ok if .env is missing */ }
 }
+
+export const TEST_SCHOOL_PREFIX = "__TEST__";
