@@ -36,21 +36,25 @@ export const useLocale = () => useContext(I18nCtx);
 //
 // Two-tier matching:
 //  1. Exact match — the trimmed text is a known key. Cheapest, safest.
-//  2. Substring/phrase replacement — for compound strings like
-//     "Lakshya School of Excellence · Academic year 2026-2027" we don't
-//     have a key for the whole thing (the school name + year are dynamic).
-//     PHRASES is a list of [English, Hindi] pairs that get replaced
-//     anywhere they appear in a node, longest match first to avoid
-//     overlap (e.g. "Academic year 2026-2027" wins over "Academic year").
+//  2. Curated substring replacement — for compound strings like
+//     "Lakshya School of Excellence · Academic year 2026-2027" we replace
+//     ONLY the inner phrase (e.g. "Academic year 2026-2027") and leave the
+//     dynamic school name alone.
 //
-// PHRASES are derived from HI at module load — any HI key longer than 3
-// characters automatically becomes a candidate substring. False-positive
-// risk is mitigated by skipping anything that already contains Devanagari
-// (already-translated text) and by matching whole-word boundaries on
-// alphabetic phrases.
-const PHRASES: Array<[string, string]> = Object.entries(HI)
-  .filter(([k]) => k.length > 3 && !/^\W+$/.test(k))
-  .sort((a, b) => b[0].length - a[0].length); // longest first
+// IMPORTANT: keep this list short and explicit. Auto-deriving substrings
+// from the whole HI dict is tempting but risks false-positives (a 4-char
+// English word inside an unrelated phrase getting accidentally swapped).
+// Add a new line here only when you've verified the source text where it
+// will actually appear.
+const PHRASES: Array<[string, string]> = [
+  ["Academic year 2026–2027",       "शैक्षिक वर्ष 2026–2027"],
+  ["Academic year 2026-2027",       "शैक्षिक वर्ष 2026-2027"],
+  ["Academic year",                 "शैक्षिक वर्ष"],
+  ["Vidyalaya · School Suite",      "विद्यालय · स्कूल सूट"],
+  ["School Suite",                  "स्कूल सूट"],
+];
+// Sort longest first so prefix-overlapping entries don't trample each other.
+PHRASES.sort((a, b) => b[0].length - a[0].length);
 
 const HAS_DEVANAGARI = /[ऀ-ॿ]/;
 
@@ -64,7 +68,7 @@ function translate(text: string): string | null {
     const tail = text.match(/\s*$/)?.[0] ?? "";
     return lead + exact + tail;
   }
-  // Tier 2: substring replacement on compound strings.
+  // Tier 2: curated substring replacement.
   // Skip anything that already contains Devanagari (re-translation guard).
   if (HAS_DEVANAGARI.test(text)) return null;
   let out = text;
