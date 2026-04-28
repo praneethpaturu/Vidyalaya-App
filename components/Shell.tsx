@@ -18,6 +18,7 @@ import WhatsNewButton from "./WhatsNewButton";
 import FavouritesMenu from "./FavouritesMenu";
 import SearchPopover from "./SearchPopover";
 import BreadcrumbBar from "./BreadcrumbBar";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 type Props = {
   children: React.ReactNode;
@@ -63,6 +64,7 @@ export default function Shell({ children, user }: Props) {
 
             {/* Right utility cluster */}
             <div className="flex items-center gap-2 shrink-0">
+              <LanguageSwitcher />
               <div className="flex items-center gap-1.5 bg-slate-100 rounded-full p-1 ring-1 ring-slate-200">
                 <WhatsNewButton />
                 <FavouritesMenu />

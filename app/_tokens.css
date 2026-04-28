@@ -45,8 +45,8 @@
   --color-danger-soft:  #fee2e2;
 
   /* ── Typography ── */
-  --font-sans: var(--font-inter), "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-display: var(--font-inter-tight), var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-sans: var(--font-inter), var(--font-noto), "Inter", "Noto Sans Devanagari", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-inter-tight), var(--font-inter), var(--font-noto), "Inter", "Noto Sans Devanagari", system-ui, sans-serif;
 
   /* ── Radii ── */
   --radius-xs: 4px;

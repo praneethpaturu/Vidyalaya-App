@@ -1,11 +1,12 @@
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import type { Metadata } from "next";
-import { Inter, Inter_Tight } from "next/font/google";
+import { Inter, Inter_Tight, Noto_Sans_Devanagari } from "next/font/google";
 import Providers from "@/components/Providers";
+import I18nClient from "@/components/I18nClient";
 
-// Inter for body (excellent at small sizes), Inter Tight for display headings.
-// Self-hosted by next/font, served from the same origin — no external CDN call.
+// Inter for body / display, Noto Sans Devanagari for Hindi.
+// All self-hosted by next/font — no external CDN call.
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
@@ -16,6 +17,12 @@ const interTight = Inter_Tight({
   display: "swap",
   variable: "--font-inter-tight",
 });
+const noto = Noto_Sans_Devanagari({
+  subsets: ["devanagari", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-noto",
+});
 
 export const metadata: Metadata = {
   title: "Vidyalaya — School Suite",
@@ -24,9 +31,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${interTight.variable}`}>
+    <html lang="en" className={`${inter.variable} ${interTight.variable} ${noto.variable}`}>
       <body className="min-h-screen antialiased text-slate-900">
-        <Providers>{children}</Providers>
+        <I18nClient>
+          <Providers>{children}</Providers>
+        </I18nClient>
       </body>
     </html>
   );
