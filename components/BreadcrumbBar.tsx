@@ -68,8 +68,11 @@ export default function BreadcrumbBar() {
   const page = lastSegment(pathname);
 
   return (
-    <div className="bg-slate-900 text-slate-100">
-      <div className="max-w-screen-2xl mx-auto px-4 min-h-[40px] flex items-center gap-3 overflow-x-auto">
+    <div className="bg-slate-900 text-slate-100 relative z-30">
+      {/* No overflow-x-auto here — it would clip the absolute-positioned
+          module dropdowns. The inner module nav uses flex-wrap so labels
+          fall to a second line on narrow viewports rather than scroll. */}
+      <div className="max-w-screen-2xl mx-auto px-4 min-h-[40px] flex items-center gap-3">
         {/* Breadcrumb (compact) */}
         <nav aria-label="Breadcrumb" className="flex items-center gap-2 shrink-0">
           <FavStar href={pathname} label={`${moduleTitle} · ${page}`} />
