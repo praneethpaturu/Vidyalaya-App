@@ -23,7 +23,12 @@ import { HI, type Locale } from "@/lib/i18n-dict";
 
 const LOCALE_KEY = "vidyalaya:locale";
 const COOKIE_KEY = "vidyalaya_locale";
-const ATTR_TRANSLATED = "data-i18n-orig";   // stash original text for re-translate
+
+// Per-node original-text store. Keyed by the Text node itself so a parent
+// with multiple text children (e.g. `<p>{name} · {year}</p>` produces two
+// text nodes) keeps each child's pre-translation value separately. The
+// previous parent-attribute approach overwrote one with the other.
+const ORIG = new WeakMap<Text, string>();
 
 const I18nCtx = createContext<{
   locale: Locale;
@@ -105,22 +110,20 @@ function walkAndTranslate(root: Node, mode: "to-hi" | "restore") {
   while ((n = tw.nextNode())) nodes.push(n as Text);
 
   for (const node of nodes) {
-    const p = node.parentElement!;
     if (mode === "to-hi") {
-      const original = node.nodeValue ?? "";
+      // Use the stashed original if we've translated this node before;
+      // otherwise the current value is the original.
+      const original = ORIG.get(node) ?? node.nodeValue ?? "";
       const out = translate(original);
       if (out !== null && out !== original) {
-        // Stash on the parent so we can restore if locale flips back.
-        if (!p.hasAttribute(ATTR_TRANSLATED)) {
-          p.setAttribute(ATTR_TRANSLATED, original);
-        }
-        node.nodeValue = out;
+        if (!ORIG.has(node)) ORIG.set(node, original);
+        if (node.nodeValue !== out) node.nodeValue = out;
       }
     } else if (mode === "restore") {
-      const stash = p.getAttribute(ATTR_TRANSLATED);
-      if (stash !== null) {
-        node.nodeValue = stash;
-        p.removeAttribute(ATTR_TRANSLATED);
+      const stash = ORIG.get(node);
+      if (stash !== undefined) {
+        if (node.nodeValue !== stash) node.nodeValue = stash;
+        ORIG.delete(node);
       }
     }
   }
