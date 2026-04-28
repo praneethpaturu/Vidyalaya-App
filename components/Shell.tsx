@@ -35,7 +35,7 @@ export default function Shell({ children, user }: Props) {
 
       {/* Header — sticky, white, soft underline */}
       <header
-        className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-200"
+        className="sticky top-0 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-200"
         role="banner"
       >
         <div className="max-w-screen-2xl mx-auto px-4 pt-2.5 pb-1.5">
@@ -92,11 +92,11 @@ export default function Shell({ children, user }: Props) {
 
                 {profileOpen && (
                   <>
-                    <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} aria-hidden="true" />
+                    <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} aria-hidden="true" />
                     <div
                       role="menu"
                       aria-label="Profile menu"
-                      className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-slate-200 shadow-xl z-40 p-3 animate-in"
+                      className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 p-3 animate-in"
                     >
                       <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-100">
                         <Avatar name={user.name} size="lg" />
