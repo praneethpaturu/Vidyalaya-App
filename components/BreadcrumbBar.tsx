@@ -33,6 +33,10 @@ const TITLES: { match: (p: string) => boolean; title: string }[] = [
   { match: (p) => p.startsWith("/audit") || p.startsWith("/messages"),       title: "Administration" },
   { match: (p) => p.startsWith("/announcements") || p.startsWith("/events"), title: "Connect" },
   { match: (p) => p.startsWith("/exams"),                                    title: "Gradebook" },
+  { match: (p) => p.startsWith("/Home/Wellness"),                            title: "Wellness" },
+  { match: (p) => p.startsWith("/Home/Alumni"),                              title: "Alumni" },
+  { match: (p) => p.startsWith("/Home/Reports"),                             title: "Reports" },
+  { match: (p) => p.startsWith("/Home/Compliance"),                          title: "Compliance" },
 ];
 
 // Final segment, prettified.

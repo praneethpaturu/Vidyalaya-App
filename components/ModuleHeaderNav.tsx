@@ -148,6 +148,9 @@ const GLOBAL_MODULES: Module[] = [
     activePrefixes: ["/Home/AI"],
     pages: [
       { href: "/Home/AI",                  label: "Overview" },
+      { href: "/Home/AI/tutor",            label: "AI Tutor (Socratic)" },
+      { href: "/Home/AI/safeguarding",     label: "Safeguarding" },
+      { href: "/Home/AI/cohort",           label: "Cohort Analytics" },
       { href: "/Home/AI/lead-scoring",     label: "Lead Scoring" },
       { href: "/Home/AI/at-risk",          label: "At-risk Students" },
       { href: "/Home/AI/learning-gaps",    label: "Learning Gaps" },
@@ -179,6 +182,35 @@ const GLOBAL_MODULES: Module[] = [
       { href: "/Home/AI/voice-notes",      label: "Voice Notes" },
       { href: "/Home/AI/rag-chat",         label: "RAG Chat" },
       { href: "/Home/AI/anomaly",          label: "Cross-module Anomalies" },
+    ],
+  },
+  {
+    key: "Wellness", label: "Wellness", rootHref: "/Home/Wellness",
+    activePrefixes: ["/Home/Wellness"],
+    pages: [
+      { href: "/Home/Wellness",            label: "Overview" },
+      { href: "/Home/AI/safeguarding",     label: "Safeguarding (AI)" },
+    ],
+  },
+  {
+    key: "Alumni", label: "Alumni", rootHref: "/Home/Alumni",
+    activePrefixes: ["/Home/Alumni"],
+    pages: [
+      { href: "/Home/Alumni",              label: "Directory" },
+    ],
+  },
+  {
+    key: "Reports", label: "Reports", rootHref: "/Home/Reports",
+    activePrefixes: ["/Home/Reports"],
+    pages: [
+      { href: "/Home/Reports",             label: "Templates &amp; saved" },
+    ],
+  },
+  {
+    key: "Compliance", label: "Compliance", rootHref: "/Home/Compliance",
+    activePrefixes: ["/Home/Compliance"],
+    pages: [
+      { href: "/Home/Compliance",          label: "DPDP overview" },
     ],
   },
 ];

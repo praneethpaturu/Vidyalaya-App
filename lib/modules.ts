@@ -10,6 +10,7 @@ import {
   PieChart, FormInput, UserCircle2, History,
   BookMarked, Pencil, FileText, FlaskConical,
   HeartPulse, BadgeCheck, Network, Sparkles,
+  ShieldCheck, KeyRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -59,6 +60,11 @@ export const MODULES: ModuleEntry[] = [
   { href: "/Home/Hostel",         label: "Hostel",            icon: Building2,       group: "ERP", desc: "Buildings, beds, mess" },
   { href: "/Home/Online_Exams",   label: "Online Exams",      icon: ScrollText,      group: "ERP", desc: "Objective & descriptive" },
   { href: "/Home/AI",             label: "AI Insights",       icon: Sparkles,        group: "ERP", desc: "ML scoring + LLM helpers across the school" },
+  { href: "/Home/Wellness",       label: "Wellness",          icon: HeartPulse,      group: "ERP", desc: "Counselor visits + mood + safeguarding" },
+  { href: "/Home/Alumni",         label: "Alumni",            icon: Users,           group: "ERP", desc: "Past pupils + mentorship matches" },
+  { href: "/Home/Reports",        label: "Reports",           icon: FileText,        group: "ERP", desc: "Pre-built + custom report builder" },
+  { href: "/Home/Compliance",     label: "Compliance",        icon: ShieldCheck,     group: "ERP", desc: "DPDP Act readiness, consent ledger, exports" },
+  { href: "/Settings/api-keys",   label: "API Keys",          icon: KeyRound,        group: "SETTINGS", desc: "Open API + webhooks for third-party integration" },
   { href: "/Concerns",            label: "Concerns",          icon: AlertCircle,     group: "ERP" },
   { href: "/Achievements",        label: "Achievements",      icon: Trophy,          group: "ERP" },
   { href: "/Mentors",             label: "Mentors",           icon: HeartPulse,      group: "ERP" },
@@ -252,6 +258,26 @@ export const SUB_NAV: Record<string, SubNavItem[]> = {
     { href: "/Home/AI/semantic-search",         label: "Semantic Search" },
     { href: "/Home/AI/rag-chat",                label: "RAG Chat" },
     { href: "/Home/AI/anomaly",                 label: "Anomalies" },
+    { href: "/Home/AI/tutor",                   label: "AI Tutor" },
+    { href: "/Home/AI/safeguarding",            label: "Safeguarding" },
+    { href: "/Home/AI/cohort",                  label: "Cohort Analytics" },
+  ],
+
+  "/Home/Wellness": [
+    { href: "/Home/Wellness",                   label: "Overview" },
+    { href: "/Home/AI/safeguarding",            label: "Safeguarding (AI)" },
+  ],
+
+  "/Home/Alumni": [
+    { href: "/Home/Alumni",                     label: "Directory" },
+  ],
+
+  "/Home/Reports": [
+    { href: "/Home/Reports",                    label: "Templates &amp; saved" },
+  ],
+
+  "/Home/Compliance": [
+    { href: "/Home/Compliance",                 label: "DPDP &amp; data governance" },
   ],
 };
 

@@ -62,4 +62,8 @@ export const AI_FEATURES: AiFeature[] = [
   { href: "/Home/AI/voice-notes",       label: "Voice Notes (mobile)",    group: "Cross", desc: "Voice-to-observation for teachers." },
   { href: "/Home/AI/rag-chat",          label: "RAG School Assistant",    group: "Cross", desc: "Ask questions about your own circulars + policies.", needsLLM: true },
   { href: "/Home/AI/anomaly",           label: "Cross-module Anomalies",  group: "Cross", desc: "Unusual patterns across logins, fees, and grades." },
+  // ─── Newer features ───
+  { href: "/Home/AI/tutor",             label: "AI Tutor (Socratic)",     group: "SIS",   desc: "1:1 guided dialogue that asks questions instead of giving answers.", needsLLM: true },
+  { href: "/Home/AI/safeguarding",      label: "AI Safeguarding",         group: "SIS",   desc: "Passive scan of student-authored content for distress / bullying triggers." },
+  { href: "/Home/AI/cohort",            label: "Cohort Analytics",        group: "Cross", desc: "Class-of-X term-on-term grade + attendance trajectory." },
 ];
