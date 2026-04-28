@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { GraduationCap, Bus, Wallet, Box, Users, BookOpen, Sparkles, ArrowRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const DEMO_ACCOUNTS = [
   { role: "Admin",        email: "admin@dpsbangalore.edu.in",        pwd: "demo1234", icon: GraduationCap, hint: "Full access" },
@@ -103,7 +104,11 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen grid lg:grid-cols-[1fr_minmax(0,560px)] bg-white">
+    <div className="min-h-screen grid lg:grid-cols-[1fr_minmax(0,560px)] bg-white relative">
+      {/* Language switcher — top right of the entire login screen */}
+      <div className="absolute top-4 right-4 lg:top-6 lg:right-6 z-30">
+        <LanguageSwitcher />
+      </div>
       {/* Left: brand panel */}
       <aside className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-brand-700 via-brand-800 to-brand-900 text-white relative overflow-hidden">
         {/* Soft decorative blobs */}
