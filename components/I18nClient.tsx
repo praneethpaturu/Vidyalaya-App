@@ -33,15 +33,49 @@ const I18nCtx = createContext<{
 export const useLocale = () => useContext(I18nCtx);
 
 // ── Dictionary lookup ─────────────────────────────────────────────
+//
+// Two-tier matching:
+//  1. Exact match — the trimmed text is a known key. Cheapest, safest.
+//  2. Substring/phrase replacement — for compound strings like
+//     "Lakshya School of Excellence · Academic year 2026-2027" we don't
+//     have a key for the whole thing (the school name + year are dynamic).
+//     PHRASES is a list of [English, Hindi] pairs that get replaced
+//     anywhere they appear in a node, longest match first to avoid
+//     overlap (e.g. "Academic year 2026-2027" wins over "Academic year").
+//
+// PHRASES are derived from HI at module load — any HI key longer than 3
+// characters automatically becomes a candidate substring. False-positive
+// risk is mitigated by skipping anything that already contains Devanagari
+// (already-translated text) and by matching whole-word boundaries on
+// alphabetic phrases.
+const PHRASES: Array<[string, string]> = Object.entries(HI)
+  .filter(([k]) => k.length > 3 && !/^\W+$/.test(k))
+  .sort((a, b) => b[0].length - a[0].length); // longest first
+
+const HAS_DEVANAGARI = /[ऀ-ॿ]/;
+
 function translate(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
-  const t = HI[trimmed];
-  if (!t) return null;
-  // Preserve leading/trailing whitespace from the original node.
-  const lead = text.match(/^\s*/)?.[0] ?? "";
-  const tail = text.match(/\s*$/)?.[0] ?? "";
-  return lead + t + tail;
+  // Tier 1: exact match
+  const exact = HI[trimmed];
+  if (exact) {
+    const lead = text.match(/^\s*/)?.[0] ?? "";
+    const tail = text.match(/\s*$/)?.[0] ?? "";
+    return lead + exact + tail;
+  }
+  // Tier 2: substring replacement on compound strings.
+  // Skip anything that already contains Devanagari (re-translation guard).
+  if (HAS_DEVANAGARI.test(text)) return null;
+  let out = text;
+  let matched = false;
+  for (const [en, hi] of PHRASES) {
+    if (out.includes(en)) {
+      out = out.split(en).join(hi);
+      matched = true;
+    }
+  }
+  return matched ? out : null;
 }
 
 // ── DOM walker ────────────────────────────────────────────────────

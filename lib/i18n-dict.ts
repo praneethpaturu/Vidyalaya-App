@@ -514,6 +514,125 @@ export const HI: Record<string, string> = {
   "Friday": "शुक्रवार",
   "Saturday": "शनिवार",
   "Sunday": "रविवार",
+
+  // ─── Home dashboard tabs (HomePageTabs) ───
+  "Students M-o-M":               "छात्र महीने-दर-महीने",
+  "Room Allocations":             "कमरा आवंटन",
+  "Email Notifications":          "ईमेल सूचनाएं",
+  "Email ⚙":                      "ईमेल ⚙",
+  "Classes in progress":          "चल रही कक्षाएं",
+
+  // ─── Communication chips ───
+  "Sender ID":                    "प्रेषक आईडी",
+  "SMS Credits":                  "एसएमएस क्रेडिट",
+  "SMS":                          "एसएमएस",
+  "Voice":                        "वॉइस",
+  "WhatsApp":                     "व्हाट्सऐप",
+  "Recharge":                     "रिचार्ज",
+  "Usage":                        "उपयोग",
+  "Know DLT":                     "डीएलटी जानें",
+
+  // ─── Inventory ───
+  "Items":                        "आइटम",
+  "Item":                         "आइटम",
+  "Sub-Cat":                      "उप-श्रेणी",
+  "Sub-category":                 "उप-श्रेणी",
+  "Sub-Category":                 "उप-श्रेणी",
+  "Quantity":                     "मात्रा",
+  "Qty":                          "मात्रा",
+  "Stock":                        "स्टॉक",
+  "Low":                          "कम",
+
+  // ─── Login Stats ───
+  "Never Logged-in":              "कभी लॉगिन नहीं",
+  "Never logged in":              "कभी लॉगिन नहीं",
+  "Logged in":                    "लॉग इन",
+  "Logins today":                 "आज के लॉगिन",
+
+  // ─── Dashboard / common ───
+  "Total branches":               "कुल शाखाएं",
+  "Data Checker":                 "डेटा जांचकर्ता",
+  "Data checker":                 "डेटा जांचकर्ता",
+  "Academic year 2026-2027":      "शैक्षिक वर्ष 2026-2027",
+  "Academic year 2026–2027":      "शैक्षिक वर्ष 2026–2027",
+  "Academic year":                "शैक्षिक वर्ष",
+  "AY 2026-2027":                 "एवाई 2026-2027",
+  "AY":                           "एवाई",
+
+  // ─── Header / brand sub-line ───
+  "Vidyalaya · School Suite":     "विद्यालय · स्कूल सूट",
+  "Vidyalaya":                    "विद्यालय",
+
+  // ─── Greetings ───
+  "Good morning":                 "सुप्रभात",
+  "Good afternoon":               "नमस्कार",
+  "Good evening":                 "शुभ संध्या",
+  "Hi ":                          "नमस्ते ",
+
+  // ─── Filters / sorts ───
+  "Sort":                         "क्रमबद्ध करें",
+  "Sort by":                      "क्रम के अनुसार",
+  "Order":                        "क्रम",
+  "Ascending":                    "आरोही",
+  "Descending":                   "अवरोही",
+  "From":                         "से",
+  "To":                           "तक",
+
+  // ─── Roles ───
+  "Administrator":                "प्रशासक",
+  "Principal":                    "प्रधानाचार्य",
+  "Teacher":                      "शिक्षक",
+  "Student":                      "विद्यार्थी",
+  "Accountant":                   "लेखाकार",
+  "Transport Manager":            "परिवहन प्रबंधक",
+  "Inventory Manager":            "इन्वेंट्री प्रबंधक",
+  "HR Manager":                   "मानव संसाधन प्रबंधक",
+
+  // ─── More common UI ───
+  "Send to":                      "भेजें",
+  "Recipient":                    "प्राप्तकर्ता",
+  "Recipients":                   "प्राप्तकर्ता",
+  "Sent":                         "भेजा गया",
+  "Failed":                       "विफल",
+  "Queued":                       "कतार में",
+  "Delivered":                    "वितरित",
+  "Read":                         "पढ़ा गया",
+  "Unread":                       "अपठित",
+  "Saved":                        "सहेजा गया",
+  "Cleared":                      "हटा दिया गया",
+  "Server":                       "सर्वर",
+  "Connected":                    "कनेक्ट किया गया",
+  "Disconnected":                 "डिस्कनेक्ट किया गया",
+  "Online":                       "ऑनलाइन",
+  "Offline":                      "ऑफलाइन",
+  "Sync":                         "सिंक",
+  "Synced":                       "सिंक किया गया",
+  "Last sync":                    "अंतिम सिंक",
+  "Add new":                      "नया जोड़ें",
+  "View details":                 "विवरण देखें",
+  "More":                         "अधिक",
+  "Less":                         "कम",
+  "Show more":                    "और दिखाएं",
+  "Show less":                    "कम दिखाएं",
+  "Help":                         "सहायता",
+  "About":                        "के बारे में",
+  "Version":                      "संस्करण",
+  "Build":                        "बिल्ड",
+
+  // ─── Compliance / DPDP UI ───
+  "DPDP overview":                "डीपीडीपी अवलोकन",
+  "Why this matters":             "यह क्यों मायने रखता है",
+  "Privacy note":                 "गोपनीयता नोट",
+  "Important":                    "महत्वपूर्ण",
+
+  // ─── Reports ───
+  "Templates & saved":            "टेम्पलेट और सहेजे गए",
+  "Templates &amp; saved":        "टेम्पलेट और सहेजे गए",
+
+  // ─── AI tutor / extras ───
+  "Ask anything…":                "कुछ भी पूछें…",
+  "Type a question. Press Enter.":"प्रश्न लिखें। एंटर दबाएं।",
+  "tutor":                        "शिक्षक",
 };
 
 /** Reverse dictionary so an i18n-aware page can map back if needed. */
