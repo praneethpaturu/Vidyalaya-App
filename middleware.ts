@@ -1,7 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 
-const PUBLIC = ["/login", "/api/auth", "/_next", "/favicon", "/assets"];
+// Paths that bypass the cookie auth gate. The /api/v1/* surface uses its own
+// API-key auth (lib/api-key.ts); /api/payments/razorpay/webhook is signed by
+// HMAC; /api/calendar/[token] (future) uses a token query param.
+const PUBLIC = [
+  "/login",
+  "/api/auth",
+  "/api/v1",                          // public REST — API-key auth in handler
+  "/api/payments/razorpay/webhook",   // HMAC-signed by Razorpay
+  "/api/digest",                      // shared-secret in header
+  "/_next", "/favicon", "/assets",
+];
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
