@@ -18,7 +18,6 @@ import WhatsNewButton from "./WhatsNewButton";
 import FavouritesMenu from "./FavouritesMenu";
 import SearchPopover from "./SearchPopover";
 import BreadcrumbBar from "./BreadcrumbBar";
-import ModuleHeaderNav from "./ModuleHeaderNav";
 
 type Props = {
   children: React.ReactNode;
@@ -59,10 +58,8 @@ export default function Shell({ children, user }: Props) {
               </div>
             </Link>
 
-            {/* Module dropdowns */}
-            <div className="flex-1 min-w-0 hidden lg:flex items-end pb-0.5">
-              <ModuleHeaderNav />
-            </div>
+            {/* Module dropdowns moved into the dark breadcrumb strip — see BreadcrumbBar */}
+            <div className="flex-1 min-w-0" aria-hidden="true" />
 
             {/* Right utility cluster */}
             <div className="flex items-center gap-2 shrink-0">

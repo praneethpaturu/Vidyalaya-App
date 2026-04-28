@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Info, Video, HelpCircle } from "lucide-react";
 import { FavStar } from "./FavouritesMenu";
+import ModuleHeaderNav from "./ModuleHeaderNav";
 
 // Short module title -> matches the leftmost label in the dark breadcrumb strip.
 const TITLES: { match: (p: string) => boolean; title: string }[] = [
@@ -63,21 +64,36 @@ export default function BreadcrumbBar() {
   const page = lastSegment(pathname);
 
   return (
-    <nav aria-label="Breadcrumb" className="bg-slate-900 text-slate-100">
-      <div className="max-w-screen-2xl mx-auto px-4 h-9 flex items-center gap-2.5 overflow-x-auto">
-        <FavStar href={pathname} label={`${moduleTitle} · ${page}`} />
-        <ol className="flex items-center gap-2 text-[13px] whitespace-nowrap">
-          {moduleTitle && (
-            <>
-              <li className="font-medium text-white">{moduleTitle}</li>
-              <li aria-hidden="true" className="text-slate-500">›</li>
-            </>
-          )}
-          {page && page !== moduleTitle && (
-            <li className="text-slate-300">{page}</li>
-          )}
-        </ol>
-        <div className="ml-auto flex items-center gap-1 text-slate-300">
+    <div className="bg-slate-900 text-slate-100">
+      <div className="max-w-screen-2xl mx-auto px-4 min-h-[40px] flex items-center gap-3 overflow-x-auto">
+        {/* Breadcrumb (compact) */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 shrink-0">
+          <FavStar href={pathname} label={`${moduleTitle} · ${page}`} />
+          <ol className="flex items-center gap-1.5 text-[12.5px] whitespace-nowrap">
+            {moduleTitle && (
+              <>
+                <li className="font-medium text-white">{moduleTitle}</li>
+                {page && page !== moduleTitle && (
+                  <li aria-hidden="true" className="text-slate-500">›</li>
+                )}
+              </>
+            )}
+            {page && page !== moduleTitle && (
+              <li className="text-slate-300">{page}</li>
+            )}
+          </ol>
+        </nav>
+
+        {/* Vertical divider */}
+        <span aria-hidden="true" className="hidden lg:block h-5 w-px bg-slate-700" />
+
+        {/* Module dropdowns — moved here from the white header */}
+        <div className="flex-1 min-w-0 hidden lg:flex items-center">
+          <ModuleHeaderNav theme="dark" />
+        </div>
+
+        {/* Help / info cluster */}
+        <div className="ml-auto flex items-center gap-1 text-slate-300 shrink-0">
           <button
             type="button"
             aria-label="Help video"
@@ -104,6 +120,6 @@ export default function BreadcrumbBar() {
           </button>
         </div>
       </div>
-    </nav>
+    </div>
   );
 }

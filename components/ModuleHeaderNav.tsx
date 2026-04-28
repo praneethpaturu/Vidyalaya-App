@@ -192,9 +192,11 @@ function findActiveModule(pathname: string): Module | null {
   return null;
 }
 
-export default function ModuleHeaderNav() {
+export default function ModuleHeaderNav({ theme = "light" }: { theme?: "light" | "dark" } = {}) {
   const pathname = usePathname() ?? "/";
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+
+  const isDark = theme === "dark";
 
   // On /Home and its inner tabs, render global module list.
   // Inside any module (or its legacy alias), render that module's sub-pages.
@@ -216,7 +218,7 @@ export default function ModuleHeaderNav() {
   return (
     <nav
       aria-label="Module navigation"
-      className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-1"
+      className="flex flex-wrap items-center gap-x-4 gap-y-1"
       onMouseLeave={() => setOpenIdx(null)}
     >
       {items.map((it, i) => {
@@ -237,19 +239,30 @@ export default function ModuleHeaderNav() {
               aria-current={isActive ? "page" : undefined}
               aria-haspopup={hasChildren ? "menu" : undefined}
               aria-expanded={hasChildren ? isOpen : undefined}
-              className={`flex items-center gap-1 text-[14.5px] font-medium pb-0.5 border-b-2 transition-colors duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:rounded-sm focus-visible:shadow-focus ${
-                isActive
-                  ? "text-brand-700 border-brand-700"
-                  : "text-slate-700 border-transparent hover:text-slate-900 hover:border-slate-300"
-              }`}
+              className={
+                isDark
+                  ? `flex items-center gap-0.5 text-[13px] font-medium py-2 transition-colors duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:rounded-sm focus-visible:shadow-focus ${
+                      isActive
+                        ? "text-white"
+                        : "text-slate-300 hover:text-white"
+                    }`
+                  : `flex items-center gap-1 text-[14.5px] font-medium pb-0.5 border-b-2 transition-colors duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:rounded-sm focus-visible:shadow-focus ${
+                      isActive
+                        ? "text-brand-700 border-brand-700"
+                        : "text-slate-700 border-transparent hover:text-slate-900 hover:border-slate-300"
+                    }`
+              }
             >
               {it.label}
               <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                  hasChildren ? "text-slate-500" : "text-transparent"
+                className={`w-3 h-3 transition-transform duration-150 ${
+                  hasChildren ? (isDark ? "text-slate-400" : "text-slate-500") : "text-transparent"
                 } ${isOpen ? "rotate-180" : ""}`}
                 aria-hidden="true"
               />
+              {isDark && isActive && (
+                <span aria-hidden="true" className="absolute left-0 right-0 -bottom-px h-[2px] bg-brand-400 rounded-t" />
+              )}
             </Link>
             {isOpen && hasChildren && (
               <div
