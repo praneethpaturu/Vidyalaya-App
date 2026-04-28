@@ -19,9 +19,8 @@ export default defineConfig({
       name: "chromium-desktop",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
     },
-    {
-      name: "chromium-mobile",
-      use: { ...devices["iPhone 14"] },
-    },
+    // Note: this is a web application; mobile-viewport tests live in the
+    // separate Capacitor `mobile/` project. The desktop Playwright suite
+    // covers responsive *layout* assertions inline.
   ],
 });

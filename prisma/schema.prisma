@@ -2298,3 +2298,295 @@ model AiCompatibility {
   @@unique([schoolId, studentAId, studentBId])
   @@index([schoolId, studentAId])
 }
+
+// ============================================================
+// Wellness — counselor visits, mood check-ins, AI safeguarding
+// ============================================================
+model WellnessCheckIn {
+  id         String   @id @default(cuid())
+  schoolId   String
+  studentId  String
+  visitedAt  DateTime @default(now())
+  counselorId String?
+  symptoms   String?
+  notes      String?
+  followUpAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([schoolId, studentId])
+  @@index([schoolId, visitedAt])
+}
+
+model MoodEntry {
+  id         String   @id @default(cuid())
+  schoolId   String
+  studentId  String
+  date       DateTime
+  mood       String   // HAPPY | OK | SAD | ANGRY | ANXIOUS
+  note       String?
+
+  @@unique([studentId, date])
+  @@index([schoolId, date])
+}
+
+model SafeguardingFlag {
+  id         String   @id @default(cuid())
+  schoolId   String
+  studentId  String?
+  source     String   // CONCERN | WALL | SUBMISSION | DIARY
+  refId      String?
+  category   String   // SELF_HARM | BULLYING | DISTRESS | SUBSTANCE | OTHER
+  severity   String   @default("MEDIUM") // LOW | MEDIUM | HIGH
+  excerpt    String
+  reviewerId String?
+  status     String   @default("OPEN")    // OPEN | REVIEWING | RESOLVED | FALSE_POSITIVE
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+
+  @@index([schoolId, status])
+  @@index([schoolId, severity])
+}
+
+// ============================================================
+// Alumni — directory + mentorship
+// ============================================================
+model AlumniProfile {
+  id          String   @id @default(cuid())
+  schoolId    String
+  userId      String?  // optional — alumni may sign up later
+  fullName    String
+  graduationYear Int
+  email       String?
+  phone       String?
+  currentCompany String?
+  currentRole    String?
+  industry    String?
+  city        String?
+  linkedinUrl String?
+  bio         String?
+  willingToMentor Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  matches     MentorshipMatch[]
+
+  @@index([schoolId, graduationYear])
+}
+
+model MentorshipMatch {
+  id          String   @id @default(cuid())
+  schoolId    String
+  alumniId    String
+  studentId   String
+  topic       String   // CAREER | COLLEGE | INTERVIEW | OTHER
+  status      String   @default("REQUESTED") // REQUESTED | ACCEPTED | DECLINED | COMPLETED
+  notes       String?
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+
+  alumni      AlumniProfile @relation(fields: [alumniId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status])
+}
+
+// ============================================================
+// Reports — saved templates + custom report builder
+// ============================================================
+model ReportTemplate {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  category  String   // SIS | HR | FINANCE | TRANSPORT | LIBRARY | HOSTEL | LMS | CONNECT
+  query     String   // JSON DSL describing entity, filters, columns, aggregations
+  createdById String?
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, category])
+}
+
+model SavedReport {
+  id         String   @id @default(cuid())
+  schoolId   String
+  templateId String?
+  name       String
+  query      String   // JSON DSL snapshot
+  result     String?  // JSON cached output
+  generatedAt DateTime @default(now())
+  generatedById String?
+
+  @@index([schoolId, generatedAt])
+}
+
+// ============================================================
+// Open API — keys + webhooks
+// ============================================================
+model ApiKey {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String
+  prefix      String   // first 8 chars of the key for display
+  hashedKey   String   // SHA-256 of the secret
+  scopes      String   @default("read")  // comma-separated: read,write,admin
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+  createdById String?
+
+  @@unique([prefix])
+  @@index([schoolId])
+}
+
+model WebhookSubscription {
+  id         String   @id @default(cuid())
+  schoolId   String
+  url        String
+  secret     String   // signing secret (HMAC)
+  events     String   // comma-separated: invoice.paid,enquiry.created,...
+  active     Boolean  @default(true)
+  failures   Int      @default(0)
+  lastDeliveredAt DateTime?
+  lastError  String?
+  createdAt  DateTime @default(now())
+
+  deliveries WebhookDelivery[]
+
+  @@index([schoolId, active])
+}
+
+model WebhookDelivery {
+  id            String   @id @default(cuid())
+  subscriptionId String
+  event         String
+  payload       String   // JSON
+  status        String   // QUEUED | SENT | FAILED | RETRYING
+  responseCode  Int?
+  attempt       Int      @default(0)
+  nextAttemptAt DateTime?
+  createdAt     DateTime @default(now())
+  deliveredAt   DateTime?
+
+  subscription  WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, status])
+}
+
+// ============================================================
+// Notification preferences (per-user channel toggles)
+// ============================================================
+model NotificationPreference {
+  id        String  @id @default(cuid())
+  userId    String  @unique
+  email     Boolean @default(true)
+  sms       Boolean @default(true)
+  push      Boolean @default(true)
+  whatsapp  Boolean @default(true)
+  digestWeekly Boolean @default(true)
+  language  String  @default("en") // en | hi | te | ta | kn | mr | ml
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// Engagement — streaks, badges
+// ============================================================
+model StudentStreak {
+  id          String   @id @default(cuid())
+  schoolId    String
+  studentId   String   @unique
+  attendanceDays  Int  @default(0)
+  homeworkDays    Int  @default(0)
+  longestStreak   Int  @default(0)
+  badges      String   @default("[]") // JSON list of badge codes
+  updatedAt   DateTime @updatedAt
+
+  @@index([schoolId])
+}
+
+// ============================================================
+// Compliance — DPDP Act, consent, data export requests
+// ============================================================
+model ConsentLog {
+  id         String   @id @default(cuid())
+  schoolId   String
+  userId     String?
+  subjectId  String?  // who the data is about (student id usually)
+  purpose    String   // ENROLLMENT | COMMUNICATION | ANALYTICS | THIRD_PARTY
+  granted    Boolean
+  source     String   // FORM | EMAIL | CALL | UI
+  recordedAt DateTime @default(now())
+  expiresAt  DateTime?
+
+  @@index([schoolId, subjectId])
+}
+
+model DataExportRequest {
+  id          String   @id @default(cuid())
+  schoolId    String
+  requestedBy String   // user id
+  subjectId   String   // student or staff id
+  status      String   @default("PENDING")  // PENDING | READY | DELIVERED | DENIED
+  reason      String?  // for denial
+  fulfilledAt DateTime?
+  exportUrl   String?  // Supabase Storage signed URL
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId, status])
+}
+
+// ============================================================
+// Government integrations — DigiLocker / UDISE+
+// ============================================================
+model DigiLockerIssuance {
+  id          String   @id @default(cuid())
+  schoolId    String
+  studentId   String
+  docType     String   // TC | TRANSCRIPT | BONAFIDE | ID_CARD
+  uri         String?  // DigiLocker URI once pushed
+  issuedAt    DateTime?
+  status      String   @default("PENDING") // PENDING | ISSUED | FAILED
+  errorMsg    String?
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId, status])
+}
+
+model UDISEReport {
+  id          String   @id @default(cuid())
+  schoolId    String
+  academicYear String
+  status      String   @default("DRAFT") // DRAFT | SUBMITTED | ACCEPTED | REJECTED
+  payload     String   // JSON of the full report
+  fileUrl     String?  // generated XLS/JSON for upload
+  submittedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([schoolId, academicYear])
+}
+
+// ============================================================
+// Observability — error log captured server-side
+// ============================================================
+model ErrorLog {
+  id         String   @id @default(cuid())
+  schoolId   String?
+  userId     String?
+  level      String   @default("ERROR") // INFO | WARN | ERROR | FATAL
+  message    String
+  stack      String?
+  route      String?
+  request    String?  // JSON: method/url/ua
+  createdAt  DateTime @default(now())
+
+  @@index([schoolId, createdAt])
+  @@index([level, createdAt])
+}
+
+// ============================================================
+// Rate limit buckets (when not using Vercel KV / Redis)
+// ============================================================
+model RateLimitBucket {
+  id        String  @id  // e.g. "ip:1.2.3.4:/api/ai/translate"
+  count     Int     @default(0)
+  resetAt   DateTime
+
+  @@index([resetAt])
+}
