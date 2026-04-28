@@ -7,6 +7,7 @@ import { GraduationCap, Bus, Wallet, Box, Users, BookOpen, Sparkles, ArrowRight 
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { trackEvent } from "@/lib/analytics";
 
 const DEMO_ACCOUNTS = [
   { role: "Admin",        email: "admin@dpsbangalore.edu.in",        pwd: "demo1234", icon: GraduationCap, hint: "Full access" },
@@ -39,6 +40,11 @@ function LoginForm() {
     });
     setLoading(false);
     if (res?.error) { setErr("Wrong email or password."); return; }
+    // Track login — record role only, never raw email
+    const role = override
+      ? DEMO_ACCOUNTS.find((a) => a.email === override.email)?.role ?? "Other"
+      : "Custom";
+    trackEvent("login_success", { role, via: override ? "demo-grid" : "form" });
     router.push(next);
     router.refresh();
   }

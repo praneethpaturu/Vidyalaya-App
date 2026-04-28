@@ -19,6 +19,7 @@ import FavouritesMenu from "./FavouritesMenu";
 import SearchPopover from "./SearchPopover";
 import BreadcrumbBar from "./BreadcrumbBar";
 import LanguageSwitcher from "./LanguageSwitcher";
+import { trackEvent } from "@/lib/analytics";
 
 type Props = {
   children: React.ReactNode;
@@ -129,7 +130,10 @@ export default function Shell({ children, user }: Props) {
                         Book a slot · Customer Success
                       </a>
                       <button
-                        onClick={() => signOut({ callbackUrl: "/login" })}
+                        onClick={() => {
+                          trackEvent("logout", { role: user.role });
+                          signOut({ callbackUrl: "/login" });
+                        }}
                         className="w-full flex items-center gap-2 text-sm py-2 px-2 rounded-lg hover:bg-slate-100 text-slate-700 mt-2 transition-colors"
                         role="menuitem"
                       >

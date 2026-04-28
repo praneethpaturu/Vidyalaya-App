@@ -2,6 +2,7 @@
 
 import { useLocale } from "./I18nClient";
 import { Languages } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 /**
  * Compact language switcher for the header. Toggle between English and
@@ -9,6 +10,10 @@ import { Languages } from "lucide-react";
  */
 export default function LanguageSwitcher() {
   const { locale, setLocale } = useLocale();
+  const flip = (next: "en" | "hi") => {
+    if (next !== locale) trackEvent("language_changed", { from: locale, to: next });
+    setLocale(next);
+  };
 
   return (
     <div
@@ -19,7 +24,7 @@ export default function LanguageSwitcher() {
     >
       <button
         type="button"
-        onClick={() => setLocale("en")}
+        onClick={() => flip("en")}
         aria-pressed={locale === "en"}
         title="Switch to English"
         className={`px-2.5 h-7 rounded-full text-[11px] font-semibold tracking-wide transition-colors duration-150 ${
@@ -30,7 +35,7 @@ export default function LanguageSwitcher() {
       </button>
       <button
         type="button"
-        onClick={() => setLocale("hi")}
+        onClick={() => flip("hi")}
         aria-pressed={locale === "hi"}
         title="हिंदी पर स्विच करें"
         className={`px-2.5 h-7 rounded-full text-[12px] font-semibold transition-colors duration-150 ${
