@@ -2,6 +2,8 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import type { Metadata } from "next";
 import { Inter, Inter_Tight, Noto_Sans_Devanagari } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import Providers from "@/components/Providers";
 import I18nClient from "@/components/I18nClient";
 
@@ -36,6 +38,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <I18nClient>
           <Providers>{children}</Providers>
         </I18nClient>
+        {/* Privacy-friendly analytics — counts page views per route, no cookies */}
+        <Analytics />
+        {/* Core Web Vitals (LCP / INP / CLS) per route, sampled real-user metrics */}
+        <SpeedInsights />
       </body>
     </html>
   );
