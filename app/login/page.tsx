@@ -85,7 +85,10 @@ function LoginForm() {
         <Button type="submit" loading={loading} fullWidth size="lg" iconRight={<ArrowRight className="w-4 h-4" />}>
           {loading ? "Signing in…" : "Sign in"}
         </Button>
-        <div className="text-right text-sm">
+        <div className="flex items-center justify-between text-sm">
+          <Link href="/signup" className="text-slate-500 hover:text-brand-700 hover:underline">
+            New school? Get started →
+          </Link>
           <Link href="/forgot-password" className="text-brand-700 hover:underline">Forgot password?</Link>
         </div>
       </form>

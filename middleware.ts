@@ -6,10 +6,12 @@ import { auth } from "@/lib/auth";
 // HMAC; /api/calendar/[token] (future) uses a token query param.
 const PUBLIC = [
   "/login",
+  "/signup",                          // self-serve school + first-admin signup
   "/forgot-password",
   "/reset-password",
   "/invite",                          // /invite/[token] — accept invitation
   "/verify-email",                    // future use
+  "/api/signup",                      // POST handler for signup
   "/api/auth",
   "/api/auth/forgot",
   "/api/auth/reset",
@@ -18,6 +20,7 @@ const PUBLIC = [
   "/api/v1",                          // public REST — API-key auth in handler
   "/api/payments/razorpay/webhook",   // HMAC-signed by Razorpay
   "/api/digest",                      // shared-secret in header
+  "/api/outbox/flush",                // shared-secret OR Vercel cron token
   "/api/transport/ping",              // driver-phone GPS, bus.driverToken auth
   "/driver",                           // /driver/track/[busId] — bus.driverToken auth
   "/_next", "/favicon", "/assets",

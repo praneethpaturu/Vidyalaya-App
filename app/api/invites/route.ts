@@ -32,9 +32,10 @@ export async function POST(req: Request) {
   if (!name) return NextResponse.json({ ok: false, error: "missing-name" }, { status: 400 });
   if (!VALID_ROLES.has(role)) return NextResponse.json({ ok: false, error: "invalid-role" }, { status: 400 });
 
-  // Already a user in this school?
+  // Already a user? Soft-deleted users (deletedAt set) free up their
+  // email — the school can re-invite a previously-removed person.
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
+  if (existing && !existing.deletedAt) {
     return NextResponse.json(
       { ok: false, error: existing.schoolId === me.schoolId ? "already-member" : "email-taken" },
       { status: 409 },

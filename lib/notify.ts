@@ -23,21 +23,30 @@ export type NotifyArgs = {
 interface EmailProvider { send(to: string, subject: string, body: string): Promise<{ id?: string }>; }
 interface SmsProvider   { send(to: string, body: string): Promise<{ id?: string }>; }
 
-class ConsoleEmail implements EmailProvider {
+// Real email — uses lib/email.sendMail, which is nodemailer over Resend
+// SMTP when SMTP_* env vars are set, stdout fallback in dev. Throws on
+// transient SMTP failure so the outbox dispatcher can retry.
+class ResendEmail implements EmailProvider {
   async send(to: string, subject: string, body: string) {
-    console.log(`[email→${to}] ${subject}\n${body}\n---`);
-    return { id: `console-${Date.now()}` };
+    const { sendMail } = await import("./email");
+    const r = await sendMail({ to, subject, html: body, text: body });
+    if (!r.ok) throw new Error("smtp send failed");
+    return { id: r.mocked ? `email-stdout-${Date.now()}` : `email-resend-${Date.now()}` };
   }
 }
-class ConsoleSms implements SmsProvider {
+// Real SMS — Twilio when TWILIO_* set, console-mock otherwise. Re-throws
+// on failure so the dispatcher retries.
+class TwilioSms implements SmsProvider {
   async send(to: string, body: string) {
-    console.log(`[sms→${to}] ${body}`);
-    return { id: `sms-console-${Date.now()}` };
+    const { sendSMS } = await import("./integrations/notify");
+    const r = await sendSMS(to, body);
+    if (!r.ok) throw new Error(r.error ?? "sms send failed");
+    return { id: r.providerRef };
   }
 }
 
-const email: EmailProvider = new ConsoleEmail();
-const sms: SmsProvider     = new ConsoleSms();
+const email: EmailProvider = new ResendEmail();
+const sms: SmsProvider     = new TwilioSms();
 
 export async function notify(args: NotifyArgs): Promise<string> {
   const row = await prisma.messageOutbox.create({

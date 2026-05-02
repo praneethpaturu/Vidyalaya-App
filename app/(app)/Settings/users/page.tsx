@@ -13,7 +13,9 @@ export default async function UsersAdminPage() {
 
   const [users, pendingInvites] = await Promise.all([
     prisma.user.findMany({
-      where: { schoolId: me.schoolId },
+      // Default view hides soft-deleted users; future enhancement: a
+      // "Show deleted" toggle that flips this filter.
+      where: { schoolId: me.schoolId, deletedAt: null },
       select: { id: true, email: true, name: true, role: true, active: true, lastLoginAt: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       take: 100,

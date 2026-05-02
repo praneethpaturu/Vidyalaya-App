@@ -74,6 +74,7 @@ model User {
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
   lastLoginAt         DateTime?
+  deletedAt           DateTime?
   createdAt           DateTime  @default(now())
 
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -124,6 +125,7 @@ model Student {
   rollNo      String
   classId     String?
   section     String?
+  deletedAt   DateTime?
   dob         DateTime
   gender      String
   bloodGroup  String?
@@ -153,6 +155,7 @@ model Guardian {
   userId    String  @unique
   relation  String  // father, mother, guardian
   occupation String?
+  deletedAt  DateTime?
 
   school    School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -181,6 +184,7 @@ model Staff {
   joiningDate   DateTime
   qualification String?
   pan           String?
+  deletedAt     DateTime?
   bankAccount   String?
   ifsc          String?
 

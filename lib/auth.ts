@@ -25,7 +25,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email },
           include: { school: true },
         });
-        if (!user || !user.active) return null;
+        // Block: missing, deactivated, OR soft-deleted users.
+        if (!user || !user.active || user.deletedAt) return null;
 
         // Account locked? Reject without bumping the counter.
         if (user.lockedUntil && user.lockedUntil > new Date()) return null;
