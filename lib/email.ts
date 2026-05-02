@@ -41,7 +41,21 @@ async function send({ to, subject, html, text }: Mail) {
   }
 }
 
-const APP_URL = () => (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
+// Priority: explicit APP_URL > Vercel production alias > Vercel branch alias >
+// Vercel deployment URL > localhost. Vercel auto-injects the *_URL vars.
+const APP_URL = () => {
+  const explicit = process.env.APP_URL;
+  if (explicit) return explicit.replace(/\/+$/, "");
+  const prod = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const branch = process.env.VERCEL_BRANCH_URL;
+  const deploy = process.env.VERCEL_URL;
+  const env = process.env.VERCEL_ENV;
+  // On a production deploy prefer the stable prod alias; otherwise use the
+  // branch URL (preview) or the immutable deployment URL.
+  const host = (env === "production" ? prod : (branch || deploy || prod)) || "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  return `${proto}://${host}`.replace(/\/+$/, "");
+};
 
 export async function sendInviteEmail(opts: {
   to: string;
