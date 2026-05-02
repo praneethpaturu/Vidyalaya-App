@@ -8,7 +8,6 @@ import Link from "next/link";
 export default async function Form24QPage({ searchParams }: { searchParams: Promise<{ q?: string; fy?: string }> }) {
   const sp = await searchParams;
   const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
-  const u = u;
   const fy = fyOf(new Date());
   const fyStart = sp.fy ? Number(sp.fy) : fy.fyStart;
   const quarter = (sp.q ? Number(sp.q) : 1) as 1 | 2 | 3 | 4;

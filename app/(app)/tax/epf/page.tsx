@@ -8,7 +8,6 @@ const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 
 export default async function EpfEsicPage() {
   const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
-  const u = u;
   const now = new Date();
 
   // Last 6 months of payslips, aggregated per month

@@ -6,7 +6,6 @@ import { seedComplianceCalendar, sendComplianceReminders } from "@/app/actions/t
 
 export default async function CalendarPage() {
   const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
-  const u = u;
   const items = await complianceCalendar(u.schoolId, 90);
 
   const overdue = items.filter((i) => i.daysToDue < 0 && i.status !== "FILED");

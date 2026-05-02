@@ -6,7 +6,6 @@ import { SECTION_DESCRIPTIONS } from "@/lib/vendor-tds";
 
 export default async function VendorTdsPage() {
   const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
-  const u = u;
   const [vendors, deductions] = await Promise.all([
     prisma.vendor.findMany({ where: { schoolId: u.schoolId }, orderBy: { name: "asc" } }),
     prisma.vendorTdsDeduction.findMany({

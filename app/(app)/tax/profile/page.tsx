@@ -4,7 +4,6 @@ import { saveOrgTaxProfile } from "@/app/actions/tax";
 
 export default async function OrgTaxProfilePage() {
   const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
-  const u = u;
   const p = await prisma.orgTaxProfile.findUnique({ where: { schoolId: u.schoolId } });
   const school = await prisma.school.findUnique({ where: { id: u.schoolId } });
 

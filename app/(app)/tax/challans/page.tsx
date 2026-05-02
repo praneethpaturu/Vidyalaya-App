@@ -6,7 +6,6 @@ import { Plus } from "lucide-react";
 
 export default async function ChallansPage() {
   const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
-  const u = u;
   const challans = await prisma.tdsChallan.findMany({
     where: { schoolId: u.schoolId },
     orderBy: { challanDate: "desc" },
