@@ -90,9 +90,11 @@ export default async function HomeMcbPage() {
             <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
               <Crown className="w-4 h-4 text-violet-700" /> Staff
             </div>
-            <Link href="/Home/HR" className="text-xs text-brand-700 hover:underline flex items-center gap-0.5">
-              Hierarchy <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+            {(["ADMIN","PRINCIPAL","HR_MANAGER"].includes(user.role)) && (
+              <Link href="/Home/HR" className="text-xs text-brand-700 hover:underline flex items-center gap-0.5">
+                Hierarchy <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </div>
           <div className="grid grid-cols-4 gap-1 text-center">
             <Stat label="New Joinees" value={newJoinees} />
@@ -187,14 +189,22 @@ export default async function HomeMcbPage() {
         </div>
       </div>
 
-      {/* Quick links into the major modules */}
+      {/* Quick links into the major modules — filtered by role so each
+          user only sees the modules they can actually act on. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
-        <QuickLink href="/Home/SIS"           icon={Users}            label="SIS" tone="blue" />
-        <QuickLink href="/Home/HR"            icon={Crown}            label="HR" tone="violet" />
-        <QuickLink href="/Home/Finance"       icon={BookOpen}         label="Finance" tone="amber" />
-        <QuickLink href="/Home/Admissions"    icon={GraduationCap}    label="Admissions" tone="emerald" />
-        <QuickLink href="/Home/Transport"     icon={Bus}              label="Transport" tone="rose" />
-        <QuickLink href="/Home/Library"       icon={BookOpen}         label="Library" tone="sky" />
+        {(() => {
+          const tiles: Array<{ href: string; icon: any; label: string; tone: string; allow: string[] }> = [
+            { href: "/Home/SIS",        icon: Users,         label: "SIS",        tone: "blue",    allow: ["ADMIN","PRINCIPAL","HR_MANAGER","TEACHER"] },
+            { href: "/Home/HR",         icon: Crown,         label: "HR",         tone: "violet",  allow: ["ADMIN","PRINCIPAL","HR_MANAGER"] },
+            { href: "/Home/Finance",    icon: BookOpen,      label: "Finance",    tone: "amber",   allow: ["ADMIN","PRINCIPAL","ACCOUNTANT"] },
+            { href: "/Home/Admissions", icon: GraduationCap, label: "Admissions", tone: "emerald", allow: ["ADMIN","PRINCIPAL"] },
+            { href: "/Home/Transport",  icon: Bus,           label: "Transport",  tone: "rose",    allow: ["ADMIN","PRINCIPAL","TRANSPORT_MANAGER"] },
+            { href: "/Home/Library",    icon: BookOpen,      label: "Library",    tone: "sky",     allow: ["ADMIN","PRINCIPAL","HR_MANAGER","TEACHER"] },
+          ];
+          return tiles
+            .filter((t) => t.allow.includes(user.role))
+            .map((t) => <QuickLink key={t.href} {...t} />);
+        })()}
       </div>
     </div>
   );
