@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { inr } from "@/lib/utils";
 import { Bus, MapPin, AlertTriangle } from "lucide-react";
 
 export default async function TransportDashboardPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER"]);
+  const sId = u.schoolId;
 
   const [buses, routes, students, busesWithRoute, vehicleDocs, transportInvoices] = await Promise.all([
     prisma.bus.findMany({ where: { schoolId: sId }, include: { route: { include: { stops: { include: { _count: { select: { students: true } } } } } }, driver: { include: { user: true } } } }),

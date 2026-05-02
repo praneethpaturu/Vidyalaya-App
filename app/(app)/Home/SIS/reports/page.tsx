@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export default async function SISReportsPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER"]);
+  const sId = u.schoolId;
 
   const students = await prisma.student.findMany({
     where: { schoolId: sId },

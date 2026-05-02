@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { inr } from "@/lib/utils";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 export default async function PayrollPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER"]);
+  const sId = u.schoolId;
   const now = new Date();
   const slips = await prisma.payslip.findMany({
     where: { schoolId: sId, month: now.getMonth() + 1, year: now.getFullYear() },

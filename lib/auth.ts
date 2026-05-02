@@ -108,3 +108,20 @@ export async function requireRole(roles: string[]): Promise<SessionUser> {
   if (!roles.includes(u.role)) throw new Error("FORBIDDEN");
   return u;
 }
+
+// Page-level guard that uses Next.js redirect() for graceful UX:
+//   * no session       → redirect to /login
+//   * wrong role       → redirect to / (home — sidebar shows what's allowed)
+// Use this in server components at the top of pages that should only be
+// reachable by certain roles. API / server-action handlers should still
+// use requireRole/requireUser (which throw — suitable for JSON responses).
+export async function requirePageRole(roles: string[]): Promise<SessionUser> {
+  const { redirect } = await import("next/navigation");
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  // session is narrowed past the redirect, but TS doesn't infer that for
+  // dynamically-imported never-returning helpers — use ! to assert.
+  const u = session!.user as any as SessionUser;
+  if (!roles.includes(u.role)) redirect("/");
+  return u;
+}

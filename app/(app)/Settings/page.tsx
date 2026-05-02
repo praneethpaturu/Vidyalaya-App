@@ -3,6 +3,7 @@ import {
   Building2, Users, Boxes, Smartphone, ClipboardCheck, IdCard, Wallet,
   Library, Building, Bus, UserCheck, MessageSquare, Plug, Lock, History, GraduationCap,
 } from "lucide-react";
+import { requirePageRole } from "@/lib/auth";
 
 const SECTIONS = [
   {
@@ -51,7 +52,8 @@ const SECTIONS = [
   { title: "Audit Log", icon: History, items: ["Cross-module audit log"], href: "/audit" },
 ];
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requirePageRole(["ADMIN", "PRINCIPAL"]);
   return (
     <div className="p-5 max-w-screen-2xl mx-auto">
       <h1 className="h-page mb-3">Settings</h1>

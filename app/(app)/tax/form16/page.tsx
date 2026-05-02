@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fmtDate, inr } from "@/lib/utils";
 import { generateForm16ForAll, issueForm16ToEmployee } from "@/app/actions/tax";
@@ -7,8 +7,7 @@ import { fyOf } from "@/lib/compliance";
 
 export default async function Form16Page({ searchParams }: { searchParams: Promise<{ fy?: string }> }) {
   const sp = await searchParams;
-  const session = await auth();
-  const u = session!.user as any;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
   const fy = fyOf(new Date());
   const fyStart = sp.fy ? Number(sp.fy) : fy.fyStart - 1; // default to previous (completed) FY
   const fyLabel = `${fyStart}-${String((fyStart + 1) % 100).padStart(2, "0")}`;

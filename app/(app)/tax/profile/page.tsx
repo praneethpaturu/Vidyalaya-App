@@ -1,10 +1,9 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { saveOrgTaxProfile } from "@/app/actions/tax";
 
 export default async function OrgTaxProfilePage() {
-  const session = await auth();
-  const u = session!.user as any;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
   const p = await prisma.orgTaxProfile.findUnique({ where: { schoolId: u.schoolId } });
   const school = await prisma.school.findUnique({ where: { id: u.schoolId } });
 

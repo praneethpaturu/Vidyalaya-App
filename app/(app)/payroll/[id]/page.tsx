@@ -1,12 +1,16 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { fmtDate, inr } from "@/lib/utils";
 import { ArrowLeft, Printer } from "lucide-react";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 export default async function PayslipPage({ params }: { params: Promise<{ id: string }> }) {
+  const me = await requireUser().catch(() => null);
+  if (!me) redirect("/login");
   const { id } = await params;
   const p = await prisma.payslip.findUnique({
     where: { id },
@@ -14,6 +18,10 @@ export default async function PayslipPage({ params }: { params: Promise<{ id: st
   });
   if (!p) notFound();
 
+  if (p.staff.schoolId !== me.schoolId) notFound();
+  const HR = new Set(["ADMIN","PRINCIPAL","HR_MANAGER","ACCOUNTANT"]);
+  const isOwn = p.staff.userId === me.id;
+  if (!HR.has(me.role) && !isOwn) redirect("/");
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <Link href="/payroll" className="text-sm text-brand-700 hover:underline flex items-center gap-1 mb-3"><ArrowLeft className="w-4 h-4" /> Payroll</Link>

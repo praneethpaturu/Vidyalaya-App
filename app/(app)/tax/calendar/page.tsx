@@ -1,12 +1,11 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { complianceCalendar } from "@/lib/compliance";
 import { fmtDate, inr } from "@/lib/utils";
 import { CheckCircle2, AlertTriangle, Clock, Bell, Sparkles } from "lucide-react";
 import { seedComplianceCalendar, sendComplianceReminders } from "@/app/actions/tax";
 
 export default async function CalendarPage() {
-  const session = await auth();
-  const u = session!.user as any;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
   const items = await complianceCalendar(u.schoolId, 90);
 
   const overdue = items.filter((i) => i.daysToDue < 0 && i.status !== "FILED");

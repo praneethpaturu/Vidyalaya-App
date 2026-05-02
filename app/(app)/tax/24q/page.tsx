@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { form24QFor, fyOf, dueDateFor } from "@/lib/compliance";
 import { fmtDate, inr } from "@/lib/utils";
@@ -7,8 +7,7 @@ import Link from "next/link";
 
 export default async function Form24QPage({ searchParams }: { searchParams: Promise<{ q?: string; fy?: string }> }) {
   const sp = await searchParams;
-  const session = await auth();
-  const u = session!.user as any;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
   const fy = fyOf(new Date());
   const fyStart = sp.fy ? Number(sp.fy) : fy.fyStart;
   const quarter = (sp.q ? Number(sp.q) : 1) as 1 | 2 | 3 | 4;

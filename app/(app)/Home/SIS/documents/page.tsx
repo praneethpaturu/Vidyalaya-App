@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 const REQUIRED_DOCS = [
@@ -8,8 +8,8 @@ const REQUIRED_DOCS = [
 ];
 
 export default async function DocumentsPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER"]);
+  const sId = u.schoolId;
   const total = await prisma.student.count({ where: { schoolId: sId } });
   // Demo verification stats: simulate completion %
   return (

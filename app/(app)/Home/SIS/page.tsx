@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 type SearchParams = { class?: string; status?: string; q?: string };
 
 export default async function SISEnrollmentsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER"]);
+  const sId = u.schoolId;
 
   const classes = await prisma.class.findMany({
     where: { schoolId: sId }, orderBy: [{ grade: "asc" }, { section: "asc" }],

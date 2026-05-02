@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/utils";
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ action?: string; entity?: string }> }) {
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL"]);
   const sp = await searchParams;
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const sId = u.schoolId;
   const where: any = { schoolId: sId };
   if (sp.action) where.action = sp.action;
   if (sp.entity) where.entity = sp.entity;

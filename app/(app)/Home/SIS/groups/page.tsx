@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 const SAMPLE_GROUPS = [
@@ -13,8 +13,8 @@ const SAMPLE_GROUPS = [
 ];
 
 export default async function GroupsPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "TEACHER"]);
+  const sId = u.schoolId;
   const total = await prisma.student.count({ where: { schoolId: sId } });
   const seeded = SAMPLE_GROUPS.map((g, idx) => ({
     ...g,

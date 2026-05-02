@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { inr } from "@/lib/utils";
 import { Boxes, Plus, AlertTriangle, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 export default async function InventoryPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "INVENTORY_MANAGER", "HR_MANAGER"]);
+  const sId = u.schoolId;
   const items = await prisma.inventoryItem.findMany({ where: { schoolId: sId }, orderBy: { name: "asc" } });
   const cats = Array.from(new Set(items.map((i) => i.category)));
 

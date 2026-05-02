@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { inr } from "@/lib/utils";
 
@@ -8,8 +8,8 @@ type SP = { window?: "today" | "7d" | "30d" };
 export default async function LibraryDaySheetPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const win = sp.window ?? "today";
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL"]);
+  const sId = u.schoolId;
 
   const since =
     win === "7d" ? new Date(Date.now() - 7 * 86400000)

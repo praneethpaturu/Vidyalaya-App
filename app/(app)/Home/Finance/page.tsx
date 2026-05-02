@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { inr } from "@/lib/utils";
 import { Wallet, TrendingUp, AlertTriangle, ArrowDownToLine, Receipt } from "lucide-react";
@@ -7,8 +7,8 @@ import { Wallet, TrendingUp, AlertTriangle, ArrowDownToLine, Receipt } from "luc
 // Fee Day Sheet — section 6 of PRD: Today / 7 days / FY collections / FY advances / Refundable.
 
 export default async function FinanceFeeDaySheetPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT"]);
+  const sId = u.schoolId;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);

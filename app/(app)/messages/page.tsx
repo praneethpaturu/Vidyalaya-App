@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/utils";
 import { Mail, MessageSquare, Bell, Smartphone, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { processOutboxAction } from "@/app/actions/messages";
 
 export default async function MessagesOutboxPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+  const sId = u.schoolId;
   const rows = await prisma.messageOutbox.findMany({
     where: { schoolId: sId },
     orderBy: { queuedAt: "desc" },

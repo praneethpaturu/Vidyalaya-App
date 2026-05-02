@@ -1,6 +1,8 @@
 import HomePageTabs from "@/components/HomePageTabs";
+import { requirePageRole } from "@/lib/auth";
 
-export default function EmailSettingsPage() {
+export default async function EmailSettingsPage() {
+  await requirePageRole(["ADMIN", "PRINCIPAL"]);
   return (
     <div className="p-5 max-w-3xl mx-auto">
       <HomePageTabs />

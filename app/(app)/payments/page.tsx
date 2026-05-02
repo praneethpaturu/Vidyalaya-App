@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { fmtDateTime, inr } from "@/lib/utils";
 import { Receipt } from "lucide-react";
 
 export default async function PaymentsPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT"]);
+  const sId = u.schoolId;
   const payments = await prisma.payment.findMany({
     where: { schoolId: sId },
     orderBy: { paidAt: "desc" },
