@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { fmtDate, inr } from "@/lib/utils";
 import { Receipt, AlertTriangle, CheckCircle2, FileText } from "lucide-react";
 
+// /fees is intentionally NOT reachable by TEACHER, HR_MANAGER,
+// TRANSPORT_MANAGER, INVENTORY_MANAGER — those roles have no business
+// seeing invoice data. The nav link is also hidden from them per
+// lib/nav.ts; this guard catches direct-URL navigation.
+const ALLOWED = ["ADMIN", "PRINCIPAL", "ACCOUNTANT", "PARENT", "STUDENT"];
+
 export default async function FeesPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  const user = await requirePageRole(ALLOWED);
   const sp = await searchParams;
-  const session = await auth();
-  const user = session!.user as any;
   const sId = user.schoolId;
   const role = user.role;
 

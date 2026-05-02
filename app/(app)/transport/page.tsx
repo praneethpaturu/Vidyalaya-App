@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { Bus as BusIcon, MapPin, Clock, User, Plus } from "lucide-react";
 
+const ALLOWED = ["ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER", "PARENT", "STUDENT"];
+
 export default async function TransportPage() {
-  const session = await auth();
-  const u = session!.user as any;
+  const u = await requirePageRole(ALLOWED);
   const sId = u.schoolId;
 
   // Role-scoped bus list: PARENT/STUDENT see only the bus their student is
