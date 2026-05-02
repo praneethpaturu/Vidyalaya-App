@@ -21,6 +21,13 @@ const DEMO_ACCOUNTS = [
   { role: "Inventory/HR", email: "hr@dpsbangalore.edu.in",           pwd: "demo1234", icon: Box,           hint: "Stock & staff" },
 ];
 
+// Production deployments hide the demo grid + banner unless explicitly opted in.
+// NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS=1 forces them on; otherwise they only show
+// when not on production (Vercel sets VERCEL_ENV; we mirror via NEXT_PUBLIC_).
+const SHOW_DEMO =
+  process.env.NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS === "1" ||
+  (process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development") !== "production";
+
 function LoginForm() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -83,6 +90,7 @@ function LoginForm() {
         </div>
       </form>
 
+      {SHOW_DEMO && (<>
       <div className="my-7 flex items-center gap-3 text-[11px] uppercase tracking-wider text-slate-400">
         <div className="flex-1 h-px bg-slate-200" />
         <span>or pick a role</span>
@@ -108,6 +116,7 @@ function LoginForm() {
           </button>
         ))}
       </div>
+      </>)}
     </div>
   );
 }
@@ -161,10 +170,12 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="relative flex items-center gap-2 text-xs text-brand-200">
-          <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Demo environment · mock GPS &amp; payments enabled</span>
-        </div>
+        {SHOW_DEMO && (
+          <div className="relative flex items-center gap-2 text-xs text-brand-200">
+            <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Demo environment · mock GPS &amp; payments enabled</span>
+          </div>
+        )}
       </aside>
 
       {/* Right: login form */}

@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { epfEcrText } from "@/lib/compliance";
 
 export const runtime = "nodejs";
 
+const ALLOWED = ["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"];
+
 export async function GET(_req: Request, { params }: { params: Promise<{ year: string; month: string }> }) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauth" }, { status: 401 });
-  const u = session.user as any;
+  let u;
+  try { u = await requireRole(ALLOWED); }
+  catch (e: any) {
+    return NextResponse.json({ error: e?.message === "UNAUTHORIZED" ? "unauth" : "forbidden" }, { status: e?.message === "UNAUTHORIZED" ? 401 : 403 });
+  }
   const { year, month } = await params;
   const yNum = parseInt(String(year), 10);
   const mNum = parseInt(String(month), 10);

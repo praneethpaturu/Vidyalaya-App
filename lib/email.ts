@@ -41,6 +41,9 @@ async function send({ to, subject, html, text }: Mail) {
   }
 }
 
+// Generic mailer for ad-hoc sends (digests, etc.). Same SMTP fallback chain.
+export async function sendMail(opts: Mail) { return send(opts); }
+
 // Priority: explicit APP_URL > Vercel production alias > Vercel branch alias >
 // Vercel deployment URL > localhost. Vercel auto-injects the *_URL vars.
 const APP_URL = () => {

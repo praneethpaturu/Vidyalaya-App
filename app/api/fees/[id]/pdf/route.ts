@@ -1,19 +1,30 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { buildInvoicePdf } from "@/lib/pdf";
 
 export const runtime = "nodejs";
 
+const FINANCE_ROLES = new Set(["ADMIN", "PRINCIPAL", "ACCOUNTANT"]);
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauth" }, { status: 401 });
+  let u;
+  try { u = await requireUser(); }
+  catch { return NextResponse.json({ error: "unauth" }, { status: 401 }); }
   const { id } = await params;
   const inv = await prisma.invoice.findUnique({
     where: { id },
-    include: { student: { include: { user: true, class: true } }, lines: true, school: true },
+    include: {
+      student: { include: { user: true, class: true, guardians: { include: { guardian: true } } } },
+      lines: true,
+      school: true,
+    },
   });
   if (!inv) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (inv.schoolId !== u.schoolId) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const isOwn = inv.student.userId === u.id
+    || inv.student.guardians.some((gs) => gs.guardian.userId === u.id);
+  if (!FINANCE_ROLES.has(u.role) && !isOwn) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const buf = await buildInvoicePdf({
     school: { name: inv.school.name, city: inv.school.city, state: inv.school.state, phone: inv.school.phone, email: inv.school.email },

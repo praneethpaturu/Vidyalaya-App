@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   buildBonafidePdf, buildTransferCertPdf, buildCharacterCertPdf, buildIdCardPdf,
@@ -7,10 +7,12 @@ import {
 
 export const runtime = "nodejs";
 
+const STAFF_ROLES = new Set(["ADMIN", "PRINCIPAL", "TEACHER"]);
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string; type: string }> }) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauth" }, { status: 401 });
-  const u = session.user as any;
+  let u;
+  try { u = await requireUser(); }
+  catch { return NextResponse.json({ error: "unauth" }, { status: 401 }); }
   const { id, type } = await params;
 
   const stu = await prisma.student.findUnique({
@@ -21,6 +23,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     },
   });
   if (!stu || stu.schoolId !== u.schoolId) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const isOwn = stu.userId === u.id || stu.guardians.some((gs) => gs.guardian.userId === u.id);
+  if (!STAFF_ROLES.has(u.role) && !isOwn) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const father = stu.guardians.find((g) => g.guardian.relation === "Father")?.guardian.user.name ?? null;
   const mother = stu.guardians.find((g) => g.guardian.relation === "Mother")?.guardian.user.name ?? null;

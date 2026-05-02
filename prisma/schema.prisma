@@ -350,6 +350,10 @@ model Bus {
   driverId    String?
   conductorId String?
   active      Boolean @default(true)
+  // Per-bus shared secret for the driver-phone tracker. Null = tracking
+  // not enabled. Rotate by setting a new random value (and re-sharing the
+  // tracker URL with the driver). Treated as a credential.
+  driverToken String? @unique
 
   school      School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   route       Route?  @relation(fields: [routeId], references: [id])

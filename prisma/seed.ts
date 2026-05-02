@@ -1,3 +1,4 @@
+import "./_assert-not-prod";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
