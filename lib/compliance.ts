@@ -437,11 +437,22 @@ export async function form16AFor(
       quarter,
       OR: [{ year: fyStart }, { year: fyStart + 1 }],
     },
-    include: { vendor: true, challan: true },
+    include: { vendor: true },
     orderBy: { paidAt: "asc" },
   });
   if (ds.length === 0) return null;
   const vendor = ds[0].vendor;
+  // Resolve challans separately — VendorTdsDeduction has challanId but
+  // no Prisma relation defined back to TdsChallan in this schema.
+  const challanIds = Array.from(new Set(ds.map((d) => d.challanId).filter((id): id is string => !!id)));
+  const challansById = new Map<string, { challanNo: string }>();
+  if (challanIds.length) {
+    const rows = await prisma.tdsChallan.findMany({
+      where: { id: { in: challanIds } },
+      select: { id: true, challanNo: true },
+    });
+    for (const r of rows) challansById.set(r.id, { challanNo: r.challanNo });
+  }
   const bySection = new Map<string, Form16AData["bySection"][number]>();
   for (const d of ds) {
     if (!bySection.has(d.section)) {
@@ -460,7 +471,7 @@ export async function form16AFor(
       grossPaise: d.grossAmount,
       tdsRate: d.tdsRate,
       tdsPaise: d.tdsAmount,
-      challanNo: d.challan?.challanNo ?? null,
+      challanNo: d.challanId ? challansById.get(d.challanId)?.challanNo ?? null : null,
       certificateNo: d.certificateNo,
     });
     sec.totalGrossPaise += d.grossAmount;
