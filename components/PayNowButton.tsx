@@ -58,14 +58,39 @@ export default function PayNowButton({ invoiceId, amount }: { invoiceId: string;
       currency: "INR",
       name: "Vidyalaya",
       description: `Invoice payment`,
-      handler: async () => {
-        // Razorpay confirms the capture via webhook; we just close the modal
-        // and let the page refetch on next route refresh.
-        setPhase("success");
-        await new Promise((r) => setTimeout(r, 1200));
-        setOpen(false); setPhase("select");
-        toast.success("Payment received", { description: `${inr(amount)} — receipt arrives shortly` });
-        router.refresh();
+      handler: async (resp: any) => {
+        // Verify the signature server-side and create the Payment row.
+        // Webhook (if configured) is idempotent with this — first to fire
+        // wins, the other becomes a no-op via txnRef uniqueness.
+        setPhase("processing");
+        try {
+          const v = await fetch("/api/payments/razorpay/verify", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              invoiceId,
+              razorpayOrderId: resp.razorpay_order_id,
+              razorpayPaymentId: resp.razorpay_payment_id,
+              razorpaySignature: resp.razorpay_signature,
+            }),
+          });
+          const vd = await v.json().catch(() => ({}));
+          if (!v.ok || !vd?.ok) {
+            setErrMsg(vd?.error === "bad-signature" ? "Payment couldn't be verified."
+              : vd?.error === "not-captured" ? "Payment not captured by Razorpay yet — try again in a moment."
+              : "Couldn't confirm the payment.");
+            setPhase("error");
+            return;
+          }
+          setPhase("success");
+          await new Promise((r) => setTimeout(r, 1200));
+          setOpen(false); setPhase("select");
+          toast.success(`Payment received · receipt ${vd.receiptNo}`, { description: inr(vd.amountPaid ?? amount) });
+          router.refresh();
+        } catch (e: any) {
+          setErrMsg("Couldn't reach the server to confirm the payment.");
+          setPhase("error");
+        }
       },
       modal: {
         ondismiss: () => setPhase("select"),
