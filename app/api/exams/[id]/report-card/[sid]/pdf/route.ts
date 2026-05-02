@@ -1,28 +1,33 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { computeRanks, buildReportCard } from "@/lib/exam";
 import { buildReportCardPdf } from "@/lib/pdf";
 
 export const runtime = "nodejs";
 
+const STAFF_ROLES = new Set(["ADMIN", "PRINCIPAL", "TEACHER"]);
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string; sid: string }> }) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauth" }, { status: 401 });
-  const u = session.user as any;
+  let u;
+  try { u = await requireUser(); }
+  catch { return NextResponse.json({ error: "unauth" }, { status: 401 }); }
   const { id, sid } = await params;
   const exam = await prisma.exam.findUnique({
     where: { id },
     include: {
-      class: { include: { students: { include: { user: true } } } },
+      class: { include: { students: { include: { user: true, guardians: { include: { guardian: true } } } } } },
       subjects: { include: { subject: true, marks: true } },
     },
   });
   if (!exam) return NextResponse.json({ error: "no exam" }, { status: 404 });
+  if (exam.schoolId !== u.schoolId) return NextResponse.json({ error: "no exam" }, { status: 404 });
   const school = await prisma.school.findUnique({ where: { id: exam.schoolId } });
   if (!school) return NextResponse.json({ error: "no school" }, { status: 404 });
   const stu = exam.class.students.find((s: any) => s.id === sid);
   if (!stu) return NextResponse.json({ error: "not in class" }, { status: 404 });
+  const isOwn = stu.userId === u.id || stu.guardians.some((gs: any) => gs.guardian.userId === u.id);
+  if (!STAFF_ROLES.has(u.role) && !isOwn) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   // Compute ranks
   const totals = new Map<string, number>();

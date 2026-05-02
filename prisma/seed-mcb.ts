@@ -1,3 +1,4 @@
+import "./_assert-not-prod";
 // Seeds MCB-extension demo data on top of an existing seeded school.
 // Run AFTER `npm run db:seed` (and seed-hr / seed-tax if you use them).
 

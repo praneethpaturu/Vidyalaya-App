@@ -1,3 +1,4 @@
+import "./_assert-not-prod";
 // Supplementary seed — Org tax profile, TDS challans, vendor TDS deductions,
 // compliance calendar, and Form 16 generation for the previous FY.
 

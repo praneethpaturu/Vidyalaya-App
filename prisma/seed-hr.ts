@@ -1,3 +1,4 @@
+import "./_assert-not-prod";
 // Supplementary seed — adds StaffAttendance, LeaveRequest, LeaveBalance, CompliancePeriod
 import { PrismaClient } from "@prisma/client";
 const db = new PrismaClient();

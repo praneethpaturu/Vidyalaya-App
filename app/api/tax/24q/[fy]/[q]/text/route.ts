@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { form24QFor } from "@/lib/compliance";
 
 export const runtime = "nodejs";
+
+const ALLOWED = ["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"];
 
 // Stub of NSDL FVU input file format for Form 24Q Annexure II.
 // Real format is fixed-width and complex (RPU schema). This text export is for
 // human review and as a deliverable artefact during the demo.
 export async function GET(_req: Request, { params }: { params: Promise<{ fy: string; q: string }> }) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauth" }, { status: 401 });
-  const u = session.user as any;
+  let u;
+  try { u = await requireRole(ALLOWED); }
+  catch (e: any) {
+    return NextResponse.json({ error: e?.message === "UNAUTHORIZED" ? "unauth" : "forbidden" }, { status: e?.message === "UNAUTHORIZED" ? 401 : 403 });
+  }
   const { fy, q } = await params;
   // URL examples we accept:
   //   fy = "2024-25" (FY label) or "2024" (just the start year)

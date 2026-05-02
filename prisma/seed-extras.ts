@@ -1,3 +1,4 @@
+import "./_assert-not-prod";
 // Seed timetable, exam (with marks), library books, and school events.
 import { PrismaClient } from "@prisma/client";
 

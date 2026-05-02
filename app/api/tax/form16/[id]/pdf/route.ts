@@ -1,21 +1,28 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { buildForm16Pdf } from "@/lib/pdf";
 import { form16For, fyOf } from "@/lib/compliance";
 
 export const runtime = "nodejs";
 
+const HR_ROLES = new Set(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "unauth" }, { status: 401 });
-  const u = session.user as any;
+  let u;
+  try { u = await requireUser(); }
+  catch { return NextResponse.json({ error: "unauth" }, { status: 401 }); }
   const { id } = await params;
   const iss = await prisma.form16Issuance.findUnique({
     where: { id },
     include: { staff: { include: { user: true } } },
   });
   if (!iss) return NextResponse.json({ error: "not found" }, { status: 404 });
+  // Tenancy + access: HR-class roles can fetch any staff member's Form 16; an
+  // employee can only fetch their own.
+  if (iss.staff.schoolId !== u.schoolId) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const isOwn = iss.staff.userId === u.id;
+  if (!HR_ROLES.has(u.role) && !isOwn) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const fyStart = parseInt(iss.financialYear.split("-")[0]);
   const data = await form16For(u.schoolId, iss.staffId, fyStart);
