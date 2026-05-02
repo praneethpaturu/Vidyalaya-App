@@ -36,3 +36,6 @@ screenshots/
 .idea
 .vscode
 Thumbs.db
+playwright-report/
+test-results/
+tests/qa/playwright-stdout.log
