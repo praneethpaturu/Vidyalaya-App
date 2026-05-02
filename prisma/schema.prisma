@@ -51,6 +51,7 @@ model School {
   payslips        Payslip[]
   announcements   Announcement[]
   notifications   Notification[]
+  authTokens      AuthToken[]
   // HR additions
   // (StaffAttendance / LeaveRequest live on Staff; CompliancePeriod referenced by schoolId)
 }
@@ -61,15 +62,19 @@ model School {
 //              ACCOUNTANT, TRANSPORT_MANAGER, INVENTORY_MANAGER, HR_MANAGER
 // ============================================================
 model User {
-  id        String   @id @default(cuid())
-  schoolId  String
-  email     String   @unique
-  password  String
-  name      String
-  phone     String?
-  role      String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id                  String    @id @default(cuid())
+  schoolId            String
+  email               String    @unique
+  password            String
+  name                String
+  phone               String?
+  role                String
+  active              Boolean   @default(true)
+  emailVerifiedAt     DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime  @default(now())
 
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   staff     Staff?
@@ -78,8 +83,34 @@ model User {
 
   postedAnnouncements Announcement[] @relation("AnnouncementAuthor")
   notifications       Notification[]
+  authTokens          AuthToken[]
 
   @@index([schoolId])
+}
+
+// ============================================================
+// Auth tokens — invites, email verification, password resets.
+// `tokenHash` is sha256 of the random token; the raw value is
+// emailed once and never stored. Single-use (`usedAt`) + expiring.
+// ============================================================
+model AuthToken {
+  id        String    @id @default(cuid())
+  schoolId  String
+  type      String    // INVITE | VERIFY_EMAIL | PASSWORD_RESET
+  email     String    // target email (invitee or user)
+  userId    String?   // null for INVITE before acceptance
+  tokenHash String    @unique
+  meta      Json?     // INVITE: { role, name, invitedById }
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([type, expiresAt])
+  @@index([email, type])
+  @@index([schoolId, type])
 }
 
 // ============================================================

@@ -3,6 +3,9 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
@@ -23,8 +26,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           include: { school: true },
         });
         if (!user || !user.active) return null;
+
+        // Account locked? Reject without bumping the counter.
+        if (user.lockedUntil && user.lockedUntil > new Date()) return null;
+
         const ok = await bcrypt.compare(password, user.password);
-        if (!ok) return null;
+        if (!ok) {
+          const next = (user.failedLoginAttempts ?? 0) + 1;
+          const shouldLock = next >= MAX_FAILED_ATTEMPTS;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginAttempts: next,
+              lockedUntil: shouldLock ? new Date(Date.now() + LOCKOUT_MS) : null,
+            },
+          }).catch(() => {});
+          return null;
+        }
+
+        // Success — reset counters, stamp last login.
+        if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
+          }).catch(() => {});
+        } else {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+          }).catch(() => {});
+        }
 
         return {
           id: user.id,

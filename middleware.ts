@@ -6,7 +6,15 @@ import { auth } from "@/lib/auth";
 // HMAC; /api/calendar/[token] (future) uses a token query param.
 const PUBLIC = [
   "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/invite",                          // /invite/[token] — accept invitation
+  "/verify-email",                    // future use
   "/api/auth",
+  "/api/auth/forgot",
+  "/api/auth/reset",
+  "/api/invites",                     // POST is admin-gated in handler;
+                                       // /api/invites/[token]/accept is public
   "/api/v1",                          // public REST — API-key auth in handler
   "/api/payments/razorpay/webhook",   // HMAC-signed by Razorpay
   "/api/digest",                      // shared-secret in header

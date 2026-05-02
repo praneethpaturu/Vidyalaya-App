@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GraduationCap, Bus, Wallet, Box, Users, BookOpen, Sparkles, ArrowRight } from "lucide-react";
@@ -39,7 +40,7 @@ function LoginForm() {
       redirect: false,
     });
     setLoading(false);
-    if (res?.error) { setErr("Wrong email or password."); return; }
+    if (res?.error) { setErr("Wrong email or password, or your account is temporarily locked."); return; }
     // Track login — record role only, never raw email
     const role = override
       ? DEMO_ACCOUNTS.find((a) => a.email === override.email)?.role ?? "Other"
@@ -77,6 +78,9 @@ function LoginForm() {
         <Button type="submit" loading={loading} fullWidth size="lg" iconRight={<ArrowRight className="w-4 h-4" />}>
           {loading ? "Signing in…" : "Sign in"}
         </Button>
+        <div className="text-right text-sm">
+          <Link href="/forgot-password" className="text-brand-700 hover:underline">Forgot password?</Link>
+        </div>
       </form>
 
       <div className="my-7 flex items-center gap-3 text-[11px] uppercase tracking-wider text-slate-400">
