@@ -1,78 +1,82 @@
-Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T14:14:59.923457Z
+Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T14:48:47.449589Z
 
-  PASS  TC-170  unauth GET / → /login redirect
-  PASS  TC-172  unauth GET /forgot-password is public
-  PASS  TC-173  unauth GET /invite/<bogus> → 404
-  PASS  TC-174  unauth GET /api/auth/forgot — only POST allowed
-  PASS  TC-114  /api/payments/mock removed
-  PASS  TC-001  admin valid login
-  PASS  TC-002  session JSON has role/schoolId/name/email
-  PASS  TC-001b  parent login
-  PASS  TC-001c  student login
-  PASS  TC-001d  teacher login
-  PASS  TC-001e  accountant login
-  PASS  TC-001f  hr login
-  PASS  TC-003  login with whitespace-padded email
-  PASS  TC-003b  padded-email lower-cased & trimmed
-  PASS  TC-004  mixed-case email → lower-cased
-  PASS  TC-007  login wrong password rejected
-  PASS  TC-006  login SQLi-style email rejected
-  PASS  TC-005  login empty body — no session granted
-  PASS  TC-011  /api/auth/session unauth → 200 empty
-  PASS  TC-032  forgot-password unknown email — no enumeration
-  PASS  TC-031  forgot-password known email creates AuthToken
-  PASS  TC-033  forgot-password malformed email → 400
-  PASS  TC-035  reset-password bogus token → 400 invalid-token
-  PASS  TC-036  reset-password weak password → 400
-  PASS  TC-050  unauth /audit → /login
-  PASS  TC-051  STUDENT /audit → / (redirect)
-  PASS  TC-052  PARENT /payroll → / (redirect)
-  PASS  TC-053  TEACHER /people → / (redirect)
-  PASS  TC-054  TEACHER /Home/HR → / (redirect)
-  PASS  TC-055  TEACHER /Home/Admissions → / (redirect)
-  PASS  TC-056  ACCOUNTANT /audit → / (admin-only)
-  PASS  TC-057  ADMIN /audit → 200
-  PASS  TC-058  ACCOUNTANT /payroll → 200
-  PASS  TC-059  HR_MANAGER /people → 200
-  PASS  TC-070  STUDENT /api/tax/24q → 403
-  PASS  TC-071  STUDENT /api/tax/epf → 403
-  PASS  TC-073  STUDENT /api/tax/26q → 403
-  PASS  TC-107  webhook missing signature → 401
-  PASS  TC-106  webhook bad signature → 401
+  PASS  TC-170  unauthenticated visitor to / is bounced to /login (root auth gate fires)
+  PASS  TC-172  /forgot-password is reachable without a session (public route)
+  PASS  TC-173  /invite/<bogus-token> returns 404 (no such pending invitation)
+  PASS  TC-174  GET /api/auth/forgot returns 404 or 405 (handler is POST-only)
+  PASS  TC-114  the deleted /api/payments/mock backdoor is no longer reachable
+  PASS  TC-001  admin demo account signs in cleanly with correct credentials
+  PASS  TC-002  after login, /api/auth/session returns id + role + schoolId + name + email
+  PASS  TC-001b  parent demo account signs in cleanly
+  PASS  TC-001c  student demo account signs in cleanly
+  PASS  TC-001d  teacher demo account signs in cleanly
+  PASS  TC-001e  accountant demo account signs in cleanly
+  PASS  TC-001f  HR manager demo account signs in cleanly
+  PASS  TC-003  email with surrounding whitespace is normalised before lookup (still logs in)
+  PASS  TC-003b  email is trimmed AND lower-cased server-side (case-insensitive login)
+  PASS  TC-004  mixed-case email logs in (server normalises to lower-case)
+  PASS  TC-007  wrong password does NOT yield a session cookie
+  PASS  TC-006  SQL-injection-style email payload is rejected (Prisma parameterises queries)
+  PASS  TC-005  login POST with empty body must not return a session token
+  PASS  TC-011  /api/auth/session without a cookie returns 200 with an empty body (NextAuth convention)
+  PASS  TC-032  POST /api/auth/forgot for an UNKNOWN email returns ok:true (no account-existence oracle)
+  PASS  TC-031  POST /api/auth/forgot for a real email creates an AuthToken row of type=PASSWORD_RESET
+  PASS  TC-033  POST /api/auth/forgot with a syntactically-invalid email returns 400
+  PASS  TC-035  POST /api/auth/reset with an unknown token returns 400 invalid-token (no DB write)
+  PASS  TC-036  POST /api/auth/reset with a password shorter than 8 chars returns 400 weak-password
+  PASS  TC-050  unauthenticated GET /audit redirects to /login?next=/audit (auth gate fires before role gate)
+  PASS  TC-051  a STUDENT navigating directly to /audit is redirected to / (admin-only role gate)
+  PASS  TC-052  a PARENT navigating directly to /payroll is redirected to / (HR-roles-only gate)
+  PASS  TC-053  a TEACHER navigating directly to /people is redirected to / (admin/HR-only gate)
+  PASS  TC-054  a TEACHER navigating directly to /Home/HR is redirected to / (HR-only dashboard)
+  PASS  TC-055  a TEACHER navigating directly to /Home/Admissions is redirected to / (admin-only dashboard)
+  PASS  TC-056  an ACCOUNTANT navigating directly to /audit is redirected to / (audit log is admin/principal-only)
+  PASS  TC-057  ADMIN can reach /audit (200), confirming the role gate allows the right role through
+  PASS  TC-058  ACCOUNTANT can reach /payroll (200), confirming finance roles see payroll
+  PASS  TC-059  HR_MANAGER can reach /people (200), confirming HR sees the directory
+  PASS  TC-070  a STUDENT calling /api/tax/24q/.../text gets 401/403 (HR/Finance-only export, no PII leak)
+  PASS  TC-071  a STUDENT calling /api/tax/epf/.../ecr gets 401/403 (HR/Finance-only)
+  PASS  TC-073  a STUDENT calling /api/tax/26q/.../text gets 401/403 (HR/Finance-only vendor TDS)
+  PASS  TC-107  Razorpay webhook without an X-Razorpay-Signature header returns 401 (HMAC-required)
+  PASS  TC-106  Razorpay webhook with a malformed/wrong signature returns 401 (timingSafeEqual length-checked safely)
   SKIP  TC-108  webhook unknown event ignored
-  PASS  TC-110  verify rejects bogus signature
-  PASS  TC-008  lockout after 5 failed attempts
-  PASS  TC-180  _prisma_migrations consistent
-  PASS  TC-183  no orphan Student rows
-  PASS  TC-186  no negative invoice/payment amounts
-  PASS  TC-187  leave-balance.used non-negative
-  PASS  TC-185  AuthToken.tokenHash unique
-  PASS  TC-150  24Q export structure (admin)
-  PASS  TC-153  24Q with no payslips returns header-only
-  PASS  TC-154  24Q bad params → 400
-  PASS  TC-100  parent → /api/payments/razorpay creates order
+  PASS  TC-110  client-side payment-verify endpoint rejects mismatched razorpay_signature with 401
+  PASS  TC-008  after 5 wrong-password attempts on the same account, lockedUntil is set and login is blocked
+  PASS  TC-180  every Prisma migration row in _prisma_migrations has applied_steps_count=1 and finished_at set
+  PASS  TC-183  every Student.userId points to a real User row (no foreign-key orphans)
+  PASS  TC-186  no Invoice.total/amountPaid or Payment.amount is negative (sanity check on money columns)
+  PASS  TC-187  no LeaveBalance.used row is negative (sanity check on counters)
+  PASS  TC-185  every sha256 token hash in AuthToken is unique — no replay-able duplicates
+  PASS  TC-150  GET /api/tax/24q/.../text as ADMIN returns text/plain starting with the Vidyalaya header line
+  PASS  TC-153  GET /api/tax/24q for a quarter with NO payslip data returns just the header (200, not 500)
+  PASS  TC-154  GET /api/tax/24q with non-numeric fy returns 400 (not a 500 server error)
+  PASS  TC-100  PARENT POSTs /api/payments/razorpay for own-child invoice → 200 with provider=razorpay + orderId
   PASS  TC-101  student → other student's invoice → 403/404
-  PASS  TC-161  unauth POST /api/ai/essay-grade rejected
-  PASS  TC-210  AI essay-grade returns content (OPENAI_API_KEY config sanity)
-  PASS  TC-121  transport ping wrong token → 403
-  PASS  TC-122  transport ping no token → 400
-  PASS  TC-123  transport ping bad lat/lng → 400 bad-coords
-  PASS  TC-140  digest unauth → 401
-  PASS  TC-141  digest wrong secret → 401
+  PASS  TC-161  unauthenticated POST to any /api/ai/* endpoint is rejected (401/302)
+  PASS  TC-210  TEACHER POST to /api/ai/essay-grade returns a non-empty AI response (confirms OPENAI_API_KEY wired)
+  PASS  TC-121  POST /api/transport/ping with a wrong driverToken is rejected with 403 forbidden
+  PASS  TC-122  POST /api/transport/ping without busId/token returns 400 missing-auth
+  PASS  TC-123  POST /api/transport/ping with lat=999/lng=999 returns 400 bad-coords (range-checked)
+  PASS  TC-140  POST /api/digest without any secret header returns 401 (refuses to send mass mail)
+  PASS  TC-141  POST /api/digest with the WRONG X-Digest-Token still returns 401 (constant-time string equality)
   SKIP  TC-142  digest valid secret
-  PASS  TC-171  favicon publicly fetched
-  PASS  TC-102  razorpay create unauth → 401/redirect
-  PASS  TC-322  path traversal on invoice id rejected
-  PASS  TC-342  concurrent lockout still locks within ~10 attempts
-  PASS  TC-360  warm /login TTFB <3s
-  PASS  TC-200  HSTS header on prod /login
-  PASS  TC-803  auth cookies are HttpOnly + Secure
-  PASS  TC-804  auth cookies have SameSite
+  PASS  TC-171  /favicon.ico is reachable without a session (public asset)
+  PASS  TC-102  POST /api/payments/razorpay without a session is 401 or 302→/login (auth-gated order creation)
+  PASS  TC-322  GET /api/fees/<path-traversal-string>/pdf does NOT serve a file (Prisma findUnique-by-id makes traversal irrelevant)
+  PASS  TC-342  under 10 concurrent failed-login threads, the counter still reaches MAX and lockedUntil is set (race-free)
+  PASS  TC-360  warm cache /login TTFB stays under 3s (perf smoke against Vercel edge)
+  PASS  TC-200  production /login response carries Strict-Transport-Security (HSTS pin)
+  PASS  TC-803  NextAuth-set cookies are HttpOnly AND Secure (browser cannot read them via JS, only sent over HTTPS)
+  PASS  TC-804  NextAuth cookies declare a SameSite policy (CSRF defence)
   SKIP  TC-303a  ADMIN sidebar has /audit link
-  PASS  TC-303b  STUDENT home HTML hides admin/HR nav
-  PASS  TC-303c  PARENT home HTML shows Fees/Transport
-  PASS  TC-300  /login renders an HTML doc shell
-  PASS  TC-302  demo grid env-gated (informational)
-  PASS  TC-202  forgot-password no timing oracle (<1.5s diff)
+  PASS  TC-303b  a STUDENT's home page does NOT mention admin-only labels (Audit log, Payroll) — verified via SSR HTML scan
+  PASS  TC-303c  a PARENT's home page mentions Fees and Transport (parent-relevant nav surfaces)
+  PASS  TC-300  /login returns a real Next.js HTML shell (DOCTYPE, <html>, viewport, _next assets)
+  PASS  TC-302  demo-account grid visibility is controlled by NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS env var (informational; either is acceptable)
+  SKIP  TC-109  webhook is idempotent on replay
+  PASS  TC-150r  Form 24Q gross totals equal SUM(Payslip.gross) for the same quarter — financial accuracy check
+  PASS  TC-220  deactivated user (User.active = false) cannot start a new session — soft-delete enforced
+  PASS  TC-230  MessageOutbox rows only have valid channel + status enum values — no orphan states
+  PASS  TC-202  /api/auth/forgot response time differs by <1.5s between known and unknown emails (no timing-side-channel for account enumeration)
 
-TOTAL: 74  PASS: 71  FAIL: 0  ERROR: 0  SKIP: 3
+TOTAL: 78  PASS: 74  FAIL: 0  ERROR: 0  SKIP: 4

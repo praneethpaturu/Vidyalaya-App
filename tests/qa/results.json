@@ -1,284 +1,284 @@
 {
   "base": "https://vidyalaya-app.vercel.app",
-  "total": 74,
+  "total": 78,
   "summary": {
-    "PASS": 71,
+    "PASS": 74,
     "FAIL": 0,
     "ERROR": 0,
-    "SKIP": 3
+    "SKIP": 4
   },
   "results": [
     {
       "tc": "TC-170",
-      "name": "unauth GET / \u2192 /login redirect",
+      "name": "unauthenticated visitor to / is bounced to /login (root auth gate fires)",
       "status": "PASS",
-      "ms": 1155,
+      "ms": 299,
       "tag": "middleware"
     },
     {
       "tc": "TC-172",
-      "name": "unauth GET /forgot-password is public",
+      "name": "/forgot-password is reachable without a session (public route)",
       "status": "PASS",
-      "ms": 262,
+      "ms": 599,
       "tag": "middleware"
     },
     {
       "tc": "TC-173",
-      "name": "unauth GET /invite/<bogus> \u2192 404",
+      "name": "/invite/<bogus-token> returns 404 (no such pending invitation)",
       "status": "PASS",
-      "ms": 1276,
+      "ms": 1105,
       "tag": "middleware"
     },
     {
       "tc": "TC-174",
-      "name": "unauth GET /api/auth/forgot \u2014 only POST allowed",
+      "name": "GET /api/auth/forgot returns 404 or 405 (handler is POST-only)",
       "status": "PASS",
-      "ms": 303,
+      "ms": 730,
       "tag": "middleware"
     },
     {
       "tc": "TC-114",
-      "name": "/api/payments/mock removed",
+      "name": "the deleted /api/payments/mock backdoor is no longer reachable",
       "status": "PASS",
-      "ms": 281,
+      "ms": 269,
       "tag": "security"
     },
     {
       "tc": "TC-001",
-      "name": "admin valid login",
+      "name": "admin demo account signs in cleanly with correct credentials",
       "status": "PASS",
-      "ms": 1394,
+      "ms": 1483,
       "tag": "auth"
     },
     {
       "tc": "TC-002",
-      "name": "session JSON has role/schoolId/name/email",
+      "name": "after login, /api/auth/session returns id + role + schoolId + name + email",
       "status": "PASS",
-      "ms": 262,
+      "ms": 309,
       "tag": "auth"
     },
     {
       "tc": "TC-001b",
-      "name": "parent login",
+      "name": "parent demo account signs in cleanly",
       "status": "PASS",
-      "ms": 1246,
+      "ms": 1198,
       "tag": "auth"
     },
     {
       "tc": "TC-001c",
-      "name": "student login",
+      "name": "student demo account signs in cleanly",
       "status": "PASS",
-      "ms": 1235,
+      "ms": 1280,
       "tag": "auth"
     },
     {
       "tc": "TC-001d",
-      "name": "teacher login",
+      "name": "teacher demo account signs in cleanly",
       "status": "PASS",
-      "ms": 1313,
+      "ms": 1217,
       "tag": "auth"
     },
     {
       "tc": "TC-001e",
-      "name": "accountant login",
+      "name": "accountant demo account signs in cleanly",
       "status": "PASS",
-      "ms": 1199,
+      "ms": 1234,
       "tag": "auth"
     },
     {
       "tc": "TC-001f",
-      "name": "hr login",
+      "name": "HR manager demo account signs in cleanly",
       "status": "PASS",
-      "ms": 1279,
+      "ms": 1231,
       "tag": "auth"
     },
     {
       "tc": "TC-003",
-      "name": "login with whitespace-padded email",
+      "name": "email with surrounding whitespace is normalised before lookup (still logs in)",
       "status": "PASS",
-      "ms": 1269,
+      "ms": 1281,
       "tag": "auth"
     },
     {
       "tc": "TC-003b",
-      "name": "padded-email lower-cased & trimmed",
+      "name": "email is trimmed AND lower-cased server-side (case-insensitive login)",
       "status": "PASS",
-      "ms": 1225,
+      "ms": 1204,
       "tag": "auth"
     },
     {
       "tc": "TC-004",
-      "name": "mixed-case email \u2192 lower-cased",
+      "name": "mixed-case email logs in (server normalises to lower-case)",
       "status": "PASS",
-      "ms": 1203,
+      "ms": 1302,
       "tag": "auth"
     },
     {
       "tc": "TC-007",
-      "name": "login wrong password rejected",
+      "name": "wrong password does NOT yield a session cookie",
       "status": "PASS",
-      "ms": 1248,
+      "ms": 1216,
       "tag": "auth"
     },
     {
       "tc": "TC-006",
-      "name": "login SQLi-style email rejected",
+      "name": "SQL-injection-style email payload is rejected (Prisma parameterises queries)",
       "status": "PASS",
-      "ms": 1091,
+      "ms": 1264,
       "tag": "security"
     },
     {
       "tc": "TC-005",
-      "name": "login empty body \u2014 no session granted",
+      "name": "login POST with empty body must not return a session token",
       "status": "PASS",
-      "ms": 250,
+      "ms": 374,
       "tag": "security"
     },
     {
       "tc": "TC-011",
-      "name": "/api/auth/session unauth \u2192 200 empty",
+      "name": "/api/auth/session without a cookie returns 200 with an empty body (NextAuth convention)",
       "status": "PASS",
-      "ms": 258,
+      "ms": 297,
       "tag": "api"
     },
     {
       "tc": "TC-032",
-      "name": "forgot-password unknown email \u2014 no enumeration",
+      "name": "POST /api/auth/forgot for an UNKNOWN email returns ok:true (no account-existence oracle)",
       "status": "PASS",
-      "ms": 288,
+      "ms": 303,
       "tag": "security"
     },
     {
       "tc": "TC-031",
-      "name": "forgot-password known email creates AuthToken",
+      "name": "POST /api/auth/forgot for a real email creates an AuthToken row of type=PASSWORD_RESET",
       "status": "PASS",
-      "ms": 1409,
+      "ms": 1487,
       "tag": "auth"
     },
     {
       "tc": "TC-033",
-      "name": "forgot-password malformed email \u2192 400",
+      "name": "POST /api/auth/forgot with a syntactically-invalid email returns 400",
       "status": "PASS",
-      "ms": 293,
+      "ms": 267,
       "tag": "auth"
     },
     {
       "tc": "TC-035",
-      "name": "reset-password bogus token \u2192 400 invalid-token",
+      "name": "POST /api/auth/reset with an unknown token returns 400 invalid-token (no DB write)",
       "status": "PASS",
-      "ms": 300,
+      "ms": 527,
       "tag": "security"
     },
     {
       "tc": "TC-036",
-      "name": "reset-password weak password \u2192 400",
+      "name": "POST /api/auth/reset with a password shorter than 8 chars returns 400 weak-password",
       "status": "PASS",
-      "ms": 259,
+      "ms": 278,
       "tag": "security"
     },
     {
       "tc": "TC-050",
-      "name": "unauth /audit \u2192 /login",
+      "name": "unauthenticated GET /audit redirects to /login?next=/audit (auth gate fires before role gate)",
       "status": "PASS",
-      "ms": 302,
+      "ms": 281,
       "tag": "role-gate"
     },
     {
       "tc": "TC-051",
-      "name": "STUDENT /audit \u2192 / (redirect)",
+      "name": "a STUDENT navigating directly to /audit is redirected to / (admin-only role gate)",
       "status": "PASS",
-      "ms": 465,
+      "ms": 798,
       "tag": "role-gate"
     },
     {
       "tc": "TC-052",
-      "name": "PARENT /payroll \u2192 / (redirect)",
+      "name": "a PARENT navigating directly to /payroll is redirected to / (HR-roles-only gate)",
       "status": "PASS",
-      "ms": 369,
+      "ms": 1632,
       "tag": "role-gate"
     },
     {
       "tc": "TC-053",
-      "name": "TEACHER /people \u2192 / (redirect)",
+      "name": "a TEACHER navigating directly to /people is redirected to / (admin/HR-only gate)",
       "status": "PASS",
-      "ms": 339,
+      "ms": 599,
       "tag": "role-gate"
     },
     {
       "tc": "TC-054",
-      "name": "TEACHER /Home/HR \u2192 / (redirect)",
+      "name": "a TEACHER navigating directly to /Home/HR is redirected to / (HR-only dashboard)",
       "status": "PASS",
-      "ms": 322,
+      "ms": 676,
       "tag": "role-gate"
     },
     {
       "tc": "TC-055",
-      "name": "TEACHER /Home/Admissions \u2192 / (redirect)",
+      "name": "a TEACHER navigating directly to /Home/Admissions is redirected to / (admin-only dashboard)",
       "status": "PASS",
-      "ms": 320,
+      "ms": 719,
       "tag": "role-gate"
     },
     {
       "tc": "TC-056",
-      "name": "ACCOUNTANT /audit \u2192 / (admin-only)",
+      "name": "an ACCOUNTANT navigating directly to /audit is redirected to / (audit log is admin/principal-only)",
       "status": "PASS",
-      "ms": 309,
+      "ms": 355,
       "tag": "role-gate"
     },
     {
       "tc": "TC-057",
-      "name": "ADMIN /audit \u2192 200",
+      "name": "ADMIN can reach /audit (200), confirming the role gate allows the right role through",
       "status": "PASS",
-      "ms": 432,
+      "ms": 446,
       "tag": "role-gate"
     },
     {
       "tc": "TC-058",
-      "name": "ACCOUNTANT /payroll \u2192 200",
+      "name": "ACCOUNTANT can reach /payroll (200), confirming finance roles see payroll",
       "status": "PASS",
-      "ms": 335,
+      "ms": 351,
       "tag": "role-gate"
     },
     {
       "tc": "TC-059",
-      "name": "HR_MANAGER /people \u2192 200",
+      "name": "HR_MANAGER can reach /people (200), confirming HR sees the directory",
       "status": "PASS",
-      "ms": 637,
+      "ms": 501,
       "tag": "role-gate"
     },
     {
       "tc": "TC-070",
-      "name": "STUDENT /api/tax/24q \u2192 403",
+      "name": "a STUDENT calling /api/tax/24q/.../text gets 401/403 (HR/Finance-only export, no PII leak)",
       "status": "PASS",
-      "ms": 300,
+      "ms": 593,
       "tag": "role-gate"
     },
     {
       "tc": "TC-071",
-      "name": "STUDENT /api/tax/epf \u2192 403",
+      "name": "a STUDENT calling /api/tax/epf/.../ecr gets 401/403 (HR/Finance-only)",
       "status": "PASS",
-      "ms": 334,
+      "ms": 615,
       "tag": "role-gate"
     },
     {
       "tc": "TC-073",
-      "name": "STUDENT /api/tax/26q \u2192 403",
+      "name": "a STUDENT calling /api/tax/26q/.../text gets 401/403 (HR/Finance-only vendor TDS)",
       "status": "PASS",
-      "ms": 294,
+      "ms": 611,
       "tag": "role-gate"
     },
     {
       "tc": "TC-107",
-      "name": "webhook missing signature \u2192 401",
+      "name": "Razorpay webhook without an X-Razorpay-Signature header returns 401 (HMAC-required)",
       "status": "PASS",
-      "ms": 281,
+      "ms": 615,
       "tag": "security"
     },
     {
       "tc": "TC-106",
-      "name": "webhook bad signature \u2192 401",
+      "name": "Razorpay webhook with a malformed/wrong signature returns 401 (timingSafeEqual length-checked safely)",
       "status": "PASS",
-      "ms": 295,
+      "ms": 279,
       "tag": "security"
     },
     {
@@ -290,135 +290,135 @@
     },
     {
       "tc": "TC-110",
-      "name": "verify rejects bogus signature",
+      "name": "client-side payment-verify endpoint rejects mismatched razorpay_signature with 401",
       "status": "PASS",
-      "ms": 300,
+      "ms": 568,
       "tag": "payments"
     },
     {
       "tc": "TC-008",
-      "name": "lockout after 5 failed attempts",
+      "name": "after 5 wrong-password attempts on the same account, lockedUntil is set and login is blocked",
       "status": "PASS",
-      "ms": 6175,
+      "ms": 6218,
       "tag": "security"
     },
     {
       "tc": "TC-180",
-      "name": "_prisma_migrations consistent",
+      "name": "every Prisma migration row in _prisma_migrations has applied_steps_count=1 and finished_at set",
       "status": "PASS",
-      "ms": 495,
+      "ms": 479,
       "tag": "db-integrity"
     },
     {
       "tc": "TC-183",
-      "name": "no orphan Student rows",
-      "status": "PASS",
-      "ms": 463,
-      "tag": "db-integrity"
-    },
-    {
-      "tc": "TC-186",
-      "name": "no negative invoice/payment amounts",
-      "status": "PASS",
-      "ms": 519,
-      "tag": "db-integrity"
-    },
-    {
-      "tc": "TC-187",
-      "name": "leave-balance.used non-negative",
-      "status": "PASS",
-      "ms": 468,
-      "tag": "db-integrity"
-    },
-    {
-      "tc": "TC-185",
-      "name": "AuthToken.tokenHash unique",
+      "name": "every Student.userId points to a real User row (no foreign-key orphans)",
       "status": "PASS",
       "ms": 499,
       "tag": "db-integrity"
     },
     {
-      "tc": "TC-150",
-      "name": "24Q export structure (admin)",
+      "tc": "TC-186",
+      "name": "no Invoice.total/amountPaid or Payment.amount is negative (sanity check on money columns)",
       "status": "PASS",
-      "ms": 292,
+      "ms": 527,
+      "tag": "db-integrity"
+    },
+    {
+      "tc": "TC-187",
+      "name": "no LeaveBalance.used row is negative (sanity check on counters)",
+      "status": "PASS",
+      "ms": 507,
+      "tag": "db-integrity"
+    },
+    {
+      "tc": "TC-185",
+      "name": "every sha256 token hash in AuthToken is unique \u2014 no replay-able duplicates",
+      "status": "PASS",
+      "ms": 459,
+      "tag": "db-integrity"
+    },
+    {
+      "tc": "TC-150",
+      "name": "GET /api/tax/24q/.../text as ADMIN returns text/plain starting with the Vidyalaya header line",
+      "status": "PASS",
+      "ms": 304,
       "tag": "tax"
     },
     {
       "tc": "TC-153",
-      "name": "24Q with no payslips returns header-only",
+      "name": "GET /api/tax/24q for a quarter with NO payslip data returns just the header (200, not 500)",
       "status": "PASS",
-      "ms": 299,
+      "ms": 320,
       "tag": "tax"
     },
     {
       "tc": "TC-154",
-      "name": "24Q bad params \u2192 400",
+      "name": "GET /api/tax/24q with non-numeric fy returns 400 (not a 500 server error)",
       "status": "PASS",
-      "ms": 366,
+      "ms": 296,
       "tag": "tax"
     },
     {
       "tc": "TC-100",
-      "name": "parent \u2192 /api/payments/razorpay creates order",
+      "name": "PARENT POSTs /api/payments/razorpay for own-child invoice \u2192 200 with provider=razorpay + orderId",
       "status": "PASS",
-      "ms": 896,
+      "ms": 1302,
       "tag": "payments"
     },
     {
       "tc": "TC-101",
       "name": "student \u2192 other student's invoice \u2192 403/404",
       "status": "PASS",
-      "ms": 806,
+      "ms": 856,
       "tag": "security"
     },
     {
       "tc": "TC-161",
-      "name": "unauth POST /api/ai/essay-grade rejected",
+      "name": "unauthenticated POST to any /api/ai/* endpoint is rejected (401/302)",
       "status": "PASS",
-      "ms": 278,
+      "ms": 271,
       "tag": "ai"
     },
     {
       "tc": "TC-210",
-      "name": "AI essay-grade returns content (OPENAI_API_KEY config sanity)",
+      "name": "TEACHER POST to /api/ai/essay-grade returns a non-empty AI response (confirms OPENAI_API_KEY wired)",
       "status": "PASS",
-      "ms": 2327,
+      "ms": 3831,
       "tag": "config"
     },
     {
       "tc": "TC-121",
-      "name": "transport ping wrong token \u2192 403",
+      "name": "POST /api/transport/ping with a wrong driverToken is rejected with 403 forbidden",
       "status": "PASS",
-      "ms": 300,
+      "ms": 612,
       "tag": "security"
     },
     {
       "tc": "TC-122",
-      "name": "transport ping no token \u2192 400",
+      "name": "POST /api/transport/ping without busId/token returns 400 missing-auth",
       "status": "PASS",
-      "ms": 317,
+      "ms": 366,
       "tag": "security"
     },
     {
       "tc": "TC-123",
-      "name": "transport ping bad lat/lng \u2192 400 bad-coords",
+      "name": "POST /api/transport/ping with lat=999/lng=999 returns 400 bad-coords (range-checked)",
       "status": "PASS",
-      "ms": 1553,
+      "ms": 1612,
       "tag": "security"
     },
     {
       "tc": "TC-140",
-      "name": "digest unauth \u2192 401",
+      "name": "POST /api/digest without any secret header returns 401 (refuses to send mass mail)",
       "status": "PASS",
-      "ms": 1023,
+      "ms": 857,
       "tag": "security"
     },
     {
       "tc": "TC-141",
-      "name": "digest wrong secret \u2192 401",
+      "name": "POST /api/digest with the WRONG X-Digest-Token still returns 401 (constant-time string equality)",
       "status": "PASS",
-      "ms": 280,
+      "ms": 313,
       "tag": "security"
     },
     {
@@ -430,58 +430,58 @@
     },
     {
       "tc": "TC-171",
-      "name": "favicon publicly fetched",
+      "name": "/favicon.ico is reachable without a session (public asset)",
       "status": "PASS",
-      "ms": 252,
+      "ms": 258,
       "tag": "middleware"
     },
     {
       "tc": "TC-102",
-      "name": "razorpay create unauth \u2192 401/redirect",
+      "name": "POST /api/payments/razorpay without a session is 401 or 302\u2192/login (auth-gated order creation)",
+      "status": "PASS",
+      "ms": 296,
+      "tag": "security"
+    },
+    {
+      "tc": "TC-322",
+      "name": "GET /api/fees/<path-traversal-string>/pdf does NOT serve a file (Prisma findUnique-by-id makes traversal irrelevant)",
+      "status": "PASS",
+      "ms": 254,
+      "tag": "security"
+    },
+    {
+      "tc": "TC-342",
+      "name": "under 10 concurrent failed-login threads, the counter still reaches MAX and lockedUntil is set (race-free)",
+      "status": "PASS",
+      "ms": 3416,
+      "tag": "concurrency"
+    },
+    {
+      "tc": "TC-360",
+      "name": "warm cache /login TTFB stays under 3s (perf smoke against Vercel edge)",
+      "status": "PASS",
+      "ms": 797,
+      "tag": "perf"
+    },
+    {
+      "tc": "TC-200",
+      "name": "production /login response carries Strict-Transport-Security (HSTS pin)",
+      "status": "PASS",
+      "ms": 270,
+      "tag": "security"
+    },
+    {
+      "tc": "TC-803",
+      "name": "NextAuth-set cookies are HttpOnly AND Secure (browser cannot read them via JS, only sent over HTTPS)",
       "status": "PASS",
       "ms": 279,
       "tag": "security"
     },
     {
-      "tc": "TC-322",
-      "name": "path traversal on invoice id rejected",
-      "status": "PASS",
-      "ms": 244,
-      "tag": "security"
-    },
-    {
-      "tc": "TC-342",
-      "name": "concurrent lockout still locks within ~10 attempts",
-      "status": "PASS",
-      "ms": 3041,
-      "tag": "concurrency"
-    },
-    {
-      "tc": "TC-360",
-      "name": "warm /login TTFB <3s",
-      "status": "PASS",
-      "ms": 842,
-      "tag": "perf"
-    },
-    {
-      "tc": "TC-200",
-      "name": "HSTS header on prod /login",
-      "status": "PASS",
-      "ms": 367,
-      "tag": "security"
-    },
-    {
-      "tc": "TC-803",
-      "name": "auth cookies are HttpOnly + Secure",
-      "status": "PASS",
-      "ms": 357,
-      "tag": "security"
-    },
-    {
       "tc": "TC-804",
-      "name": "auth cookies have SameSite",
+      "name": "NextAuth cookies declare a SameSite policy (CSRF defence)",
       "status": "PASS",
-      "ms": 278,
+      "ms": 290,
       "tag": "security"
     },
     {
@@ -493,39 +493,67 @@
     },
     {
       "tc": "TC-303b",
-      "name": "STUDENT home HTML hides admin/HR nav",
+      "name": "a STUDENT's home page does NOT mention admin-only labels (Audit log, Payroll) \u2014 verified via SSR HTML scan",
       "status": "PASS",
-      "ms": 680,
+      "ms": 686,
       "tag": "ui-content"
     },
     {
       "tc": "TC-303c",
-      "name": "PARENT home HTML shows Fees/Transport",
+      "name": "a PARENT's home page mentions Fees and Transport (parent-relevant nav surfaces)",
       "status": "PASS",
-      "ms": 350,
+      "ms": 333,
       "tag": "ui-content"
     },
     {
       "tc": "TC-300",
-      "name": "/login renders an HTML doc shell",
+      "name": "/login returns a real Next.js HTML shell (DOCTYPE, <html>, viewport, _next assets)",
       "status": "PASS",
       "ms": 272,
       "tag": "ui-content"
     },
     {
       "tc": "TC-302",
-      "name": "demo grid env-gated (informational)",
+      "name": "demo-account grid visibility is controlled by NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS env var (informational; either is acceptable)",
       "status": "PASS",
-      "ms": 254,
+      "ms": 293,
       "tag": "ui-content"
     },
     {
-      "tc": "TC-202",
-      "name": "forgot-password no timing oracle (<1.5s diff)",
+      "tc": "TC-109",
+      "name": "webhook is idempotent on replay",
+      "status": "SKIP",
+      "reason": "RZP_WEBHOOK_SECRET not set in env",
+      "tag": "payments"
+    },
+    {
+      "tc": "TC-150r",
+      "name": "Form 24Q gross totals equal SUM(Payslip.gross) for the same quarter \u2014 financial accuracy check",
       "status": "PASS",
-      "ms": 1936,
+      "ms": 953,
+      "tag": "tax"
+    },
+    {
+      "tc": "TC-220",
+      "name": "deactivated user (User.active = false) cannot start a new session \u2014 soft-delete enforced",
+      "status": "PASS",
+      "ms": 2339,
+      "tag": "security"
+    },
+    {
+      "tc": "TC-230",
+      "name": "MessageOutbox rows only have valid channel + status enum values \u2014 no orphan states",
+      "status": "PASS",
+      "ms": 537,
+      "tag": "db-integrity"
+    },
+    {
+      "tc": "TC-202",
+      "name": "/api/auth/forgot response time differs by <1.5s between known and unknown emails (no timing-side-channel for account enumeration)",
+      "status": "PASS",
+      "ms": 2116,
       "tag": "security"
     }
   ],
-  "ts": "2026-05-02T14:14:59.922324Z"
+  "ts": "2026-05-02T14:48:47.445002Z"
 }
