@@ -119,7 +119,9 @@ export async function requirePageRole(roles: string[]): Promise<SessionUser> {
   const { redirect } = await import("next/navigation");
   const session = await auth();
   if (!session?.user) redirect("/login");
-  const u = session.user as any as SessionUser;
+  // session is narrowed past the redirect, but TS doesn't infer that for
+  // dynamically-imported never-returning helpers — use ! to assert.
+  const u = session!.user as any as SessionUser;
   if (!roles.includes(u.role)) redirect("/");
   return u;
 }
