@@ -224,4 +224,59 @@ Categories: **F**unctional, **E**dge, **R**esilience, **S**ecurity, **C**oncurre
 | TC-803 | S | session cookie | HttpOnly | true |
 | TC-804 | S | session cookie | Secure on https | true |
 
-Total scenarios planned: **210** (HTTP/Python: ~75, Playwright: ~135 across the 8 spec files; plus existing Vitest unit tests for tax/compliance/vendor-tds/etc.).
+## Additional Playwright UI scenarios (TC-900 — TC-1499)
+
+Added in the comprehensive UI regression pass — 9th–13th spec files.
+
+| ID | Cat | Target | Description | Expected | Where |
+|---|---|---|---|---|---|
+| TC-900.* | U | sidebar — every nav label | per-label visibility for ADMIN | label visible | Playwright |
+| TC-901 | U | sidebar — every link clickable | navigate sample of 6 | no error boundary, no JS errors | Playwright |
+| TC-910 | U | command palette ⌘K | press ⌘/Ctrl+K | search input focused | Playwright |
+| TC-911 | U | search "Aarav" | type student name | results contain Aarav OR "no result" | Playwright |
+| TC-920 | U | logout flow | click sign-out | gated page bounces to /login | Playwright |
+| TC-930 | U | language switcher | toggle on /login | page still renders | Playwright |
+| TC-940 | U | mobile hamburger | viewport 360×720 | drawer reveals nav | Playwright |
+| TC-950 | U | notifications bell | click bell | dropdown opens | Playwright |
+| TC-960 | U | help menu | click help button | no error | Playwright |
+| TC-1000.<role> | U | /fees per role | render | no 5xx, content present | Playwright |
+| TC-1010 | U | /fees → invoice detail | click first invoice | URL changes, detail shown | Playwright |
+| TC-1020.<role> | U | /payments per finance role | render | no 5xx | Playwright |
+| TC-1030.<role> | U | /payroll per HR/finance | render | no 5xx | Playwright |
+| TC-1040.<role> | U | /people | render | staff + student lists | Playwright |
+| TC-1050.<role> | U | /inventory | render | no 5xx | Playwright |
+| TC-1060.<role> | U | /library | render | book list | Playwright |
+| TC-1070 | U | TEACHER /attendance | render | no 5xx | Playwright |
+| TC-1080.<role> | U | /exams | render | no 5xx | Playwright |
+| TC-1090.<role> | U | /announcements | render | no 5xx | Playwright |
+| TC-1091.<role> | U | /events | render | no 5xx | Playwright |
+| TC-1100 | U | TEACHER /hr/leave/apply | render | form attached | Playwright |
+| TC-1101 | U | HR /hr/leave | render | no 5xx | Playwright |
+| TC-1110.<path> | U | /tax/* per page | render for HR | no 5xx | Playwright |
+| TC-1120 | U | /transport/live | render | map keywords visible | Playwright |
+| TC-1130 | U | /audit | render rows | actor, action visible | Playwright |
+| TC-1131 | U | /audit?action=GRADE_SUBMISSION | filter | no error boundary | Playwright |
+| TC-1200 | A | /api/tax/24q text export (HR) | GET as HR_MANAGER | 200 + text/plain + header | Playwright |
+| TC-1201 | A | /api/tax/26q text export (HR) | GET as HR_MANAGER | 200 + header | Playwright |
+| TC-1202 | A | /api/tax/epf ECR (HR) | GET | 200 | Playwright |
+| TC-1203 | S | STUDENT cannot fetch /api/tax/24q | role gate | 401 or 403 | Playwright |
+| TC-1210 | A | first payslip PDF (HR) | %PDF magic | 200 PDF | Playwright |
+| TC-1220 | A | invoice PDF (PARENT, own child) | 200 + %PDF | Playwright |
+| TC-1230 | A | report-card PDF (TEACHER) | 200 + %PDF | Playwright |
+| TC-1240 | A | bonafide PDF (ADMIN) | 200 + %PDF | Playwright |
+| TC-1300 | U | invite form is inline (no modal) | Settings/users | "send" button visible | Playwright |
+| TC-1301 | U | PayNow modal closes on Escape | parent /fees | modal dismisses | Playwright |
+| TC-1310 | U | empty invite blocked | required attrs | URL unchanged | Playwright |
+| TC-1311 | U | trailing-whitespace email rejected | invite form | inline error | Playwright |
+| TC-1320 | U | success toast after invite | new invitation | toast text visible | Playwright |
+| TC-1330 | U | role select has 9 options | check dropdown | ≥9 options incl. ADMIN | Playwright |
+| TC-1331 | U | role select keyboard | select PRINCIPAL via kb | value changes | Playwright |
+| TC-1340 | U | events page accepts invalid date param | ?from=invalid | no error boundary | Playwright |
+| TC-1400 | U | TEACHER /classes lists | render | "grade" or "class" present | Playwright |
+| TC-1401 | U | class detail tabs (Stream, Classwork, People, Gradebook) | tabs visible | text-match | Playwright |
+| TC-1410.<role> | U | /profile per role | render | name + email visible | Playwright |
+| TC-1420 | U | audit filter by entity=Payment | no error boundary | passes | Playwright |
+| TC-1430 | U | issue driver-token, open URL, header renders | full deep flow | bus header visible | Playwright |
+| TC-1431 | U | bogus driver-token → 404 | invalid query | 404 status | Playwright |
+
+Total scenarios planned: **300+** (Python+DB: 74, Playwright: ~225 across 13 spec files; existing Vitest unit tests for tax/compliance/vendor-tds preserved).

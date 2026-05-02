@@ -37,6 +37,44 @@ for r in results:
     by_tag[r.get("tag") or "uncategorised"][r["status"]] += 1
 tag_order = sorted(by_tag.keys(), key=lambda k: -sum(by_tag[k].values()))
 
+# ── Parse SCENARIOS.md for every TC catalogued ──────────────────────────────
+def parse_scenarios():
+    """Returns list of dicts {tc, cat, target, description, expected, runs}."""
+    if not SCENARIOS.exists(): return []
+    text = SCENARIOS.read_text()
+    scen = []
+    # The file has markdown tables. Rows look like:
+    # | TC-001 | F | `target` | description | expected | Python |
+    for line in text.splitlines():
+        m = re.match(r'^\s*\|\s*(TC-[\w\.\*]+)\s*\|\s*([A-Z\.]+)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*$', line)
+        if m:
+            scen.append({
+                "tc": m.group(1).strip(),
+                "cat": m.group(2).strip(),
+                "target": m.group(3).strip().strip('`'),
+                "description": m.group(4).strip(),
+                "expected": m.group(5).strip(),
+                "runs": m.group(6).strip(),
+            })
+    return scen
+
+ALL_SCENARIOS = parse_scenarios()
+EXECUTED_TCS = {r["tc"] for r in results}
+
+# Roll up scenarios by status — executed map cleanly to results;
+# anything else is "Catalogued / Playwright-deferred".
+def scenario_status(s):
+    tc = s["tc"]
+    if tc in EXECUTED_TCS:
+        for r in results:
+            if r["tc"] == tc: return r["status"]
+    if "Playwright" in s["runs"]:
+        return "PLAYWRIGHT"  # catalogued, runs in Playwright suite
+    return "CATALOGUED"   # listed but not yet executed (Python catalog has wildcards too)
+
+scenario_counts = collections.Counter(scenario_status(s) for s in ALL_SCENARIOS)
+total_catalogued = len(ALL_SCENARIOS)
+
 # ── Defects (failures and the documented fixes) ──────────────────────────────
 DEFECTS = [
     {
@@ -124,6 +162,136 @@ def stacked_bar(buckets, width=620, height=22):
                         f'fill="white" font-size="11" font-weight="600">{c}</text>')
         x += w
     return f'<svg width="{width}" height="{height}" style="border-radius:6px;">{"".join(bars)}</svg>'
+
+def hbar(items, max_width=520, bar_height=20, gap=8, left_label_w=240):
+    """Horizontal bar chart. items=[(label, value, color?, suffix?), ...].
+    Label shown on left, bar in middle, value on right."""
+    if not items: return ""
+    max_v = max(v for _, v, *_ in items) or 1
+    total_w = left_label_w + max_width + 80
+    h = (bar_height + gap) * len(items) + 6
+    parts = []
+    for i, item in enumerate(items):
+        label = item[0]; v = item[1]
+        color = item[2] if len(item) > 2 else "#3b82f6"
+        suffix = item[3] if len(item) > 3 else ""
+        y = i * (bar_height + gap) + 3
+        w = (v / max_v) * max_width
+        parts.append(f'<text x="0" y="{y + bar_height*0.7}" font-size="12" fill="#334155">{html.escape(str(label))}</text>')
+        parts.append(f'<rect x="{left_label_w}" y="{y}" width="{w}" height="{bar_height}" fill="{color}" rx="3"/>')
+        parts.append(f'<text x="{left_label_w + w + 6}" y="{y + bar_height*0.7}" font-size="11" fill="#475569" font-weight="600">{v}{suffix}</text>')
+    return f'<svg width="{total_w}" height="{h}" viewBox="0 0 {total_w} {h}">{"".join(parts)}</svg>'
+
+def histogram(values, buckets=10, width=620, height=160, color="#6366f1"):
+    """Render a histogram of values."""
+    if not values: return ""
+    vmin, vmax = min(values), max(values)
+    if vmin == vmax: vmax = vmin + 1
+    span = vmax - vmin
+    counts = [0] * buckets
+    for v in values:
+        i = min(buckets - 1, int((v - vmin) / span * buckets))
+        counts[i] += 1
+    max_count = max(counts) or 1
+    bw = (width - 60) / buckets
+    parts = [f'<text x="40" y="14" font-size="11" fill="#64748b">count</text>']
+    # y-axis
+    for tick_pct, tick_label in [(0, '0'), (0.5, str(max_count // 2)), (1.0, str(max_count))]:
+        ty = height - 30 - (height - 50) * tick_pct
+        parts.append(f'<line x1="40" y1="{ty}" x2="{width-10}" y2="{ty}" stroke="#e2e8f0" stroke-width="1"/>')
+        parts.append(f'<text x="34" y="{ty + 3}" font-size="10" fill="#94a3b8" text-anchor="end">{tick_label}</text>')
+    # bars
+    for i, c in enumerate(counts):
+        if c == 0: continue
+        bh = (c / max_count) * (height - 50)
+        x = 40 + i * bw + 1
+        y = height - 30 - bh
+        parts.append(f'<rect x="{x}" y="{y}" width="{bw - 2}" height="{bh}" fill="{color}" rx="2" opacity="0.9"/>')
+        if c > 0 and bh > 14:
+            parts.append(f'<text x="{x + bw/2}" y="{y + 12}" font-size="10" fill="white" text-anchor="middle" font-weight="700">{c}</text>')
+    # x-axis labels
+    parts.append(f'<text x="40" y="{height - 12}" font-size="10" fill="#94a3b8">{int(vmin)}ms</text>')
+    parts.append(f'<text x="{width - 10}" y="{height - 12}" font-size="10" fill="#94a3b8" text-anchor="end">{int(vmax)}ms</text>')
+    parts.append(f'<text x="{(width)/2}" y="{height - 12}" font-size="10" fill="#94a3b8" text-anchor="middle">duration</text>')
+    return f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">{"".join(parts)}</svg>'
+
+def heatmap(rows, cols, cell_data, cell_w=72, cell_h=32):
+    """rows = [(label, total)], cols=[(label, color)], cell_data={(row,col): count}.
+    Renders a 2D grid; cells colored by intensity within their column color."""
+    width = 220 + len(cols) * cell_w + 60
+    height = 30 + len(rows) * cell_h + 4
+    parts = []
+    # Header row (column labels)
+    for ci, (col, color) in enumerate(cols):
+        cx = 220 + ci * cell_w
+        parts.append(f'<text x="{cx + cell_w/2}" y="20" font-size="11" fill="#334155" text-anchor="middle" font-weight="600">{html.escape(col)}</text>')
+    # Rows
+    for ri, (row, total) in enumerate(rows):
+        ry = 30 + ri * cell_h
+        parts.append(f'<text x="0" y="{ry + cell_h*0.65}" font-size="12" fill="#0f172a">{html.escape(row)}</text>')
+        for ci, (col, color) in enumerate(cols):
+            cx = 220 + ci * cell_w
+            count = cell_data.get((row, col), 0)
+            # intensity is count / total
+            intensity = (count / max(1, total)) if total else 0
+            opacity = 0.15 + 0.7 * intensity if count > 0 else 0.05
+            parts.append(f'<rect x="{cx + 2}" y="{ry + 2}" width="{cell_w - 4}" height="{cell_h - 4}" fill="{color}" opacity="{opacity:.2f}" rx="4"/>')
+            if count > 0:
+                text_color = "#ffffff" if intensity > 0.4 else "#0f172a"
+                parts.append(f'<text x="{cx + cell_w/2}" y="{ry + cell_h*0.65}" font-size="12" font-weight="700" fill="{text_color}" text-anchor="middle">{count}</text>')
+        parts.append(f'<text x="{220 + len(cols) * cell_w + 10}" y="{ry + cell_h*0.65}" font-size="11" fill="#94a3b8">{total}</text>')
+    return f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">{"".join(parts)}</svg>'
+
+def severity_gauge(items, width=380, height=140):
+    """Visual breakdown of defects by severity. items=[(severity, count, color)]."""
+    if not items: return ""
+    total = sum(c for _, c, _ in items) or 1
+    parts = []
+    # Title
+    parts.append(f'<text x="{width/2}" y="20" font-size="11" fill="#64748b" text-anchor="middle" font-weight="600" letter-spacing="1.4">DEFECTS BY SEVERITY</text>')
+    # Stacked bar across the width
+    bar_y = 60; bar_h = 32; bar_x_start = 30; bar_max_w = width - 60
+    x = bar_x_start
+    for label, count, color in items:
+        w = bar_max_w * count / total
+        parts.append(f'<rect x="{x}" y="{bar_y}" width="{w}" height="{bar_h}" fill="{color}" rx="3" opacity="0.95"/>')
+        if w > 32:
+            parts.append(f'<text x="{x + w/2}" y="{bar_y + bar_h*0.65}" fill="white" font-size="13" font-weight="700" text-anchor="middle">{count}</text>')
+        x += w
+    # Legend
+    legend_x = bar_x_start; legend_y = bar_y + bar_h + 20
+    for label, count, color in items:
+        parts.append(f'<rect x="{legend_x}" y="{legend_y - 8}" width="10" height="10" fill="{color}" rx="2"/>')
+        parts.append(f'<text x="{legend_x + 14}" y="{legend_y}" font-size="11" fill="#334155">{html.escape(label)} ({count})</text>')
+        legend_x += 90
+    return f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">{"".join(parts)}</svg>'
+
+def timeline_bar(items, width=620, height=240):
+    """Each test as a horizontal lane, sized by duration. items=[{tc,name,ms,status}]"""
+    if not items: return ""
+    n = len(items)
+    lane_h = max(2, min(8, (height - 30) / n))
+    max_ms = max(it["ms"] for it in items) or 1
+    parts = []
+    parts.append(f'<text x="0" y="14" font-size="11" fill="#64748b">execution timeline · {n} tests · longest {max_ms} ms</text>')
+    for i, it in enumerate(items):
+        y = 22 + i * (lane_h + 0)
+        w = (it["ms"] / max_ms) * (width - 8)
+        color = {"PASS":"#16a34a", "FAIL":"#dc2626", "ERROR":"#7c2d12", "SKIP":"#94a3b8"}.get(it["status"], "#94a3b8")
+        parts.append(f'<rect x="0" y="{y}" width="{w}" height="{lane_h}" fill="{color}" opacity="0.65">'
+                     f'<title>{html.escape(it["tc"])} — {html.escape(it["name"])} ({it["ms"]} ms)</title></rect>')
+    return f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">{"".join(parts)}</svg>'
+
+def coverage_grid(rows):
+    """Visual coverage matrix: rows=[(concern, py, pw, vt)] each cell is "✅"/"partial"/"—"/etc."""
+    width = 880; cell_w = 200; total = 600
+    parts = []
+    # header
+    headers = ["Concern", "Python (run)", "Playwright (committed)", "Vitest (existing)"]
+    cols_x = [0, total + 0, total + cell_w*1, total + cell_w*2]
+    parts.append(f'<svg width="{width}" height="{30 + len(rows)*32 + 10}" viewBox="0 0 {width} {30 + len(rows)*32 + 10}">')
+    # We render via plain HTML table actually since SVG is overkill here. Bail.
+    return ''  # use HTML table instead
 
 # ── Render results table rows ────────────────────────────────────────────────
 def status_badge(s):
@@ -301,8 +469,74 @@ for tag in tag_order:
     </div>'''
 bars_html += '</div>'
 
+# ── Top 10 slowest tests bar chart ───────────────────────────────────────────
+slowest = sorted([r for r in results if r.get("ms")], key=lambda r: -r["ms"])[:10]
+slow_items = []
+for r in slowest:
+    color = {"PASS":"#16a34a", "FAIL":"#dc2626", "ERROR":"#7c2d12", "SKIP":"#94a3b8"}[r["status"]]
+    label = f'{r["tc"]} {r["name"][:38]}{"…" if len(r["name"]) > 38 else ""}'
+    slow_items.append((label, r["ms"], color, " ms"))
+slowest_html = f'''
+<h2>4. Performance — slowest 10 tests</h2>
+<div class="card">
+  <p class="muted" style="margin-top:0">Bar length proportional to wall-clock duration. Color reflects the test's outcome.</p>
+  {hbar(slow_items, max_width=420)}
+</div>'''
+
+# ── Test duration histogram ─────────────────────────────────────────────────
+durations = [r["ms"] for r in results if r.get("ms")]
+median_ms = sorted(durations)[len(durations)//2] if durations else 0
+mean_ms = round(sum(durations) / len(durations)) if durations else 0
+p95_ms = sorted(durations)[int(0.95 * len(durations))] if durations else 0
+hist_html = f'''
+<h2>5. Test duration distribution</h2>
+<div class="card">
+  <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:14px">
+    <div><span class="muted" style="font-size:11px">MEDIAN</span><div style="font-size:20px;font-weight:700">{median_ms} ms</div></div>
+    <div><span class="muted" style="font-size:11px">MEAN</span><div style="font-size:20px;font-weight:700">{mean_ms} ms</div></div>
+    <div><span class="muted" style="font-size:11px">P95</span><div style="font-size:20px;font-weight:700">{p95_ms} ms</div></div>
+    <div><span class="muted" style="font-size:11px">TOTAL CASES</span><div style="font-size:20px;font-weight:700">{len(durations)}</div></div>
+  </div>
+  {histogram(durations, buckets=12)}
+</div>'''
+
+# ── Status × Category heatmap ───────────────────────────────────────────────
+hm_rows = sorted(set((r.get("tag") or "uncategorised") for r in results))
+hm_rows_data = [(t, sum(by_tag[t].values())) for t in hm_rows]
+hm_cols = [("PASS", "#16a34a"), ("FAIL", "#dc2626"), ("ERROR", "#7c2d12"), ("SKIP", "#94a3b8")]
+hm_data = {(t, c): by_tag[t].get(c, 0) for t in hm_rows for c, _ in hm_cols}
+heatmap_html = f'''
+<h2>6. Status × Category heatmap</h2>
+<div class="card">
+  <p class="muted" style="margin-top:0">Cell intensity reflects the share of that category that landed in that bucket. Numbers are absolute counts.</p>
+  <div style="overflow-x:auto">{heatmap(hm_rows_data, hm_cols, hm_data)}</div>
+</div>'''
+
+# ── Defect severity gauge ───────────────────────────────────────────────────
+sev_items = []
+sev_count = collections.Counter(d["severity"] for d in DEFECTS)
+for sev, color in [("High", "#dc2626"), ("Medium", "#d97706"), ("Low", "#0284c7")]:
+    if sev_count.get(sev, 0) > 0:
+        sev_items.append((sev, sev_count[sev], color))
+gauge_html = ''
+if sev_items:
+    gauge_html = f'''
+<div class="card" style="margin-bottom:16px">
+  <h3 style="margin-top:0">Defect severity</h3>
+  {severity_gauge(sev_items, width=520, height=130)}
+</div>'''
+
+# ── Execution timeline ─────────────────────────────────────────────────────
+tl_html = f'''
+<h2>7. Execution timeline</h2>
+<div class="card">
+  <p class="muted" style="margin-top:0">One bar per test; length proportional to its wall-clock duration. Hover (in browser) to see the TC ID, name, and ms.</p>
+  {timeline_bar([{'tc':r['tc'],'name':r['name'],'ms':r.get('ms',0),'status':r['status']} for r in results], width=920, height=2 + max(120, 8 * len(results)))}
+</div>'''
+
 # Defects
 defects_html = '<h2>2. Defects found and fixed</h2>'
+defects_html += gauge_html if 'gauge_html' in dir() else ''
 if not DEFECTS:
     defects_html += '<div class="card muted">None.</div>'
 for d in DEFECTS:
@@ -332,7 +566,7 @@ for d in DEFECTS:
     </div>'''
 
 # Results table
-table_html = '<h2>3. Every executed case</h2>'
+table_html = '<h2>8. Every executed case</h2>'
 table_html += f'<p class="muted">Rows sorted: failures + errors first, then by category, then by ID. Click any row to scan the assertion failure reason.</p>'
 table_html += '<div class="card" style="padding:0;overflow-x:auto">'
 table_html += '<table>'
@@ -347,7 +581,7 @@ table_html += '</tbody></table></div>'
 skip_note = ''
 skipped = [r for r in results if r["status"] == "SKIP"]
 if skipped:
-    skip_note = '<h2>4. Skipped tests (and why)</h2><div class="card"><ul>'
+    skip_note = '<h2>9. Skipped tests (and why)</h2><div class="card"><ul>'
     for r in skipped:
         skip_note += f'<li><code>{html.escape(r["tc"])}</code> — {html.escape(r["name"])}<br>'
         skip_note += f'<span class="muted" style="font-size:12px">{html.escape(r.get("reason",""))}</span></li>'
@@ -355,7 +589,7 @@ if skipped:
 
 # Coverage matrix
 coverage = '''
-<h2>5. Coverage matrix</h2>
+<h2>10. Coverage matrix</h2>
 <div class="card" style="padding:0;overflow-x:auto">
 <table>
   <thead><tr><th>Concern</th><th>Python (this run)</th><th>Playwright (committed)</th><th>Vitest (existing)</th></tr></thead>
@@ -386,7 +620,7 @@ coverage = '''
 
 # Recommendations
 recs = '''
-<h2>6. Next-pass recommendations</h2>
+<h2>11. Next-pass recommendations</h2>
 <div class="card">
   <ol style="font-size:13px">
     <li><strong>Per-role data filtering</strong> on multi-role pages — verify that PARENT A on <code>/fees</code> can't see PARENT B's invoices. This needs paired-session Playwright runs.</li>
@@ -399,6 +633,137 @@ recs = '''
   </ol>
 </div>'''
 
+# ── Full scenario inventory (every TC catalogued, executed or not) ──────────
+def cat_label(c):
+    return {"F":"Functional","E":"Edge","R":"Resilience","S":"Security",
+            "C":"Concurrency","P":"Performance","U":"UI","A":"API contract",
+            "CFG":"Config"}.get(c, c)
+def scenario_badge(status):
+    palette = {
+        "PASS":      ("#16a34a", "Executed · pass"),
+        "FAIL":      ("#dc2626", "Executed · fail"),
+        "ERROR":     ("#7c2d12", "Executed · error"),
+        "SKIP":      ("#94a3b8", "Skipped"),
+        "PLAYWRIGHT":("#6366f1", "Playwright (committed, not run here)"),
+        "CATALOGUED":("#0ea5e9", "Catalogued · pending"),
+    }
+    color, _label = palette.get(status, ("#94a3b8", "—"))
+    return (f'<span class="status-pill" data-status="{status}" '
+            f'style="display:inline-block;padding:2px 9px;border-radius:99px;'
+            f'background:{color}1a;color:{color};font-weight:600;font-size:11px;'
+            f'letter-spacing:0.4px">{status}</span>')
+
+scenario_rows = []
+for s in ALL_SCENARIOS:
+    st = scenario_status(s)
+    scenario_rows.append({
+        **s,
+        "status": st,
+    })
+# Sort: executed-fails first, then executed-errors, then by tc id
+status_priority = {"FAIL": 0, "ERROR": 1, "PASS": 2, "SKIP": 3, "PLAYWRIGHT": 4, "CATALOGUED": 5}
+scenario_rows.sort(key=lambda r: (status_priority.get(r["status"], 9), r["tc"]))
+
+inventory_html = f'''
+<h2>3. Full scenario inventory ({total_catalogued} total)</h2>
+<div class="card" style="padding:18px 20px">
+  <p class="muted" style="margin:0 0 12px">Every scenario from <code>tests/qa/SCENARIOS.md</code>, cross-referenced with this run's results. <strong>Use the filter pills</strong> below to focus on a status.</p>
+  <div class="pill-row" style="margin-bottom:8px">
+    <span class="pill" style="background:#dcfce7;color:#15803d">Executed PASS · {scenario_counts.get('PASS',0)}</span>
+    <span class="pill" style="background:#fee2e2;color:#b91c1c">Executed FAIL · {scenario_counts.get('FAIL',0)}</span>
+    <span class="pill" style="background:#fff7ed;color:#7c2d12">Executed ERROR · {scenario_counts.get('ERROR',0)}</span>
+    <span class="pill" style="background:#f1f5f9;color:#475569">Skipped · {scenario_counts.get('SKIP',0)}</span>
+    <span class="pill" style="background:#e0e7ff;color:#4338ca">Playwright (committed) · {scenario_counts.get('PLAYWRIGHT',0)}</span>
+    <span class="pill" style="background:#e0f2fe;color:#0369a1">Catalogued (pending) · {scenario_counts.get('CATALOGUED',0)}</span>
+  </div>
+  <div id="filter-bar" class="pill-row" style="margin:14px 0 6px;gap:6px">
+    <span class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;margin-right:6px">Show:</span>
+    <a href="#all" class="filter-link">All</a>
+    <a href="#fail" class="filter-link">Fail</a>
+    <a href="#pass" class="filter-link">Pass</a>
+    <a href="#playwright" class="filter-link">Playwright</a>
+    <a href="#skip" class="filter-link">Skip</a>
+  </div>
+  <div style="overflow-x:auto;max-height:640px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;margin-top:8px">
+    <table id="all-scenarios-table">
+      <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
+        <tr>
+          <th>TC</th>
+          <th>Cat</th>
+          <th>Target</th>
+          <th>Description</th>
+          <th>Expected</th>
+          <th>Runs in</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>'''
+for s in scenario_rows:
+    inventory_html += f'''
+        <tr class="scen-row" data-status="{s['status']}">
+          <td style="font-family:ui-monospace,monospace;font-weight:600;font-size:12px;color:#334155;white-space:nowrap">{html.escape(s['tc'])}</td>
+          <td><span class="muted" style="font-size:11px">{html.escape(cat_label(s['cat']))}</span></td>
+          <td style="font-family:ui-monospace,monospace;font-size:11px;color:#475569;max-width:220px;overflow:hidden;text-overflow:ellipsis"><code>{html.escape(s['target'])}</code></td>
+          <td style="font-size:12px;max-width:300px">{html.escape(s['description'])}</td>
+          <td style="font-size:12px;color:#64748b;max-width:240px">{html.escape(s['expected'])}</td>
+          <td><span class="muted" style="font-size:11px">{html.escape(s['runs'])}</span></td>
+          <td>{scenario_badge(s['status'])}</td>
+        </tr>'''
+inventory_html += '''
+      </tbody>
+    </table>
+  </div>
+</div>'''
+
+# Renumber executed-cases section accordingly
+table_html = table_html.replace('<h2>8. Every executed case</h2>',
+                                '<h2>4. Detailed results — every executed case</h2>')
+slowest_html = slowest_html.replace('<h2>4. Performance — slowest 10 tests</h2>',
+                                    '<h2>5. Performance — slowest 10 tests</h2>')
+hist_html = hist_html.replace('<h2>5. Test duration distribution</h2>',
+                              '<h2>6. Test duration distribution</h2>')
+heatmap_html = heatmap_html.replace('<h2>6. Status × Category heatmap</h2>',
+                                    '<h2>7. Status × Category heatmap</h2>')
+tl_html = tl_html.replace('<h2>7. Execution timeline</h2>',
+                          '<h2>8. Execution timeline</h2>')
+skip_note = skip_note.replace('<h2>9. Skipped tests (and why)</h2>',
+                              '<h2>9. Skipped runner cases (and why)</h2>')
+
+# Filter pill CSS for the inventory table
+filter_css = '''
+<style>
+  .filter-link { display:inline-block; padding:4px 12px; border-radius:99px;
+    background:#f1f5f9; color:#334155; text-decoration:none; font-size:12px;
+    font-weight:600; border: 1px solid #e2e8f0; transition: all 0.15s; }
+  .filter-link:hover { background:#e2e8f0; }
+  /* :target rules — show only matching rows when one of the filter pills is clicked */
+  body:has(:target#fail)        .scen-row:not([data-status="FAIL"])  { display:none; }
+  body:has(:target#pass)        .scen-row:not([data-status="PASS"])  { display:none; }
+  body:has(:target#playwright)  .scen-row:not([data-status="PLAYWRIGHT"]) { display:none; }
+  body:has(:target#skip)        .scen-row:not([data-status="SKIP"])  { display:none; }
+  /* anchor targets */
+</style>
+<a id="all"></a><a id="fail"></a><a id="pass"></a><a id="playwright"></a><a id="skip"></a>
+'''
+
 # Write file
-OUT.write_text(HEAD + header + kpis + legend + bars_html + defects_html + table_html + skip_note + coverage + recs + FOOTER)
+OUT.write_text(
+    HEAD
+    + filter_css
+    + header
+    + kpis
+    + legend
+    + bars_html
+    + defects_html
+    + inventory_html
+    + table_html
+    + slowest_html
+    + hist_html
+    + heatmap_html
+    + tl_html
+    + skip_note
+    + coverage
+    + recs
+    + FOOTER
+)
 print(f"wrote {OUT}  ({OUT.stat().st_size:,} bytes)")

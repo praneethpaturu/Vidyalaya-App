@@ -1,4 +1,4 @@
-Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T14:00:19.861663Z
+Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T14:14:59.923457Z
 
   PASS  TC-170  unauth GET / → /login redirect
   PASS  TC-172  unauth GET /forgot-password is public
