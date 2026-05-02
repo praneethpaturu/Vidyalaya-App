@@ -60,12 +60,19 @@ export async function POST(req: Request) {
     },
   });
 
-  await sendInviteEmail({
+  // Fire-and-forget the invitation email so the API responds immediately.
+  // Awaiting Resend SMTP (~2s+) made the UI feel broken (>20s tail-end
+  // timeouts in Playwright) and offered no benefit — failure is reported
+  // out-of-band via stderr; the AuthToken row already exists so the
+  // admin can re-trigger the email if needed.
+  sendInviteEmail({
     to: email,
     schoolName: me.schoolName,
     inviterName: me.name,
     role,
     token: raw,
+  }).catch((e) => {
+    console.error("[invites] email send failed:", e);
   });
 
   await audit("INVITE_USER", {

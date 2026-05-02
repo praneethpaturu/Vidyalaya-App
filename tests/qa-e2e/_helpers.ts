@@ -29,12 +29,16 @@ export async function signInAsRole(page: Page, role: keyof typeof ROLE_CREDS) {
   await signIn(page, c.email, c.password);
 }
 
-/** Assert that a page redirected to / (role-gate denial). */
+/** Assert that a page redirected away from the gated path.
+ *  Admin-class roles' "/" then secondary-redirects to "/Home" — so we
+ *  accept any landing page that isn't the original gated one and isn't
+ *  /login (which would mean unauth instead of role-gate). */
 export async function expectGatedToHome(page: Page, path: string) {
   await page.goto(BASE + path);
   await page.waitForLoadState("networkidle");
-  expect(page.url()).toMatch(/\/(?:\?|$)/);  // landed on /
-  expect(page.url()).not.toContain(path);
+  const url = page.url();
+  expect(url, `${path} should have redirected, but stayed at ${url}`).not.toContain(path);
+  expect(url, `${path} should not have bounced to /login (that's unauth, not role-gate)`).not.toMatch(/\/login(\?|$)/);
 }
 
 /** Assert that a page redirected to /login (no session). */

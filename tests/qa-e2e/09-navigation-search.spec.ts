@@ -3,48 +3,52 @@
 import { test, expect } from "@playwright/test";
 import { BASE, ROLE_CREDS, signInAsRole } from "./_helpers";
 
-test.describe("Sidebar — every link reachable for ADMIN", () => {
+test.describe("ADMIN navigation — MCB sub-nav reachable", () => {
   test.beforeEach(async ({ page }) => { await signInAsRole(page, "ADMIN"); });
 
-  // Sample of navigable labels expected to appear in the sidebar for ADMIN.
-  const NAV_LABELS = [
-    /Classes/,
-    /Attendance/,
-    /Timetable/,
-    /Exams/,
-    /Library/,
-    /Announcements/,
-    /Events/,
-    /Transport/,
-    /Fees & Invoices/,
-    /Payments/,
-    /Payroll/,
-    /Inventory/,
-    /Staff attendance/,
-    /Leave/,
-    /Compliance/,
-    /People/,
-    /Audit log/,
-    /Messages outbox/,
+  // ADMIN lands on /Home (MCB dashboard) with a dark sub-nav of /Home/* links.
+  // The classic sidebar with /audit, /payroll etc. is reserved for non-redirect
+  // roles (Teacher / Student / Parent). For ADMIN we verify a sample of the
+  // MCB sub-nav hrefs are reachable via the rendered DOM.
+  const ADMIN_NAV_HREFS = [
+    "/Home",
+    "/Home/SIS",
+    "/Home/HR",
+    "/Home/Finance",
+    "/Home/Compliance",
+    "/Home/Admissions",
   ];
 
-  for (const label of NAV_LABELS) {
-    test(`TC-900.${label.source} ADMIN sidebar exposes ${label.source}`, async ({ page }) => {
-      await page.goto(BASE + "/");
-      await expect(page.getByRole("link", { name: label }).first()).toBeVisible();
+  for (const href of ADMIN_NAV_HREFS) {
+    test(`TC-900.${href} ADMIN MCB sub-nav has ${href}`, async ({ page }) => {
+      await page.goto(BASE + "/Home");
+      await expect(page.locator(`a[href="${href}"]`).first()).toBeVisible();
     });
   }
 
-  test("TC-901 click each nav link, page loads without error boundary", async ({ page }) => {
+  test("TC-901 navigate /Home → /Home/Finance → /Home/HR without error boundary", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(String(e)));
-    await page.goto(BASE + "/");
-    for (const label of NAV_LABELS.slice(0, 6)) {  // sample to keep run fast
-      await page.getByRole("link", { name: label }).first().click();
-      await page.waitForLoadState("networkidle");
+    for (const path of ["/Home", "/Home/Finance", "/Home/HR"]) {
+      await page.goto(BASE + path, { waitUntil: "domcontentloaded" });
       await expect(page.getByText(/something went wrong/i)).toHaveCount(0);
     }
     expect(errors).toHaveLength(0);
+  });
+});
+
+test.describe("STUDENT/PARENT sidebar — by href (which is in SSR'd DOM)", () => {
+  test("TC-902 STUDENT sees Classes/Fees/Library/Timetable in sidebar", async ({ page }) => {
+    await signInAsRole(page, "STUDENT");
+    for (const href of ["/classes", "/fees", "/library", "/timetable"]) {
+      await expect(page.locator(`a[href="${href}"]`).first()).toBeVisible();
+    }
+  });
+  test("TC-903 PARENT sees Fees/Transport/Events in sidebar", async ({ page }) => {
+    await signInAsRole(page, "PARENT");
+    for (const href of ["/fees", "/transport", "/events"]) {
+      await expect(page.locator(`a[href="${href}"]`).first()).toBeVisible();
+    }
   });
 });
 

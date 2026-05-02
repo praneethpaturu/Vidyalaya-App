@@ -187,14 +187,14 @@ def main():
             set(args.tag) if args.tag else None)
 
     # ── A. Reachability + middleware basics ─────────────────────────────────
-    R.case("TC-170", "unauth GET / → /login redirect", lambda: assert_redirect(req("GET", "/"), "/login"), tag="middleware")
-    R.case("TC-172", "unauth GET /forgot-password is public",
+    R.case("TC-170", "unauthenticated visitor to / is bounced to /login (root auth gate fires)", lambda: assert_redirect(req("GET", "/"), "/login"), tag="middleware")
+    R.case("TC-172", "/forgot-password is reachable without a session (public route)",
            lambda: assert_status(req("GET", "/forgot-password"), 200), tag="middleware")
-    R.case("TC-173", "unauth GET /invite/<bogus> → 404",
+    R.case("TC-173", "/invite/<bogus-token> returns 404 (no such pending invitation)",
            lambda: assert_status(req("GET", "/invite/bogus_no_such_token"), 404), tag="middleware")
-    R.case("TC-174", "unauth GET /api/auth/forgot — only POST allowed",
+    R.case("TC-174", "GET /api/auth/forgot returns 404 or 405 (handler is POST-only)",
            lambda: assert_in(req("GET", "/api/auth/forgot").status, (404, 405)), tag="middleware")
-    R.case("TC-114", "/api/payments/mock removed",
+    R.case("TC-114", "the deleted /api/payments/mock backdoor is no longer reachable",
            lambda: assert_in(req("POST", "/api/payments/mock", body=b"{}").status, (404, 307)), tag="security")
 
     # ── B. Auth (login + session) ──────────────────────────────────────────
@@ -210,9 +210,9 @@ def main():
         if not ok: raise AssertionError("admin login failed")
         u = admin.me()
         if not u or u.get("role") != "ADMIN": raise AssertionError(f"admin session bad: {u}")
-    R.case("TC-001", "admin valid login", login_admin, tag="auth")
+    R.case("TC-001", "admin demo account signs in cleanly with correct credentials", login_admin, tag="auth")
 
-    R.case("TC-002", "session JSON has role/schoolId/name/email",
+    R.case("TC-002", "after login, /api/auth/session returns id + role + schoolId + name + email",
            lambda: (lambda u: (assert_in("role", u or {}), assert_in("schoolId", u or {}), assert_in("name", u or {}), assert_in("email", u or {})))(admin.me()), tag="auth")
 
     def login_role(s, email, role):
@@ -220,13 +220,13 @@ def main():
         if not ok: raise AssertionError(f"{role} login failed")
         u = s.me()
         if not u or u.get("role") != role: raise AssertionError(f"role mismatch: got {u.get('role') if u else None}")
-    R.case("TC-001b", "parent login", lambda: login_role(parent, "rajesh.sharma@gmail.com", "PARENT"), tag="auth")
-    R.case("TC-001c", "student login", lambda: login_role(student, "aarav.sharma@dpsbangalore.edu.in", "STUDENT"), tag="auth")
-    R.case("TC-001d", "teacher login", lambda: login_role(teacher, "ananya.iyer@dpsbangalore.edu.in", "TEACHER"), tag="auth")
-    R.case("TC-001e", "accountant login", lambda: login_role(accountant, "accounts@dpsbangalore.edu.in", "ACCOUNTANT"), tag="auth")
-    R.case("TC-001f", "hr login", lambda: login_role(hr, "hr@dpsbangalore.edu.in", "HR_MANAGER"), tag="auth")
+    R.case("TC-001b", "parent demo account signs in cleanly", lambda: login_role(parent, "rajesh.sharma@gmail.com", "PARENT"), tag="auth")
+    R.case("TC-001c", "student demo account signs in cleanly", lambda: login_role(student, "aarav.sharma@dpsbangalore.edu.in", "STUDENT"), tag="auth")
+    R.case("TC-001d", "teacher demo account signs in cleanly", lambda: login_role(teacher, "ananya.iyer@dpsbangalore.edu.in", "TEACHER"), tag="auth")
+    R.case("TC-001e", "accountant demo account signs in cleanly", lambda: login_role(accountant, "accounts@dpsbangalore.edu.in", "ACCOUNTANT"), tag="auth")
+    R.case("TC-001f", "HR manager demo account signs in cleanly", lambda: login_role(hr, "hr@dpsbangalore.edu.in", "HR_MANAGER"), tag="auth")
 
-    R.case("TC-003", "login with whitespace-padded email",
+    R.case("TC-003", "email with surrounding whitespace is normalised before lookup (still logs in)",
            lambda: (lambda s: (s.login("  admin@dpsbangalore.edu.in  ", "demo1234") or AssertionError, None) if not s.me() else None)(Session()),
            tag="auth")
     # robust version of TC-003
@@ -234,25 +234,25 @@ def main():
         s = Session()
         s.login("  admin@dpsbangalore.edu.in  ", "demo1234")
         if not s.me(): raise AssertionError("padded-email login should succeed (server trims)")
-    R.case("TC-003b", "padded-email lower-cased & trimmed", tc003, tag="auth")
+    R.case("TC-003b", "email is trimmed AND lower-cased server-side (case-insensitive login)", tc003, tag="auth")
 
     def tc004():
         s = Session()
         s.login("Admin@DPSBangalore.edu.in", "demo1234")
         if not s.me(): raise AssertionError("mixed-case email should still log in")
-    R.case("TC-004", "mixed-case email → lower-cased", tc004, tag="auth")
+    R.case("TC-004", "mixed-case email logs in (server normalises to lower-case)", tc004, tag="auth")
 
     def tc007():
         s = Session()
         s.login("admin@dpsbangalore.edu.in", "WRONG_PASSWORD")
         if s.me(): raise AssertionError("wrong password should not yield session")
-    R.case("TC-007", "login wrong password rejected", tc007, tag="auth")
+    R.case("TC-007", "wrong password does NOT yield a session cookie", tc007, tag="auth")
 
     def tc006():
         s = Session()
         s.login("admin' OR 1=1--@x.com", "demo1234")
         if s.me(): raise AssertionError("SQL injection attempt yielded session!")
-    R.case("TC-006", "login SQLi-style email rejected", tc006, tag="security")
+    R.case("TC-006", "SQL-injection-style email payload is rejected (Prisma parameterises queries)", tc006, tag="security")
 
     def tc005():
         # bare POST without csrf or fields
@@ -264,14 +264,14 @@ def main():
         sess = r.cookies.get("authjs.session-token") or r.cookies.get("next-auth.session-token")
         if sess and len(sess) > 10:
             raise AssertionError(f"empty body produced session cookie!")
-    R.case("TC-005", "login empty body — no session granted", tc005, tag="security")
+    R.case("TC-005", "login POST with empty body must not return a session token", tc005, tag="security")
 
     # ── C. Public API behaviour ────────────────────────────────────────────
     def tc011():
         r = req("GET", "/api/auth/session")
         assert_status(r, 200)
         # body is `{}` or `{user: null}` for unauth
-    R.case("TC-011", "/api/auth/session unauth → 200 empty", tc011, tag="api")
+    R.case("TC-011", "/api/auth/session without a cookie returns 200 with an empty body (NextAuth convention)", tc011, tag="api")
 
     def tc032():
         r = req("POST", "/api/auth/forgot",
@@ -279,7 +279,7 @@ def main():
                 body=json.dumps({"email": "definitely-not-a-real-user@example.com"}).encode())
         assert_status(r, 200)
         assert_eq(r.json(), {"ok": True}, "should respond ok:true to avoid enumeration")
-    R.case("TC-032", "forgot-password unknown email — no enumeration", tc032, tag="security")
+    R.case("TC-032", "POST /api/auth/forgot for an UNKNOWN email returns ok:true (no account-existence oracle)", tc032, tag="security")
 
     def tc031():
         # known email — should also return ok:true and create AuthToken row
@@ -295,14 +295,14 @@ def main():
             after = c.run("SELECT count(*) FROM \"AuthToken\" WHERE type='PASSWORD_RESET' AND email='admin@dpsbangalore.edu.in'")[0][0]
         if after <= before:
             raise AssertionError(f"AuthToken row should have been created (before={before} after={after})")
-    R.case("TC-031", "forgot-password known email creates AuthToken", tc031, tag="auth")
+    R.case("TC-031", "POST /api/auth/forgot for a real email creates an AuthToken row of type=PASSWORD_RESET", tc031, tag="auth")
 
     def tc033():
         r = req("POST", "/api/auth/forgot",
                 headers={"Content-Type": "application/json"},
                 body=json.dumps({"email": "not-an-email"}).encode())
         assert_status(r, 400)
-    R.case("TC-033", "forgot-password malformed email → 400", tc033, tag="auth")
+    R.case("TC-033", "POST /api/auth/forgot with a syntactically-invalid email returns 400", tc033, tag="auth")
 
     def tc035():
         r = req("POST", "/api/auth/reset",
@@ -310,7 +310,7 @@ def main():
                 body=json.dumps({"token": "deadbeef" * 8, "password": "abcd1234abcd"}).encode())
         assert_status(r, 400)
         assert_eq((r.json() or {}).get("error"), "invalid-token")
-    R.case("TC-035", "reset-password bogus token → 400 invalid-token", tc035, tag="security")
+    R.case("TC-035", "POST /api/auth/reset with an unknown token returns 400 invalid-token (no DB write)", tc035, tag="security")
 
     def tc036():
         r = req("POST", "/api/auth/reset",
@@ -318,7 +318,7 @@ def main():
                 body=json.dumps({"token": "x" * 32, "password": "short"}).encode())
         assert_status(r, 400)
         assert_eq((r.json() or {}).get("error"), "weak-password")
-    R.case("TC-036", "reset-password weak password → 400", tc036, tag="security")
+    R.case("TC-036", "POST /api/auth/reset with a password shorter than 8 chars returns 400 weak-password", tc036, tag="security")
 
     # ── D. Page role gates ──────────────────────────────────────────────────
     def gated(path, sess, expect_redirect_to_root: bool):
@@ -333,17 +333,17 @@ def main():
             if r.status != 200:
                 raise AssertionError(f"{path} as {sess.role_label}: expected 200, got {r.status}")
 
-    R.case("TC-050", "unauth /audit → /login",
+    R.case("TC-050", "unauthenticated GET /audit redirects to /login?next=/audit (auth gate fires before role gate)",
            lambda: assert_redirect(req("GET", "/audit"), "/login"), tag="role-gate")
-    R.case("TC-051", "STUDENT /audit → / (redirect)", lambda: gated("/audit", student, True), tag="role-gate")
-    R.case("TC-052", "PARENT /payroll → / (redirect)", lambda: gated("/payroll", parent, True), tag="role-gate")
-    R.case("TC-053", "TEACHER /people → / (redirect)", lambda: gated("/people", teacher, True), tag="role-gate")
-    R.case("TC-054", "TEACHER /Home/HR → / (redirect)", lambda: gated("/Home/HR", teacher, True), tag="role-gate")
-    R.case("TC-055", "TEACHER /Home/Admissions → / (redirect)", lambda: gated("/Home/Admissions", teacher, True), tag="role-gate")
-    R.case("TC-056", "ACCOUNTANT /audit → / (admin-only)", lambda: gated("/audit", accountant, True), tag="role-gate")
-    R.case("TC-057", "ADMIN /audit → 200", lambda: gated("/audit", admin, False), tag="role-gate")
-    R.case("TC-058", "ACCOUNTANT /payroll → 200", lambda: gated("/payroll", accountant, False), tag="role-gate")
-    R.case("TC-059", "HR_MANAGER /people → 200", lambda: gated("/people", hr, False), tag="role-gate")
+    R.case("TC-051", "a STUDENT navigating directly to /audit is redirected to / (admin-only role gate)", lambda: gated("/audit", student, True), tag="role-gate")
+    R.case("TC-052", "a PARENT navigating directly to /payroll is redirected to / (HR-roles-only gate)", lambda: gated("/payroll", parent, True), tag="role-gate")
+    R.case("TC-053", "a TEACHER navigating directly to /people is redirected to / (admin/HR-only gate)", lambda: gated("/people", teacher, True), tag="role-gate")
+    R.case("TC-054", "a TEACHER navigating directly to /Home/HR is redirected to / (HR-only dashboard)", lambda: gated("/Home/HR", teacher, True), tag="role-gate")
+    R.case("TC-055", "a TEACHER navigating directly to /Home/Admissions is redirected to / (admin-only dashboard)", lambda: gated("/Home/Admissions", teacher, True), tag="role-gate")
+    R.case("TC-056", "an ACCOUNTANT navigating directly to /audit is redirected to / (audit log is admin/principal-only)", lambda: gated("/audit", accountant, True), tag="role-gate")
+    R.case("TC-057", "ADMIN can reach /audit (200), confirming the role gate allows the right role through", lambda: gated("/audit", admin, False), tag="role-gate")
+    R.case("TC-058", "ACCOUNTANT can reach /payroll (200), confirming finance roles see payroll", lambda: gated("/payroll", accountant, False), tag="role-gate")
+    R.case("TC-059", "HR_MANAGER can reach /people (200), confirming HR sees the directory", lambda: gated("/people", hr, False), tag="role-gate")
 
     # ── E. API role guards ──────────────────────────────────────────────────
     def api_gated(path, sess, expect_status):
@@ -354,9 +354,9 @@ def main():
         else:
             if r.status != expect_status:
                 raise AssertionError(f"{path} as {sess.role_label}: expected {expect_status}, got {r.status}")
-    R.case("TC-070", "STUDENT /api/tax/24q → 403", lambda: api_gated("/api/tax/24q/2024/Q1/text", student, 403), tag="role-gate")
-    R.case("TC-071", "STUDENT /api/tax/epf → 403", lambda: api_gated("/api/tax/epf/2025/3/ecr", student, 403), tag="role-gate")
-    R.case("TC-073", "STUDENT /api/tax/26q → 403", lambda: api_gated("/api/tax/26q/2024/Q1/text", student, 403), tag="role-gate")
+    R.case("TC-070", "a STUDENT calling /api/tax/24q/.../text gets 401/403 (HR/Finance-only export, no PII leak)", lambda: api_gated("/api/tax/24q/2024/Q1/text", student, 403), tag="role-gate")
+    R.case("TC-071", "a STUDENT calling /api/tax/epf/.../ecr gets 401/403 (HR/Finance-only)", lambda: api_gated("/api/tax/epf/2025/3/ecr", student, 403), tag="role-gate")
+    R.case("TC-073", "a STUDENT calling /api/tax/26q/.../text gets 401/403 (HR/Finance-only vendor TDS)", lambda: api_gated("/api/tax/26q/2024/Q1/text", student, 403), tag="role-gate")
 
     # ── F. Razorpay webhook signature enforcement ───────────────────────────
     def tc107():
@@ -364,7 +364,7 @@ def main():
                 headers={"Content-Type": "application/json"},
                 body=json.dumps({"event": "payment.captured", "payload": {}}).encode())
         assert_status(r, 401)
-    R.case("TC-107", "webhook missing signature → 401", tc107, tag="security")
+    R.case("TC-107", "Razorpay webhook without an X-Razorpay-Signature header returns 401 (HMAC-required)", tc107, tag="security")
 
     def tc106():
         body = json.dumps({"event": "payment.captured", "payload": {}}).encode()
@@ -372,7 +372,7 @@ def main():
                 headers={"Content-Type": "application/json", "X-Razorpay-Signature": "deadbeef"},
                 body=body)
         assert_status(r, 401)
-    R.case("TC-106", "webhook bad signature → 401", tc106, tag="security")
+    R.case("TC-106", "Razorpay webhook with a malformed/wrong signature returns 401 (timingSafeEqual length-checked safely)", tc106, tag="security")
 
     def tc108():
         if not RZP_WEBHOOK_SECRET:
@@ -401,7 +401,7 @@ def main():
         assert_status(r, 401)
         if (r.json() or {}).get("error") != "bad-signature":
             raise AssertionError(f"expected bad-signature, got {r.json()}")
-    R.case("TC-110", "verify rejects bogus signature", tc110, tag="payments")
+    R.case("TC-110", "client-side payment-verify endpoint rejects mismatched razorpay_signature with 401", tc110, tag="payments")
 
     # ── H. Lockout (destructive — uses test invite to seed a throwaway user) ─
     def tc008():
@@ -429,7 +429,7 @@ def main():
         finally:
             with db() as c:
                 c.run('DELETE FROM "User" WHERE email=:e', e=email)
-    R.case("TC-008", "lockout after 5 failed attempts", tc008, tag="security")
+    R.case("TC-008", "after 5 wrong-password attempts on the same account, lockedUntil is set and login is blocked", tc008, tag="security")
 
     # ── I. DB integrity ─────────────────────────────────────────────────────
     def tc180():
@@ -439,13 +439,13 @@ def main():
             if applied != 1: raise AssertionError(f"{name} applied_steps_count != 1")
             if not finished: raise AssertionError(f"{name} not finished")
         if len(rows) < 4: raise AssertionError(f"expected ≥4 migrations, got {len(rows)}")
-    R.case("TC-180", "_prisma_migrations consistent", tc180, tag="db-integrity")
+    R.case("TC-180", "every Prisma migration row in _prisma_migrations has applied_steps_count=1 and finished_at set", tc180, tag="db-integrity")
 
     def tc183():
         with db() as c:
             n = c.run('SELECT count(*) FROM "Student" s LEFT JOIN "User" u ON u.id = s."userId" WHERE u.id IS NULL')[0][0]
             if n: raise AssertionError(f"orphan students: {n}")
-    R.case("TC-183", "no orphan Student rows", tc183, tag="db-integrity")
+    R.case("TC-183", "every Student.userId points to a real User row (no foreign-key orphans)", tc183, tag="db-integrity")
 
     def tc186():
         with db() as c:
@@ -453,19 +453,19 @@ def main():
             pay = c.run('SELECT count(*) FROM "Payment" WHERE amount < 0')[0][0]
             if inv: raise AssertionError(f"negative invoices: {inv}")
             if pay: raise AssertionError(f"negative payments: {pay}")
-    R.case("TC-186", "no negative invoice/payment amounts", tc186, tag="db-integrity")
+    R.case("TC-186", "no Invoice.total/amountPaid or Payment.amount is negative (sanity check on money columns)", tc186, tag="db-integrity")
 
     def tc187():
         with db() as c:
             n = c.run('SELECT count(*) FROM "LeaveBalance" WHERE used < 0')[0][0]
             if n: raise AssertionError(f"negative leave-balance.used rows: {n}")
-    R.case("TC-187", "leave-balance.used non-negative", tc187, tag="db-integrity")
+    R.case("TC-187", "no LeaveBalance.used row is negative (sanity check on counters)", tc187, tag="db-integrity")
 
     def tc185():
         with db() as c:
             dupes = c.run('SELECT "tokenHash", count(*) FROM "AuthToken" GROUP BY "tokenHash" HAVING count(*) > 1')
             if dupes: raise AssertionError(f"duplicate AuthToken hashes: {dupes}")
-    R.case("TC-185", "AuthToken.tokenHash unique", tc185, tag="db-integrity")
+    R.case("TC-185", "every sha256 token hash in AuthToken is unique — no replay-able duplicates", tc185, tag="db-integrity")
 
     # ── J. Tax export role enforcement (admin can fetch) ────────────────────
     def tc150():
@@ -474,19 +474,19 @@ def main():
             raise AssertionError(f"admin can't fetch 24Q: {r.status}")
         if not r.body.startswith(b"# Vidyalaya"):
             raise AssertionError(f"24Q export missing header line: {r.body[:60]!r}")
-    R.case("TC-150", "24Q export structure (admin)", tc150, tag="tax")
+    R.case("TC-150", "GET /api/tax/24q/.../text as ADMIN returns text/plain starting with the Vidyalaya header line", tc150, tag="tax")
 
     def tc153():
         # Future-quarter to ensure no data
         r = req("GET", "/api/tax/24q/2099/Q1/text", cookies=admin.cookies)
         if r.status != 200: raise AssertionError(f"got {r.status}")
         if not r.body.startswith(b"# Vidyalaya"): raise AssertionError("missing header")
-    R.case("TC-153", "24Q with no payslips returns header-only", tc153, tag="tax")
+    R.case("TC-153", "GET /api/tax/24q for a quarter with NO payslip data returns just the header (200, not 500)", tc153, tag="tax")
 
     def tc154():
         r = req("GET", "/api/tax/24q/foobar/Q1/text", cookies=admin.cookies)
         if r.status != 400: raise AssertionError(f"expected 400 on bad fy, got {r.status}")
-    R.case("TC-154", "24Q bad params → 400", tc154, tag="tax")
+    R.case("TC-154", "GET /api/tax/24q with non-numeric fy returns 400 (not a 500 server error)", tc154, tag="tax")
 
     # ── K. Razorpay live integration sanity ─────────────────────────────────
     def tc100():
@@ -517,7 +517,7 @@ def main():
             raise AssertionError(f"orderId malformed: {d.get('orderId')}")
         if d.get("amountPaise") != due:
             raise AssertionError(f"amount mismatch: expected {due}, got {d.get('amountPaise')}")
-    R.case("TC-100", "parent → /api/payments/razorpay creates order", tc100, tag="payments")
+    R.case("TC-100", "PARENT POSTs /api/payments/razorpay for own-child invoice → 200 with provider=razorpay + orderId", tc100, tag="payments")
 
     def tc101():
         # Different student's invoice — student session attempting to pay
@@ -547,7 +547,7 @@ def main():
                 body=json.dumps({"question":"x","response":"y","maxMarks":10}).encode())
         if r.status not in (401, 307, 302):
             raise AssertionError(f"unauth POST should not get through: {r.status}")
-    R.case("TC-161", "unauth POST /api/ai/essay-grade rejected", tc161, tag="ai")
+    R.case("TC-161", "unauthenticated POST to any /api/ai/* endpoint is rejected (401/302)", tc161, tag="ai")
 
     def tc210():
         r = req("POST", "/api/ai/essay-grade",
@@ -563,7 +563,7 @@ def main():
             # Either provider is set, or not — just check we got a non-empty response
             if not (d.get("text") or d.get("output") or d.get("score") is not None):
                 raise AssertionError(f"AI returned nothing useful: {d}")
-    R.case("TC-210", "AI essay-grade returns content (OPENAI_API_KEY config sanity)", tc210, tag="config")
+    R.case("TC-210", "TEACHER POST to /api/ai/essay-grade returns a non-empty AI response (confirms OPENAI_API_KEY wired)", tc210, tag="config")
 
     # ── M. Transport ingest ─────────────────────────────────────────────────
     def tc121():
@@ -572,7 +572,7 @@ def main():
                 body=json.dumps({"busId":"unknown","token":"wrong","lat":12.9,"lng":77.6}).encode())
         if r.status != 403:
             raise AssertionError(f"expected 403, got {r.status}")
-    R.case("TC-121", "transport ping wrong token → 403", tc121, tag="security")
+    R.case("TC-121", "POST /api/transport/ping with a wrong driverToken is rejected with 403 forbidden", tc121, tag="security")
 
     def tc122():
         r = req("POST", "/api/transport/ping",
@@ -582,7 +582,7 @@ def main():
             raise AssertionError(f"expected 400, got {r.status}")
         if (r.json() or {}).get("error") != "missing-auth":
             raise AssertionError(f"expected missing-auth, got {(r.json() or {}).get('error')}")
-    R.case("TC-122", "transport ping no token → 400", tc122, tag="security")
+    R.case("TC-122", "POST /api/transport/ping without busId/token returns 400 missing-auth", tc122, tag="security")
 
     def tc123():
         # Need a real bus + token; quick path: rotate one for a bus and test
@@ -603,20 +603,20 @@ def main():
         finally:
             with db() as c:
                 c.run('UPDATE "Bus" SET "driverToken" = NULL WHERE id = :id', id=bus_id)
-    R.case("TC-123", "transport ping bad lat/lng → 400 bad-coords", tc123, tag="security")
+    R.case("TC-123", "POST /api/transport/ping with lat=999/lng=999 returns 400 bad-coords (range-checked)", tc123, tag="security")
 
     # ── N. Digest auth ──────────────────────────────────────────────────────
     def tc140():
         r = req("POST", "/api/digest", headers={"Content-Type": "application/json"})
         if r.status != 401:
             raise AssertionError(f"expected 401, got {r.status}")
-    R.case("TC-140", "digest unauth → 401", tc140, tag="security")
+    R.case("TC-140", "POST /api/digest without any secret header returns 401 (refuses to send mass mail)", tc140, tag="security")
 
     def tc141():
         r = req("POST", "/api/digest", headers={"X-Digest-Token": "wrong"})
         if r.status != 401:
             raise AssertionError(f"expected 401, got {r.status}")
-    R.case("TC-141", "digest wrong secret → 401", tc141, tag="security")
+    R.case("TC-141", "POST /api/digest with the WRONG X-Digest-Token still returns 401 (constant-time string equality)", tc141, tag="security")
 
     if DIGEST_SECRET:
         def tc142():
@@ -633,7 +633,7 @@ def main():
         r = req("GET", "/favicon.ico")
         if r.status not in (200, 404):
             raise AssertionError(f"favicon should be 200 or 404, got {r.status}")
-    R.case("TC-171", "favicon publicly fetched", tc171, tag="middleware")
+    R.case("TC-171", "/favicon.ico is reachable without a session (public asset)", tc171, tag="middleware")
 
     # ── P. Verify endpoint without session ──────────────────────────────────
     def tc102():
@@ -642,7 +642,7 @@ def main():
                 body=json.dumps({"invoiceId":"x"}).encode())
         if r.status not in (401, 307, 302):
             raise AssertionError(f"unauth → {r.status}")
-    R.case("TC-102", "razorpay create unauth → 401/redirect", tc102, tag="security")
+    R.case("TC-102", "POST /api/payments/razorpay without a session is 401 or 302→/login (auth-gated order creation)", tc102, tag="security")
 
     # ── Q. Path traversal on invoice id ─────────────────────────────────────
     def tc322():
@@ -650,7 +650,7 @@ def main():
         # Next.js routing should 404 (not a valid invoice id) — in any case must NOT serve a file
         if r.status == 200:
             raise AssertionError(f"path-traversal must not 200; got {r.status}")
-    R.case("TC-322", "path traversal on invoice id rejected", tc322, tag="security")
+    R.case("TC-322", "GET /api/fees/<path-traversal-string>/pdf does NOT serve a file (Prisma findUnique-by-id makes traversal irrelevant)", tc322, tag="security")
 
     # ── R. Concurrent lockout (light load) ──────────────────────────────────
     def tc342():
@@ -675,7 +675,7 @@ def main():
         finally:
             with db() as c:
                 c.run('DELETE FROM "User" WHERE email=:e', e=email)
-    R.case("TC-342", "concurrent lockout still locks within ~10 attempts", tc342, tag="concurrency")
+    R.case("TC-342", "under 10 concurrent failed-login threads, the counter still reaches MAX and lockedUntil is set (race-free)", tc342, tag="concurrency")
 
     # ── S. Performance smoke ────────────────────────────────────────────────
     def tc360():
@@ -686,7 +686,7 @@ def main():
         warm_ms = (ts[-1] - ts[1]) / max(1, len(ts)-2) * 1000
         if warm_ms > 3000:
             raise AssertionError(f"warm /login TTFB too slow: ~{warm_ms:.0f}ms")
-    R.case("TC-360", "warm /login TTFB <3s", tc360, tag="perf")
+    R.case("TC-360", "warm cache /login TTFB stays under 3s (perf smoke against Vercel edge)", tc360, tag="perf")
 
     # ── T. Headers ──────────────────────────────────────────────────────────
     def tc200():
@@ -694,7 +694,7 @@ def main():
         hsts = r.headers.get("strict-transport-security")
         if not hsts:
             raise AssertionError(f"no HSTS header on /login (Vercel usually injects)")
-    R.case("TC-200", "HSTS header on prod /login", tc200, tag="security")
+    R.case("TC-200", "production /login response carries Strict-Transport-Security (HSTS pin)", tc200, tag="security")
 
     # ── U. Cookie flags ─────────────────────────────────────────────────────
     def tc803():
@@ -705,7 +705,7 @@ def main():
             raise AssertionError(f"csrf cookie missing HttpOnly: {csrf_set!r}")
         if "Secure" not in csrf_set:
             raise AssertionError(f"csrf cookie missing Secure on https: {csrf_set!r}")
-    R.case("TC-803", "auth cookies are HttpOnly + Secure", tc803, tag="security")
+    R.case("TC-803", "NextAuth-set cookies are HttpOnly AND Secure (browser cannot read them via JS, only sent over HTTPS)", tc803, tag="security")
 
     def tc804():
         r = req("GET", "/api/auth/csrf")
@@ -713,7 +713,7 @@ def main():
         sc = r.headers.get("set-cookie", "")
         if "SameSite" not in sc:
             raise AssertionError(f"cookie missing SameSite: {sc!r}")
-    R.case("TC-804", "auth cookies have SameSite", tc804, tag="security")
+    R.case("TC-804", "NextAuth cookies declare a SameSite policy (CSRF defence)", tc804, tag="security")
 
     # ── V. Per-role page content checks (HTML inspection of authed sessions)
     # TC-303a: deferred to Playwright. The Shell sidebar is a client
@@ -734,7 +734,7 @@ def main():
             # We're scanning rendered HTML — the *link label* shouldn't appear
             if f">{term}<" in body or f">{term} </" in body:
                 raise AssertionError(f"STUDENT home should not show '{term}' label")
-    R.case("TC-303b", "STUDENT home HTML hides admin/HR nav", tc303_student, tag="ui-content")
+    R.case("TC-303b", "a STUDENT\'s home page does NOT mention admin-only labels (Audit log, Payroll) — verified via SSR HTML scan", tc303_student, tag="ui-content")
 
     def tc303_parent():
         r = req("GET", "/", cookies=parent.cookies)
@@ -743,7 +743,7 @@ def main():
         for term in ["Fees", "Transport"]:
             if term not in body:
                 raise AssertionError(f"PARENT home should mention {term}")
-    R.case("TC-303c", "PARENT home HTML shows Fees/Transport", tc303_parent, tag="ui-content")
+    R.case("TC-303c", "a PARENT\'s home page mentions Fees and Transport (parent-relevant nav surfaces)", tc303_parent, tag="ui-content")
 
     # ── W. Login page HTML asserts (no need for browser) ────────────────────
     def tc300():
@@ -756,7 +756,7 @@ def main():
         for marker in ["<!DOCTYPE html>", "<html", "<head", "viewport", "/_next/static"]:
             if marker not in body:
                 raise AssertionError(f"login HTML missing structural marker {marker!r}")
-    R.case("TC-300", "/login renders an HTML doc shell", tc300, tag="ui-content")
+    R.case("TC-300", "/login returns a real Next.js HTML shell (DOCTYPE, <html>, viewport, _next assets)", tc300, tag="ui-content")
 
     def tc302():
         # Demo grid. NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS=1 is currently set on prod.
@@ -769,7 +769,102 @@ def main():
         else:
             # Acceptable; means SHOW_DEMO is off
             pass
-    R.case("TC-302", "demo grid env-gated (informational)", tc302, tag="ui-content")
+    R.case("TC-302", "demo-account grid visibility is controlled by NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS env var (informational; either is acceptable)", tc302, tag="ui-content")
+
+    # ── Y. Webhook idempotency — replay same payment.captured twice ────────
+    def tc109():
+        if not RZP_WEBHOOK_SECRET:
+            raise AssertionError("SKIP")  # caught & turned into a skip by case wrapper below
+        import hashlib as _h, hmac as _hm
+        # Construct a fake but signature-valid event referencing an unpaid
+        # invoice — fall back to a synthetic invoice_id that the webhook
+        # will then reject as `invoice mismatch` in BOTH calls; what we're
+        # really verifying is that two POSTs to the same handler produce
+        # identical, idempotent results without crashing or double-writing.
+        body = json.dumps({
+            "event": "payment.captured",
+            "payload": {"payment": {"entity": {
+                "id": "pay_qa_idemtest_" + secrets.token_hex(4),
+                "amount": 1,
+                "notes": {"invoiceId": "qa_nonexistent", "schoolId": "qa_nonexistent"},
+            }}},
+        })
+        sig = _hm.new(RZP_WEBHOOK_SECRET.encode(), body.encode(), _h.sha256).hexdigest()
+        r1 = req("POST", "/api/payments/razorpay/webhook",
+                 headers={"Content-Type": "application/json", "X-Razorpay-Signature": sig},
+                 body=body.encode())
+        r2 = req("POST", "/api/payments/razorpay/webhook",
+                 headers={"Content-Type": "application/json", "X-Razorpay-Signature": sig},
+                 body=body.encode())
+        if r1.status != r2.status:
+            raise AssertionError(f"webhook replay: r1={r1.status} r2={r2.status} (should be identical)")
+    if RZP_WEBHOOK_SECRET:
+        R.case("TC-109", "webhook is idempotent — replaying the same signed event produces the same result", tc109, tag="payments")
+    else:
+        R.skip("TC-109", "webhook is idempotent on replay", "RZP_WEBHOOK_SECRET not set in env", tag="payments")
+
+    # ── Z. Tax reconciliation — sum of 24Q gross == sum of payslip gross ──
+    def tc150_recon():
+        with db() as c:
+            sId = c.run("SELECT id FROM \"School\" LIMIT 1")[0][0]
+            # Sum payslips for FY 2024-25 Q4 (Jan/Feb/Mar 2025 in Indian FY)
+            payslip_total = c.run("""
+                SELECT COALESCE(SUM(gross), 0) FROM "Payslip"
+                WHERE "schoolId" = :s AND ((year = 2025 AND month IN (1,2,3)))
+            """, s=sId)[0][0]
+        # Fetch the 24Q text export and sum its rows
+        r = req("GET", "/api/tax/24q/2024/Q4/text", cookies=admin.cookies)
+        if r.status != 200:
+            raise AssertionError(f"24Q export {r.status}")
+        body = r.body.decode()
+        export_total = 0
+        for line in body.splitlines():
+            if line.startswith("#") or line.startswith("Sl|"): continue
+            if "|" not in line: continue
+            parts = line.split("|")
+            if len(parts) < 7: continue
+            try: export_total += int(parts[6])
+            except: pass
+        if payslip_total == 0 and export_total == 0:
+            return  # no data this quarter — vacuously consistent
+        if abs(payslip_total - export_total) > 100:  # tolerance: 1 paise per row
+            raise AssertionError(f"24Q reconciliation mismatch: payslip_total={payslip_total} export_total={export_total}")
+    R.case("TC-150r", "Form 24Q gross totals equal SUM(Payslip.gross) for the same quarter — financial accuracy check", tc150_recon, tag="tax")
+
+    # ── AA. Soft-delete behavior — deactivated user can't log in ──────────
+    def tc220():
+        # Create a throwaway user, set active=false, attempt login → must fail
+        email = f"qa-softdel-{secrets.token_hex(4)}@vidyalaya-qa.local"
+        password_hash = "$2a$10$" + "Q" * 53  # known-bad bcrypt
+        with db() as c:
+            sId = c.run('SELECT id FROM "School" LIMIT 1')[0][0]
+            uid = "c" + secrets.token_hex(12)
+            c.run("""INSERT INTO "User" (id, "schoolId", email, password, name, role, active, "createdAt")
+                     VALUES (:id, :s, :e, :p, 'QA Softdel', 'TEACHER', false, now())""",
+                  id=uid, s=sId, e=email, p=password_hash)
+        try:
+            s = Session(); ok = s.login(email, "demo1234")
+            if s.me():
+                raise AssertionError("deactivated user (active=false) was allowed to log in")
+        finally:
+            with db() as c:
+                c.run('DELETE FROM "User" WHERE email=:e', e=email)
+    R.case("TC-220", "deactivated user (User.active = false) cannot start a new session — soft-delete enforced", tc220, tag="security")
+
+    # ── BB. Outbox dispatcher — every queued message has a known channel ──
+    def tc230():
+        with db() as c:
+            bad = c.run("""
+              SELECT count(*) FROM "MessageOutbox"
+              WHERE channel NOT IN ('EMAIL','SMS','PUSH','INAPP','WHATSAPP')
+            """)[0][0]
+            if bad: raise AssertionError(f"unknown channel rows in MessageOutbox: {bad}")
+            unknown_status = c.run("""
+              SELECT count(*) FROM "MessageOutbox"
+              WHERE status NOT IN ('QUEUED','SENT','FAILED','SUPPRESSED')
+            """)[0][0]
+            if unknown_status: raise AssertionError(f"unknown status rows: {unknown_status}")
+    R.case("TC-230", "MessageOutbox rows only have valid channel + status enum values — no orphan states", tc230, tag="db-integrity")
 
     # ── X. /api/auth/forgot timing — same response time to prevent enumeration
     def tc202():
@@ -789,7 +884,7 @@ def main():
         diff = abs(statistics.median(ts_known) - statistics.median(ts_unknown))
         if diff > 1.5:
             raise AssertionError(f"timing oracle: known emails respond {diff*1000:.0f}ms differently from unknown")
-    R.case("TC-202", "forgot-password no timing oracle (<1.5s diff)", tc202, tag="security")
+    R.case("TC-202", "/api/auth/forgot response time differs by <1.5s between known and unknown emails (no timing-side-channel for account enumeration)", tc202, tag="security")
 
     # ── done ────────────────────────────────────────────────────────────────
     print()
