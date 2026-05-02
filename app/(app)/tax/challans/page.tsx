@@ -1,12 +1,12 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fmtDate, inr } from "@/lib/utils";
 import { recordTdsChallan } from "@/app/actions/tax";
 import { Plus } from "lucide-react";
 
 export default async function ChallansPage() {
-  const session = await auth();
-  const u = session!.user as any;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+  const u = u;
   const challans = await prisma.tdsChallan.findMany({
     where: { schoolId: u.schoolId },
     orderBy: { challanDate: "desc" },

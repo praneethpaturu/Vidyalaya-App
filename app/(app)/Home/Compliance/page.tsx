@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ShieldCheck, AlertTriangle, FileLock, Eye, Download, Trash2 } from "lucide-react";
 
 export default async function CompliancePage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId as string;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+  const sId = u.schoolId as string;
 
   const [exportRequests, consents, errorLogs, dataExports] = await Promise.all([
     prisma.dataExportRequest.findMany({ where: { schoolId: sId }, orderBy: { createdAt: "desc" }, take: 8 }),

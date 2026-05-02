@@ -1,15 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fmtDateTime } from "@/lib/utils";
 import { ArrowLeft, Mail, MessageSquare, Bell, Smartphone } from "lucide-react";
 
 export default async function MessageDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await auth();
-  const u = session!.user as any;
-  const m = await prisma.messageOutbox.findUnique({ where: { id } });
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+    const m = await prisma.messageOutbox.findUnique({ where: { id } });
   if (!m || m.schoolId !== u.schoolId) notFound();
 
   const Icon = m.channel === "EMAIL" ? Mail : m.channel === "SMS" ? MessageSquare : m.channel === "PUSH" ? Smartphone : Bell;

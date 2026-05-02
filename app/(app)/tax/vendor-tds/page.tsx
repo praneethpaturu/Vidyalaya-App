@@ -1,12 +1,12 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fmtDate, inr } from "@/lib/utils";
 import { recordVendorTds } from "@/app/actions/tax";
 import { SECTION_DESCRIPTIONS } from "@/lib/vendor-tds";
 
 export default async function VendorTdsPage() {
-  const session = await auth();
-  const u = session!.user as any;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+  const u = u;
   const [vendors, deductions] = await Promise.all([
     prisma.vendor.findMany({ where: { schoolId: u.schoolId }, orderBy: { name: "asc" } }),
     prisma.vendorTdsDeduction.findMany({

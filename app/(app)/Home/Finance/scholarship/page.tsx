@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { inr } from "@/lib/utils";
 
 export default async function ScholarshipPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT"]);
+  const sId = u.schoolId;
   const [scholarships, awards] = await Promise.all([
     prisma.scholarship.findMany({ where: { schoolId: sId, active: true } }),
     prisma.scholarshipAward.findMany({ take: 50, orderBy: { awardedOn: "desc" }, include: { scholarship: true } }),

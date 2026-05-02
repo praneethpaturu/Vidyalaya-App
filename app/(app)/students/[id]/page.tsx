@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { fmtDate, initials, inr } from "@/lib/utils";
 import { ScrollText, FileText, Award, IdCard } from "lucide-react";
 
 export default async function StudentProfile({ params }: { params: Promise<{ id: string }> }) {
+  const me = await requireUser().catch(() => null);
+  if (!me) redirect("/login");
   const { id } = await params;
   const stu = await prisma.student.findUnique({
     where: { id },
@@ -16,6 +20,10 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
     },
   });
   if (!stu) notFound();
+  if (stu.schoolId !== me.schoolId) notFound();
+  const STAFF = new Set(["ADMIN","PRINCIPAL","TEACHER","HR_MANAGER","ACCOUNTANT"]);
+  const isOwn = stu.userId === me.id || stu.guardians.some((gs) => gs.guardian.userId === me.id);
+  if (!STAFF.has(me.role) && !isOwn) redirect("/");
   const presentDays = stu.classAttendance.filter((a) => a.status === "PRESENT").length;
   const totalDays = stu.classAttendance.length;
   const pct = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;

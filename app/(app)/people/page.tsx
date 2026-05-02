@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { initials } from "@/lib/utils";
 
 export default async function PeopleDirectory() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER"]);
+  const sId = u.schoolId;
   const [staff, students] = await Promise.all([
     prisma.staff.findMany({ where: { schoolId: sId }, include: { user: true }, orderBy: { employeeId: "asc" } }),
     prisma.student.findMany({ where: { schoolId: sId }, include: { user: true, class: true }, orderBy: { admissionNo: "asc" }, take: 200 }),

@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Cake, Calendar, GraduationCap, Users, UserCheck, Briefcase, ClipboardCheck } from "lucide-react";
 
 export default async function HRStaffPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER"]);
+  const sId = u.schoolId;
 
   const staff = await prisma.staff.findMany({
     where: { schoolId: sId },

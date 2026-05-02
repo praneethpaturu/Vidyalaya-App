@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ADMISSION_STAGES, STAGE_COLOR, STAGE_LABEL } from "@/lib/admissions";
 import { QrCode, Plus } from "lucide-react";
@@ -8,8 +8,8 @@ type SearchParams = { status?: string; source?: string; q?: string };
 
 export default async function AdmissionsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL"]);
+  const sId = u.schoolId;
 
   const where: any = { schoolId: sId };
   if (sp.status) where.status = sp.status;

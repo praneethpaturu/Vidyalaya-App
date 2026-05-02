@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fmtDate, inr } from "@/lib/utils";
 import {
@@ -13,8 +13,8 @@ import HomePageTabs from "@/components/HomePageTabs";
 // are implemented as the dark sub-nav (see SubNav). This is the Dashboard tab.
 
 export default async function HomeMcbPage() {
-  const session = await auth();
-  const user = session!.user as any;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TRANSPORT_MANAGER", "INVENTORY_MANAGER"]);
+  const user = u;
   const sId = user.schoolId;
 
   // Bypass admin's role-aware tile in the legacy / page; this is the MCB top-tier dashboard.

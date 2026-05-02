@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { fmtDate, inr } from "@/lib/utils";
 import { fileCompliance } from "@/app/actions/hr";
 import { CheckCircle2, AlertTriangle, FileCheck2 } from "lucide-react";
@@ -14,8 +14,8 @@ const META: Record<string, { name: string; desc: string }> = {
 };
 
 export default async function CompliancePage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+  const sId = u.schoolId;
   const periods = await prisma.compliancePeriod.findMany({
     where: { schoolId: sId },
     orderBy: [{ year: "desc" }, { month: "desc" }, { type: "asc" }],

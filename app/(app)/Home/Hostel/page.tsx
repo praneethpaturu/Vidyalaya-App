@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Building2, Bed } from "lucide-react";
 
 export default async function HostelDashboardPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL"]);
+  const sId = u.schoolId;
   const [buildings, beds, allotments] = await Promise.all([
     prisma.hostelBuilding.findMany({
       where: { schoolId: sId },

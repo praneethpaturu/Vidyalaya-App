@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Sparkles, ChevronRight } from "lucide-react";
 import { AI_FEATURES, llmConfigured, type AiFeatureGroup } from "@/lib/ai";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 const GROUPS: { key: AiFeatureGroup; label: string; tone: string }[] = [
@@ -18,8 +18,8 @@ const GROUPS: { key: AiFeatureGroup; label: string; tone: string }[] = [
 ];
 
 export default async function AIHomePage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId as string;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "TEACHER", "HR_MANAGER", "ACCOUNTANT"]);
+  const sId = u.schoolId as string;
 
   const [auditCount, suggestionCount, insightCount] = await Promise.all([
     prisma.aiAuditLog.count({ where: { schoolId: sId } }),

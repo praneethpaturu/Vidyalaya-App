@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fmtDate, inr } from "@/lib/utils";
 import { dueDateFor } from "@/lib/compliance";
@@ -7,8 +7,8 @@ import { dueDateFor } from "@/lib/compliance";
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 export default async function EpfEsicPage() {
-  const session = await auth();
-  const u = session!.user as any;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+  const u = u;
   const now = new Date();
 
   // Last 6 months of payslips, aggregated per month

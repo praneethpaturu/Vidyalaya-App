@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { HeartPulse, Smile, Frown, Meh, AlertTriangle, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -15,8 +15,8 @@ const MOOD_TONE: Record<string, string> = {
 };
 
 export default async function WellnessPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId as string;
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL"]);
+  const sId = u.schoolId as string;
 
   const [recentVisits, openFlags, totalCheckIns] = await Promise.all([
     prisma.wellnessCheckIn.findMany({
