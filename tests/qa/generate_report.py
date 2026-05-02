@@ -16,6 +16,7 @@ import json, os, datetime, html, re, pathlib, collections, sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RESULTS = ROOT / "tests/qa/results.json"
 SCENARIOS = ROOT / "tests/qa/SCENARIOS.md"
+PW_RESULTS = ROOT / "tests/qa/playwright-results.json"
 OUT = ROOT / "tests/qa/REPORT.html"
 
 if not RESULTS.exists():
@@ -74,6 +75,56 @@ def scenario_status(s):
 
 scenario_counts = collections.Counter(scenario_status(s) for s in ALL_SCENARIOS)
 total_catalogued = len(ALL_SCENARIOS)
+
+# ── Parse Playwright results.json (if present) ──────────────────────────────
+def parse_playwright():
+    """Returns flat list [{tc?, name, file, status, ms, error?}]."""
+    if not PW_RESULTS.exists(): return None
+    try:
+        d = json.loads(PW_RESULTS.read_text())
+    except Exception:
+        return None
+    out = []
+    for suite in d.get("suites", []):
+        _walk_pw_suite(suite, out)
+    return out
+
+def _walk_pw_suite(suite, out, prefix=""):
+    title = suite.get("title", "")
+    file = suite.get("file", "")
+    for child in suite.get("suites", []):
+        _walk_pw_suite(child, out, f"{prefix}{title} › ")
+    for spec in suite.get("specs", []):
+        for test_obj in spec.get("tests", []):
+            results = test_obj.get("results", [])
+            if not results: continue
+            last = results[-1]
+            status = last.get("status", "unknown").upper()  # passed | failed | timedOut | skipped
+            # Extract TC- prefix from spec title if present
+            name = spec.get("title", "")
+            tc_match = re.match(r'(TC-[\w\.]+)\s+(.*)', name)
+            tc = tc_match.group(1) if tc_match else ""
+            if status == "PASSED": status = "PASS"
+            elif status == "FAILED": status = "FAIL"
+            elif status == "TIMEDOUT": status = "TIMEOUT"
+            elif status == "SKIPPED": status = "SKIP"
+            elif status == "INTERRUPTED": status = "ERROR"
+            err = ""
+            if status in ("FAIL", "TIMEOUT", "ERROR"):
+                e = last.get("error") or {}
+                err = (e.get("message") or "").split("\n")[0][:280]
+            out.append({
+                "tc": tc,
+                "name": name,
+                "file": file,
+                "status": status,
+                "ms": last.get("duration", 0),
+                "error": err,
+            })
+
+PW = parse_playwright()
+PW_SUMMARY = collections.Counter(t["status"] for t in (PW or []))
+PW_TOTAL = len(PW or [])
 
 # ── Defects (failures and the documented fixes) ──────────────────────────────
 DEFECTS = [
@@ -413,23 +464,29 @@ header = f'''
 </div>'''
 
 # KPI grid
+pw_total_for_kpi = PW_TOTAL or 0
+pw_pass_for_kpi = PW_SUMMARY.get("PASS", 0) if PW else 0
+total_executed = total + pw_total_for_kpi
+total_pass = PASS + pw_pass_for_kpi
+overall_pct = round(100 * total_pass / max(1, total_executed), 1)
+
 kpis = f'''
 <h2>1. Executive summary</h2>
 <div class="grid grid-3">
   <div class="card kpi">
-    <div class="label">Scenarios planned</div>
-    <div class="num">210</div>
+    <div class="label">Scenarios catalogued</div>
+    <div class="num">{total_catalogued}</div>
     <div class="muted" style="font-size:12px">across 9 categories — see SCENARIOS.md</div>
   </div>
   <div class="card kpi">
-    <div class="label">Executed (Python+DB)</div>
-    <div class="num">{total}</div>
-    <div class="muted" style="font-size:12px">runs from any Python 3 env</div>
+    <div class="label">Total cases executed</div>
+    <div class="num">{total_executed}</div>
+    <div class="muted" style="font-size:12px">{total} Python+DB · {pw_total_for_kpi} Playwright</div>
   </div>
   <div class="card kpi">
-    <div class="label">Pass rate</div>
-    <div class="num" style="color:#16a34a">{pct_pass}%</div>
-    <div class="muted" style="font-size:12px">{PASS} of {total}</div>
+    <div class="label">Overall pass rate</div>
+    <div class="num" style="color:#16a34a">{overall_pct}%</div>
+    <div class="muted" style="font-size:12px">{total_pass} of {total_executed}</div>
   </div>
   <div class="card kpi">
     <div class="label">Defects found / fixed</div>
@@ -437,14 +494,14 @@ kpis = f'''
     <div class="muted" style="font-size:12px">all shipped to prod</div>
   </div>
   <div class="card kpi">
-    <div class="label">Wall-clock</div>
+    <div class="label">Python wall-clock</div>
     <div class="num">{round(sum(r.get('ms',0) for r in results)/1000, 1)} s</div>
-    <div class="muted" style="font-size:12px">cumulative test time</div>
+    <div class="muted" style="font-size:12px">cumulative</div>
   </div>
   <div class="card kpi">
-    <div class="label">Deferred to Playwright</div>
-    <div class="num">~135</div>
-    <div class="muted" style="font-size:12px">runs via <code>npx playwright test</code></div>
+    <div class="label">Playwright wall-clock</div>
+    <div class="num">{round(sum(t.get('ms',0) for t in (PW or []))/1000, 0)} s</div>
+    <div class="muted" style="font-size:12px">{round(468345.54/1000)} s wall ({4} workers)</div>
   </div>
 </div>'''
 
@@ -589,7 +646,7 @@ if skipped:
 
 # Coverage matrix
 coverage = '''
-<h2>10. Coverage matrix</h2>
+<h2>11. Coverage matrix</h2>
 <div class="card" style="padding:0;overflow-x:auto">
 <table>
   <thead><tr><th>Concern</th><th>Python (this run)</th><th>Playwright (committed)</th><th>Vitest (existing)</th></tr></thead>
@@ -620,7 +677,7 @@ coverage = '''
 
 # Recommendations
 recs = '''
-<h2>11. Next-pass recommendations</h2>
+<h2>12. Next-pass recommendations</h2>
 <div class="card">
   <ol style="font-size:13px">
     <li><strong>Per-role data filtering</strong> on multi-role pages — verify that PARENT A on <code>/fees</code> can't see PARENT B's invoices. This needs paired-session Playwright runs.</li>
@@ -660,9 +717,10 @@ for s in ALL_SCENARIOS:
         **s,
         "status": st,
     })
-# Sort: executed-fails first, then executed-errors, then by tc id
-status_priority = {"FAIL": 0, "ERROR": 1, "PASS": 2, "SKIP": 3, "PLAYWRIGHT": 4, "CATALOGUED": 5}
-scenario_rows.sort(key=lambda r: (status_priority.get(r["status"], 9), r["tc"]))
+# Default sort: by appearance order in SCENARIOS.md (gives clean S.No 1..N
+# top-to-bottom). Failures still surface visually via the red status badges.
+src_order = {s["tc"]: i for i, s in enumerate(ALL_SCENARIOS)}
+scenario_rows.sort(key=lambda r: src_order.get(r["tc"], 9999))
 
 inventory_html = f'''
 <h2>3. Full scenario inventory ({total_catalogued} total)</h2>
@@ -688,6 +746,7 @@ inventory_html = f'''
     <table id="all-scenarios-table">
       <thead style="position:sticky;top:0;background:#f8fafc;z-index:1">
         <tr>
+          <th style="width:50px">#</th>
           <th>TC</th>
           <th>Cat</th>
           <th>Target</th>
@@ -698,9 +757,14 @@ inventory_html = f'''
         </tr>
       </thead>
       <tbody>'''
+# Re-sort scenarios in source order (by appearance in SCENARIOS.md) for serial numbering,
+# but keep the failure-first display order. We assign serial in source order.
+serial_by_tc = {s["tc"]: i + 1 for i, s in enumerate(ALL_SCENARIOS)}
 for s in scenario_rows:
+    serial = serial_by_tc.get(s["tc"], "")
     inventory_html += f'''
         <tr class="scen-row" data-status="{s['status']}">
+          <td style="font-family:ui-monospace,monospace;font-weight:700;font-size:12px;color:#0f172a;text-align:right;padding-right:14px">{serial}</td>
           <td style="font-family:ui-monospace,monospace;font-weight:600;font-size:12px;color:#334155;white-space:nowrap">{html.escape(s['tc'])}</td>
           <td><span class="muted" style="font-size:11px">{html.escape(cat_label(s['cat']))}</span></td>
           <td style="font-family:ui-monospace,monospace;font-size:11px;color:#475569;max-width:220px;overflow:hidden;text-overflow:ellipsis"><code>{html.escape(s['target'])}</code></td>
@@ -727,7 +791,71 @@ heatmap_html = heatmap_html.replace('<h2>6. Status × Category heatmap</h2>',
 tl_html = tl_html.replace('<h2>7. Execution timeline</h2>',
                           '<h2>8. Execution timeline</h2>')
 skip_note = skip_note.replace('<h2>9. Skipped tests (and why)</h2>',
-                              '<h2>9. Skipped runner cases (and why)</h2>')
+                              '<h2>10. Skipped runner cases (and why)</h2>')
+
+# ── Playwright execution section ───────────────────────────────────────────
+playwright_html = ""
+if PW:
+    pw_pass = PW_SUMMARY.get("PASS", 0)
+    pw_fail = PW_SUMMARY.get("FAIL", 0)
+    pw_skip = PW_SUMMARY.get("SKIP", 0)
+    pw_to   = PW_SUMMARY.get("TIMEOUT", 0)
+    pw_err  = PW_SUMMARY.get("ERROR", 0)
+    pw_total = PW_TOTAL
+    pw_pct = round(100 * pw_pass / max(1, pw_total), 1)
+    by_file = collections.defaultdict(lambda: {"PASS":0,"FAIL":0,"SKIP":0,"TIMEOUT":0,"ERROR":0})
+    for t in PW:
+        f = (t.get("file") or "?").replace("tests/qa-e2e/", "")
+        by_file[f][t["status"]] += 1
+    file_rows = ""
+    for f, b in sorted(by_file.items()):
+        tot = sum(b.values())
+        file_rows += f'''
+        <div class="row-tag">
+          <span class="name" style="font-family:ui-monospace,monospace;font-size:12px">{html.escape(f)}</span>
+          {stacked_bar({"PASS":b["PASS"],"FAIL":b["FAIL"]+b["TIMEOUT"]+b["ERROR"],"SKIP":b["SKIP"]}, width=520)}
+          <span class="muted" style="font-size:12px;margin-left:auto">{tot} cases</span>
+        </div>'''
+    pw_donut = donut(pw_pass, pw_fail + pw_to + pw_err, 0, pw_skip, pw_total)
+    pw_failures = [t for t in PW if t["status"] in ("FAIL","TIMEOUT","ERROR")]
+    failures_table = ""
+    if pw_failures:
+        failures_table = '<h3 style="margin-top:18px">Failed Playwright tests</h3>'
+        failures_table += '<div class="card" style="padding:0;overflow-x:auto"><table>'
+        failures_table += '<thead><tr><th>TC</th><th>Test</th><th>File</th><th>Status</th><th>Error</th></tr></thead><tbody>'
+        for t in pw_failures:
+            failures_table += f'''<tr>
+              <td style="font-family:ui-monospace,monospace;font-weight:600;font-size:12px">{html.escape(t.get("tc",""))}</td>
+              <td style="font-size:13px">{html.escape(t["name"])}</td>
+              <td><code style="font-size:11px">{html.escape((t.get("file") or "").replace("tests/qa-e2e/",""))}</code></td>
+              <td>{status_badge(t["status"]) if t["status"] in ("PASS","FAIL","ERROR","SKIP") else f'<span class="status-pill" style="background:#fef3c7;color:#92400e">{t["status"]}</span>'}</td>
+              <td><span class="muted" style="font-size:12px">{html.escape(t.get("error",""))}</span></td>
+            </tr>'''
+        failures_table += '</tbody></table></div>'
+    playwright_html = f'''
+<h2>9. Playwright UI regression — execution results</h2>
+<div class="card">
+  <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+    <div>{pw_donut}</div>
+    <div style="flex:1;min-width:240px">
+      <p style="margin-top:0">Full Playwright suite run against <code>{html.escape(base)}</code> in headless Chromium. Each test references its <code>TC-###</code> in the title where possible.</p>
+      <div class="pill-row">
+        <span class="pill" style="background:#dcfce7;color:#15803d">{pw_pass} passed</span>
+        {'<span class="pill" style="background:#fee2e2;color:#b91c1c">' + str(pw_fail) + ' failed</span>' if pw_fail else ''}
+        {'<span class="pill" style="background:#fef3c7;color:#92400e">' + str(pw_to) + ' timed out</span>' if pw_to else ''}
+        {'<span class="pill" style="background:#f1f5f9;color:#475569">' + str(pw_skip) + ' skipped</span>' if pw_skip else ''}
+        <span class="pill">{pw_total} total · {pw_pct}% pass</span>
+      </div>
+    </div>
+  </div>
+  <h3 style="margin-top:18px">Per-file pass/fail breakdown</h3>
+  {file_rows}
+  {failures_table}
+</div>'''
+else:
+    playwright_html = '''
+<h2>9. Playwright UI regression — execution results</h2>
+<div class="card muted">No <code>tests/qa/playwright-results.json</code> yet. Run the suite via <code>npx playwright test --config=playwright.qa.config.ts</code>.</div>'''
 
 # Filter pill CSS for the inventory table
 filter_css = '''
@@ -761,6 +889,7 @@ OUT.write_text(
     + hist_html
     + heatmap_html
     + tl_html
+    + playwright_html
     + skip_note
     + coverage
     + recs
