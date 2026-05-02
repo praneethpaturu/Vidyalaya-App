@@ -5,9 +5,38 @@ import { Bus as BusIcon, MapPin, Clock, User, Plus } from "lucide-react";
 
 export default async function TransportPage() {
   const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = session!.user as any;
+  const sId = u.schoolId;
+
+  // Role-scoped bus list: PARENT/STUDENT see only the bus their student is
+  // assigned to (via Student.busStop → Route → Bus). Other roles see all.
+  let busFilter: any = { schoolId: sId };
+  if (u.role === "STUDENT" || u.role === "PARENT") {
+    let studentIds: string[] = [];
+    if (u.role === "STUDENT") {
+      const stu = await prisma.student.findUnique({ where: { userId: u.id }, select: { id: true } });
+      if (stu) studentIds = [stu.id];
+    } else {
+      const g = await prisma.guardian.findUnique({
+        where: { userId: u.id },
+        include: { students: { select: { studentId: true } } },
+      });
+      studentIds = g?.students.map((s) => s.studentId) ?? [];
+    }
+    if (studentIds.length === 0) {
+      busFilter = { schoolId: sId, id: { in: [] as string[] } };  // no buses
+    } else {
+      const stops = await prisma.routeStop.findMany({
+        where: { students: { some: { id: { in: studentIds } } } },
+        select: { routeId: true },
+      });
+      const routeIds = Array.from(new Set(stops.map((s) => s.routeId)));
+      busFilter = { schoolId: sId, routeId: { in: routeIds.length ? routeIds : ["__none__"] } };
+    }
+  }
+
   const buses = await prisma.bus.findMany({
-    where: { schoolId: sId },
+    where: busFilter,
     include: {
       route: { include: { stops: { orderBy: { sequence: "asc" } } } },
       driver: { include: { user: true } },

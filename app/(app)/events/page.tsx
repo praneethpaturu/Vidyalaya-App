@@ -18,8 +18,45 @@ export default async function EventsPage() {
   const session = await auth();
   const u = session!.user as any;
   const now = new Date(); now.setHours(0, 0, 0, 0);
+
+  // Same audience-aware filter as /announcements: PARENT sees ALL +
+  // PARENTS + their kid's class events; STUDENT sees ALL + STUDENTS +
+  // own class; TEACHER sees ALL + STAFF + their teaching classes;
+  // admin-class sees everything.
+  let where: any = { schoolId: u.schoolId, startsAt: { gte: new Date(now.getTime() - 30 * 86400000) } };
+  if (u.role === "STUDENT") {
+    const stu = await prisma.student.findUnique({ where: { userId: u.id }, select: { classId: true } });
+    where.OR = [
+      { audience: "ALL" },
+      { audience: "STUDENTS" },
+      stu?.classId ? { audience: "CLASS", classId: stu.classId } : null,
+    ].filter(Boolean) as any[];
+  } else if (u.role === "PARENT") {
+    const g = await prisma.guardian.findUnique({
+      where: { userId: u.id },
+      include: { students: { include: { student: { select: { classId: true } } } } },
+    });
+    const childClassIds = (g?.students.map((gs) => gs.student.classId).filter(Boolean) ?? []) as string[];
+    where.OR = [
+      { audience: "ALL" },
+      { audience: "PARENTS" },
+      childClassIds.length ? { audience: "CLASS", classId: { in: childClassIds } } : null,
+    ].filter(Boolean) as any[];
+  } else if (u.role === "TEACHER") {
+    const staff = await prisma.staff.findUnique({
+      where: { userId: u.id },
+      include: { classesTaught: { select: { id: true } } },
+    });
+    const classIds = staff?.classesTaught.map((c) => c.id) ?? [];
+    where.OR = [
+      { audience: "ALL" },
+      { audience: "STAFF" },
+      classIds.length ? { audience: "CLASS", classId: { in: classIds } } : null,
+    ].filter(Boolean) as any[];
+  }
+
   const events = await prisma.schoolEvent.findMany({
-    where: { schoolId: u.schoolId, startsAt: { gte: new Date(now.getTime() - 30 * 86400000) } },
+    where,
     orderBy: { startsAt: "asc" },
     include: { class: true },
     take: 100,

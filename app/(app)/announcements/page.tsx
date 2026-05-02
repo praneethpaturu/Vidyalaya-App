@@ -5,9 +5,48 @@ import { Pin, Megaphone } from "lucide-react";
 
 export default async function AnnouncementsPage() {
   const session = await auth();
-  const sId = (session!.user as any).schoolId;
+  const u = session!.user as any;
+  const sId = u.schoolId;
+
+  // Build a role-aware filter:
+  //  * STUDENT/PARENT: only see "ALL", their own audience (STUDENTS / PARENTS),
+  //    and announcements targeted at their student's class.
+  //  * TEACHER: ALL + STAFF + their classes.
+  //  * Admin-class: see everything.
+  let where: any = { schoolId: sId };
+  if (u.role === "STUDENT") {
+    const stu = await prisma.student.findUnique({ where: { userId: u.id }, select: { classId: true } });
+    where.OR = [
+      { audience: "ALL" },
+      { audience: "STUDENTS" },
+      stu?.classId ? { audience: "CLASS", classId: stu.classId } : null,
+    ].filter(Boolean) as any[];
+  } else if (u.role === "PARENT") {
+    const g = await prisma.guardian.findUnique({
+      where: { userId: u.id },
+      include: { students: { include: { student: { select: { classId: true } } } } },
+    });
+    const childClassIds = (g?.students.map((gs) => gs.student.classId).filter(Boolean) ?? []) as string[];
+    where.OR = [
+      { audience: "ALL" },
+      { audience: "PARENTS" },
+      childClassIds.length ? { audience: "CLASS", classId: { in: childClassIds } } : null,
+    ].filter(Boolean) as any[];
+  } else if (u.role === "TEACHER") {
+    const staff = await prisma.staff.findUnique({
+      where: { userId: u.id },
+      include: { classesTaught: { select: { id: true } } },
+    });
+    const classIds = staff?.classesTaught.map((c) => c.id) ?? [];
+    where.OR = [
+      { audience: "ALL" },
+      { audience: "STAFF" },
+      classIds.length ? { audience: "CLASS", classId: { in: classIds } } : null,
+    ].filter(Boolean) as any[];
+  }
+
   const list = await prisma.announcement.findMany({
-    where: { schoolId: sId },
+    where,
     orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
     include: { author: true, class: true },
   });
