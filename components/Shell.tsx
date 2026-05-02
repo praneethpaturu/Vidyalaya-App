@@ -73,7 +73,7 @@ export default function Shell({ children, user }: Props) {
               </div>
               <YearPill defaultYear="2026-2027" />
               <SearchPopover />
-              <AppLauncher />
+              <AppLauncher role={user.role} />
               <NotificationBell />
 
               {/* Profile menu */}
@@ -148,7 +148,7 @@ export default function Shell({ children, user }: Props) {
         </div>
       </header>
 
-      <BreadcrumbBar />
+      <BreadcrumbBar role={user.role} />
 
       <main className="min-w-0" role="main">{children}</main>
     </div>

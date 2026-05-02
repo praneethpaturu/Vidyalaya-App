@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { ChevronDown } from "lucide-react";
 
 // MCB chrome rule from the live screenshots:
@@ -20,12 +21,16 @@ type Module = {
   activePrefixes: string[];
   // sub-page nav exposed in the header when inside this module
   pages: NavItem[];
+  // roles allowed to see this module in the top nav. If undefined,
+  // defaults to admin-class only (never PARENT or STUDENT).
+  roles?: string[];
 };
 
 const GLOBAL_MODULES: Module[] = [
   {
     key: "SIS", label: "SIS", rootHref: "/Home/SIS",
     activePrefixes: ["/Home/SIS", "/students", "/timetable", "/people", "/classes"],
+    roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER", "TEACHER"],
     pages: [
       { href: "/Home/SIS",            label: "Enrollments" },
       { href: "/Home/SIS/approvals",  label: "Approvals" },
@@ -39,6 +44,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "HR", label: "HR", rootHref: "/Home/HR",
     activePrefixes: ["/Home/HR", "/hr", "/payroll"],
+    roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER"],
     pages: [
       { href: "/Home/HR",             label: "Staff Details" },
       { href: "/Home/HR/attendance",  label: "Attendance" },
@@ -51,6 +57,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Finance", label: "Finance", rootHref: "/Home/Finance",
     activePrefixes: ["/Home/Finance", "/fees", "/payments", "/tax"],
+    roles: ["ADMIN", "PRINCIPAL", "ACCOUNTANT"],
     pages: [
       { href: "/Home/Finance",             label: "Fee Management" },
       { href: "/Home/Finance/approvals",   label: "Approvals" },
@@ -66,6 +73,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Admissions", label: "Admissions", rootHref: "/Home/Admissions",
     activePrefixes: ["/Home/Admissions"],
+    roles: ["ADMIN", "PRINCIPAL"],
     pages: [
       { href: "/Home/Admissions",                 label: "Enquiries" },
       { href: "/Home/Admissions/pre-admission",   label: "Pre admission Reports" },
@@ -78,6 +86,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Visitor_Mgmt", label: "Visitor Mgmt", rootHref: "/Home/Visitor_Mgmt",
     activePrefixes: ["/Home/Visitor_Mgmt"],
+    roles: ["ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER"],
     pages: [
       { href: "/Home/Visitor_Mgmt",                label: "Visitor Entry" },
       { href: "/Home/Visitor_Mgmt/log",            label: "Visitor Log" },
@@ -93,6 +102,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Transport", label: "Transport", rootHref: "/Home/Transport",
     activePrefixes: ["/Home/Transport", "/transport"],
+    roles: ["ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER"],
     pages: [
       { href: "/Home/Transport",            label: "Transport" },
       { href: "/Home/Transport/vts",        label: "VTS" },
@@ -103,6 +113,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Certificates", label: "Certificates", rootHref: "/Home/Certificates",
     activePrefixes: ["/Home/Certificates"],
+    roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER"],
     pages: [
       { href: "/Home/Certificates",              label: "Settings" },
       { href: "/Home/Certificates/id-cards",     label: "ID Cards" },
@@ -116,6 +127,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Library", label: "Library", rootHref: "/Home/Library",
     activePrefixes: ["/Home/Library", "/library"],
+    roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER", "TEACHER"],
     pages: [
       { href: "/Home/Library",            label: "Library" },
       { href: "/Home/Library/digital",    label: "Digital Library" },
@@ -127,6 +139,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Hostel", label: "Hostel", rootHref: "/Home/Hostel",
     activePrefixes: ["/Home/Hostel"],
+    roles: ["ADMIN", "PRINCIPAL"],
     pages: [
       { href: "/Home/Hostel",            label: "Building Detail" },
       { href: "/Home/Hostel/management", label: "Hostel Management" },
@@ -138,6 +151,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Online_Exams", label: "Online Exams", rootHref: "/Home/Online_Exams",
     activePrefixes: ["/Home/Online_Exams"],
+    roles: ["ADMIN", "PRINCIPAL", "TEACHER"],
     pages: [
       { href: "/Home/Online_Exams",         label: "Online Exams" },
       { href: "/Home/Online_Exams/reports", label: "Reports" },
@@ -146,6 +160,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "AI", label: "AI Insights", rootHref: "/Home/AI",
     activePrefixes: ["/Home/AI"],
+    roles: ["ADMIN", "PRINCIPAL", "TEACHER", "HR_MANAGER", "ACCOUNTANT"],
     pages: [
       { href: "/Home/AI",                  label: "Overview" },
       { href: "/Home/AI/tutor",            label: "AI Tutor (Socratic)" },
@@ -187,6 +202,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Wellness", label: "Wellness", rootHref: "/Home/Wellness",
     activePrefixes: ["/Home/Wellness"],
+    roles: ["ADMIN", "PRINCIPAL"],
     pages: [
       { href: "/Home/Wellness",            label: "Overview" },
       { href: "/Home/AI/safeguarding",     label: "Safeguarding (AI)" },
@@ -195,6 +211,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Alumni", label: "Alumni", rootHref: "/Home/Alumni",
     activePrefixes: ["/Home/Alumni"],
+    roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER"],
     pages: [
       { href: "/Home/Alumni",              label: "Directory" },
     ],
@@ -202,6 +219,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Reports", label: "Reports", rootHref: "/Home/Reports",
     activePrefixes: ["/Home/Reports"],
+    roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"],
     pages: [
       { href: "/Home/Reports",             label: "Templates &amp; saved" },
     ],
@@ -209,6 +227,7 @@ const GLOBAL_MODULES: Module[] = [
   {
     key: "Compliance", label: "Compliance", rootHref: "/Home/Compliance",
     activePrefixes: ["/Home/Compliance"],
+    roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"],
     pages: [
       { href: "/Home/Compliance",          label: "DPDP overview" },
     ],
@@ -224,11 +243,26 @@ function findActiveModule(pathname: string): Module | null {
   return null;
 }
 
-export default function ModuleHeaderNav({ theme = "light" }: { theme?: "light" | "dark" } = {}) {
+export default function ModuleHeaderNav({
+  theme = "light",
+  role: roleProp,
+}: { theme?: "light" | "dark"; role?: string } = {}) {
   const pathname = usePathname() ?? "/";
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  // Fall back to session if no role prop was passed by the caller (e.g.
+  // older /Home/* page imports). Defensive: filter at every render.
+  const session = useSession();
+  const role = roleProp ?? (session.data?.user as any)?.role;
 
   const isDark = theme === "dark";
+
+  // PARENT and STUDENT NEVER see the MCB module nav — those modules are
+  // for school staff only. Hide entirely.
+  if (!role || role === "PARENT" || role === "STUDENT") return null;
+
+  // Filter modules to those allowed for this role.
+  const allowed = GLOBAL_MODULES.filter((m) => !m.roles || m.roles.includes(role));
+  if (allowed.length === 0) return null;
 
   // On /Home and its inner tabs, render global module list.
   // Inside any module (or its legacy alias), render that module's sub-pages.
@@ -242,10 +276,13 @@ export default function ModuleHeaderNav({ theme = "light" }: { theme?: "light" |
     pathname.startsWith("/Home/classes-in-progress");
 
   const activeModule = !isHomeRoot ? findActiveModule(pathname) : null;
+  // If user lacks access to the active module, show nothing for the
+  // sub-page nav (the page itself will redirect via requirePageRole).
+  const activeAllowed = activeModule && (!activeModule.roles || activeModule.roles.includes(role));
 
-  const items: NavItem[] = activeModule
-    ? activeModule.pages
-    : GLOBAL_MODULES.map((m) => ({ href: m.rootHref, label: m.label, children: m.pages }));
+  const items: NavItem[] = activeAllowed
+    ? activeModule!.pages
+    : allowed.map((m) => ({ href: m.rootHref, label: m.label, children: m.pages }));
 
   return (
     <nav

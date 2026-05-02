@@ -9,8 +9,25 @@ const GROUP_ORDER: ModuleGroup[] = [
   "ERP", "FINANCE", "HR", "GRADEBOOK", "LMS", "CONNECT", "ADD_ONS", "SETTINGS",
 ];
 
-export default function AppLauncher() {
+// Curated allow-lists for non-admin roles. Anything outside the allow-list
+// is hidden from the App Launcher for that role. Admin-class roles (ADMIN,
+// PRINCIPAL, ACCOUNTANT, HR_MANAGER, TRANSPORT_MANAGER, INVENTORY_MANAGER,
+// TEACHER) keep the full launcher.
+const PARENT_ALLOWED = new Set([
+  "/", "/fees", "/transport", "/announcements", "/events",
+  "/timetable", "/attendance", "/exams", "/library", "/profile",
+]);
+const STUDENT_ALLOWED = new Set([
+  "/", "/classes", "/timetable", "/exams", "/library",
+  "/announcements", "/events", "/transport", "/fees", "/profile",
+]);
+
+export default function AppLauncher({ role }: { role?: string } = {}) {
   const [open, setOpen] = useState(false);
+  const allow =
+    role === "PARENT"  ? PARENT_ALLOWED  :
+    role === "STUDENT" ? STUDENT_ALLOWED :
+    null; // null = no filter (admin-class)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -53,7 +70,9 @@ export default function AppLauncher() {
             </div>
             <div className="p-5 max-h-[75vh] overflow-y-auto">
               {GROUP_ORDER.map((g) => {
-                const items = MODULES.filter((m) => m.group === g);
+                const items = MODULES
+                  .filter((m) => m.group === g)
+                  .filter((m) => !allow || allow.has(m.href));
                 if (items.length === 0) return null;
                 return (
                   <div key={g} className="mb-6">

@@ -59,7 +59,7 @@ function lastSegment(p: string): string {
     .replace(/\bNep[Hh]pc\b/i, "NEP HPC");
 }
 
-export default function BreadcrumbBar() {
+export default function BreadcrumbBar({ role }: { role?: string } = {}) {
   const pathname = usePathname() ?? "/";
   if (pathname === "/login") return null;
 
@@ -94,9 +94,11 @@ export default function BreadcrumbBar() {
         {/* Vertical divider */}
         <span aria-hidden="true" className="hidden lg:block h-5 w-px bg-slate-700" />
 
-        {/* Module dropdowns — moved here from the white header */}
+        {/* Module dropdowns — moved here from the white header.
+            ModuleHeaderNav internally returns null for PARENT/STUDENT and
+            filters modules by the rest of the roles. */}
         <div className="flex-1 min-w-0 hidden lg:flex items-center">
-          <ModuleHeaderNav theme="dark" />
+          <ModuleHeaderNav theme="dark" role={role} />
         </div>
 
         {/* Help / info cluster */}
