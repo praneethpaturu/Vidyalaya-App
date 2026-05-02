@@ -1,4 +1,4 @@
-Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T13:46:09.960271Z
+Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T13:49:27.728172Z
 
   PASS  TC-170  unauth GET / → /login redirect
   PASS  TC-172  unauth GET /forgot-password is public
@@ -70,14 +70,13 @@ Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T13:46:09.960271
   PASS  TC-200  HSTS header on prod /login
   PASS  TC-803  auth cookies are HttpOnly + Secure
   PASS  TC-804  auth cookies have SameSite
-  FAIL  TC-303a  ADMIN home HTML shows Audit nav
-        → home didn't render: 307
+  FAIL  TC-303a  ADMIN home references /audit in nav
+        → ADMIN home should reference /audit in sidebar
   PASS  TC-303b  STUDENT home HTML hides admin/HR nav
   PASS  TC-303c  PARENT home HTML shows Fees/Transport
-  FAIL  TC-300  /login HTML has key elements
-        → login HTML missing 'Sign in'
+  PASS  TC-300  /login renders an HTML doc shell
   PASS  TC-302  demo grid env-gated (informational)
   FAIL  TC-202  forgot-password no timing oracle (<1.5s diff)
-        → timing oracle: known emails respond 2535ms differently from unknown
+        → timing oracle: known emails respond 2648ms differently from unknown
 
-TOTAL: 74  PASS: 67  FAIL: 5  ERROR: 0  SKIP: 2
+TOTAL: 74  PASS: 68  FAIL: 4  ERROR: 0  SKIP: 2
