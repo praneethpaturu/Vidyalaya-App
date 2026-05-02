@@ -70,6 +70,13 @@ export function verifySignature(body: string, signature: string): boolean {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET ?? process.env.RAZORPAY_KEY_SECRET;
   if (!secret) return false;
   const expected = crypto.createHmac("sha256", secret).update(body).digest("hex");
-  // timing-safe equal
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  // crypto.timingSafeEqual throws if the buffers have different lengths.
+  // An attacker controls `signature`, so any non-64-hex value would crash
+  // the request. Length-check first, then compare.
+  if (typeof signature !== "string" || signature.length !== expected.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, "utf8"), Buffer.from(signature, "utf8"));
+  } catch {
+    return false;
+  }
 }
