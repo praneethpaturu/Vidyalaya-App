@@ -332,3 +332,150 @@ export async function complianceCalendar(schoolId: string, lookaheadDays = 90): 
 }
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+// ---------- Form 26Q quarterly aggregation (vendor TDS) -----------------------
+export type Form26QRow = {
+  vendorId: string;
+  vendorName: string;
+  pan: string | null;
+  section: string;
+  natureOfPayment: string | null;
+  panFurnished: boolean;
+  totalGrossPaise: number;
+  totalTdsPaise: number;
+  deductionCount: number;
+};
+export type Form26QSummary = {
+  schoolId: string;
+  fyStart: number;
+  quarter: 1 | 2 | 3 | 4;
+  rows: Form26QRow[];
+  totalVendors: number;
+  totalGross: number;
+  totalTds: number;
+};
+export async function form26QFor(schoolId: string, fyStart: number, quarter: 1 | 2 | 3 | 4): Promise<Form26QSummary> {
+  // Quarter labels at filing time use fyStart's calendar; deductions are
+  // stamped with `(quarter, year)` per the Indian assessment-year mapping.
+  const fyEnd = fyStart + 1;
+  const ds = await prisma.vendorTdsDeduction.findMany({
+    where: {
+      schoolId,
+      quarter,
+      OR: [{ year: fyStart }, { year: fyEnd }],
+    },
+    include: { vendor: true },
+  });
+  const byKey = new Map<string, Form26QRow>();
+  for (const d of ds) {
+    const k = `${d.vendorId}::${d.section}`;
+    if (!byKey.has(k)) {
+      byKey.set(k, {
+        vendorId: d.vendorId,
+        vendorName: d.vendor.name,
+        pan: d.vendor.pan,
+        section: d.section,
+        natureOfPayment: d.natureOfPayment,
+        panFurnished: d.panFurnished,
+        totalGrossPaise: 0,
+        totalTdsPaise: 0,
+        deductionCount: 0,
+      });
+    }
+    const r = byKey.get(k)!;
+    r.totalGrossPaise += d.grossAmount;
+    r.totalTdsPaise += d.tdsAmount;
+    r.deductionCount++;
+    if (!d.panFurnished) r.panFurnished = false;
+  }
+  const rows = Array.from(byKey.values()).sort((a, b) =>
+    a.vendorName.localeCompare(b.vendorName) || a.section.localeCompare(b.section));
+  return {
+    schoolId, fyStart, quarter, rows,
+    totalVendors: new Set(rows.map((r) => r.vendorId)).size,
+    totalGross: rows.reduce((s, r) => s + r.totalGrossPaise, 0),
+    totalTds: rows.reduce((s, r) => s + r.totalTdsPaise, 0),
+  };
+}
+
+// ---------- Form 16A: per-vendor TDS certificate per quarter ------------------
+export type Form16AData = {
+  vendorId: string;
+  vendorName: string;
+  pan: string | null;
+  fyLabel: string;
+  quarter: 1 | 2 | 3 | 4;
+  bySection: Array<{
+    section: string;
+    natureOfPayment: string | null;
+    deductions: Array<{
+      deductionId: string;
+      paidAt: Date;
+      grossPaise: number;
+      tdsRate: number;
+      tdsPaise: number;
+      challanNo: string | null;
+      certificateNo: string | null;
+    }>;
+    totalGrossPaise: number;
+    totalTdsPaise: number;
+  }>;
+  totalGrossPaise: number;
+  totalTdsPaise: number;
+};
+export async function form16AFor(
+  schoolId: string,
+  vendorId: string,
+  fyStart: number,
+  quarter: 1 | 2 | 3 | 4,
+): Promise<Form16AData | null> {
+  const fyLabel = `${fyStart}-${String((fyStart + 1) % 100).padStart(2, "0")}`;
+  const ds = await prisma.vendorTdsDeduction.findMany({
+    where: {
+      schoolId,
+      vendorId,
+      quarter,
+      OR: [{ year: fyStart }, { year: fyStart + 1 }],
+    },
+    include: { vendor: true, challan: true },
+    orderBy: { paidAt: "asc" },
+  });
+  if (ds.length === 0) return null;
+  const vendor = ds[0].vendor;
+  const bySection = new Map<string, Form16AData["bySection"][number]>();
+  for (const d of ds) {
+    if (!bySection.has(d.section)) {
+      bySection.set(d.section, {
+        section: d.section,
+        natureOfPayment: d.natureOfPayment,
+        deductions: [],
+        totalGrossPaise: 0,
+        totalTdsPaise: 0,
+      });
+    }
+    const sec = bySection.get(d.section)!;
+    sec.deductions.push({
+      deductionId: d.id,
+      paidAt: d.paidAt,
+      grossPaise: d.grossAmount,
+      tdsRate: d.tdsRate,
+      tdsPaise: d.tdsAmount,
+      challanNo: d.challan?.challanNo ?? null,
+      certificateNo: d.certificateNo,
+    });
+    sec.totalGrossPaise += d.grossAmount;
+    sec.totalTdsPaise += d.tdsAmount;
+  }
+  const totalGrossPaise = ds.reduce((s, d) => s + d.grossAmount, 0);
+  const totalTdsPaise = ds.reduce((s, d) => s + d.tdsAmount, 0);
+  return {
+    vendorId,
+    vendorName: vendor.name,
+    pan: vendor.pan,
+    fyLabel,
+    quarter,
+    bySection: Array.from(bySection.values()),
+    totalGrossPaise,
+    totalTdsPaise,
+  };
+}

@@ -2,8 +2,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { ArrowLeft, MapPin, Bus, User, Clock } from "lucide-react";
+import { requireUser } from "@/lib/auth";
+import DriverTrackerCard from "./DriverTrackerCard";
+
+const TRACKER_MANAGER_ROLES = new Set(["ADMIN", "PRINCIPAL", "TRANSPORT_MANAGER"]);
 
 export default async function BusDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const me = await requireUser();
   const { id } = await params;
   const bus = await prisma.bus.findUnique({
     where: { id },
@@ -13,8 +18,9 @@ export default async function BusDetailPage({ params }: { params: Promise<{ id: 
       conductor: { include: { user: true } },
     },
   });
-  if (!bus) notFound();
+  if (!bus || bus.schoolId !== me.schoolId) notFound();
   const totalStudents = bus.route?.stops.reduce((s, st) => s + st._count.students, 0) ?? 0;
+  const canManageTracker = TRACKER_MANAGER_ROLES.has(me.role);
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -36,6 +42,15 @@ export default async function BusDetailPage({ params }: { params: Promise<{ id: 
           <Info label="Schedule"   value={`${bus.route?.startTime} → ${bus.route?.endTime}`} icon={Clock} />
         </div>
       </div>
+
+      {canManageTracker && (
+        <DriverTrackerCard
+          busId={bus.id}
+          busNumber={bus.number}
+          tokenIssued={!!bus.driverToken}
+          existingToken={bus.driverToken}
+        />
+      )}
 
       <div className="card mt-4">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">

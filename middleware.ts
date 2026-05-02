@@ -18,6 +18,8 @@ const PUBLIC = [
   "/api/v1",                          // public REST — API-key auth in handler
   "/api/payments/razorpay/webhook",   // HMAC-signed by Razorpay
   "/api/digest",                      // shared-secret in header
+  "/api/transport/ping",              // driver-phone GPS, bus.driverToken auth
+  "/driver",                           // /driver/track/[busId] — bus.driverToken auth
   "/_next", "/favicon", "/assets",
 ];
 

@@ -3,5 +3,8 @@
   "buildCommand": "prisma migrate deploy && next build",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["bom1"]
+  "regions": ["bom1"],
+  "crons": [
+    { "path": "/api/digest", "schedule": "30 1 * * 0" }
+  ]
 }
