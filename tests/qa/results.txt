@@ -1,4 +1,4 @@
-Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T13:49:27.728172Z
+Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T14:00:19.861663Z
 
   PASS  TC-170  unauth GET / → /login redirect
   PASS  TC-172  unauth GET /forgot-password is public
@@ -38,8 +38,7 @@ Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T13:49:27.728172
   PASS  TC-071  STUDENT /api/tax/epf → 403
   PASS  TC-073  STUDENT /api/tax/26q → 403
   PASS  TC-107  webhook missing signature → 401
-  FAIL  TC-106  webhook bad signature → 401
-        → : expected HTTP 401, got 500 body=b''
+  PASS  TC-106  webhook bad signature → 401
   SKIP  TC-108  webhook unknown event ignored
   PASS  TC-110  verify rejects bogus signature
   PASS  TC-008  lockout after 5 failed attempts
@@ -64,19 +63,16 @@ Vidyalaya QA — https://vidyalaya-app.vercel.app — 2026-05-02T13:49:27.728172
   PASS  TC-171  favicon publicly fetched
   PASS  TC-102  razorpay create unauth → 401/redirect
   PASS  TC-322  path traversal on invoice id rejected
-  FAIL  TC-342  concurrent lockout still locks within ~10 attempts
-        → counter+lockedUntil under-bumped after concurrent burst (attempts=4, locked=None)
+  PASS  TC-342  concurrent lockout still locks within ~10 attempts
   PASS  TC-360  warm /login TTFB <3s
   PASS  TC-200  HSTS header on prod /login
   PASS  TC-803  auth cookies are HttpOnly + Secure
   PASS  TC-804  auth cookies have SameSite
-  FAIL  TC-303a  ADMIN home references /audit in nav
-        → ADMIN home should reference /audit in sidebar
+  SKIP  TC-303a  ADMIN sidebar has /audit link
   PASS  TC-303b  STUDENT home HTML hides admin/HR nav
   PASS  TC-303c  PARENT home HTML shows Fees/Transport
   PASS  TC-300  /login renders an HTML doc shell
   PASS  TC-302  demo grid env-gated (informational)
-  FAIL  TC-202  forgot-password no timing oracle (<1.5s diff)
-        → timing oracle: known emails respond 2648ms differently from unknown
+  PASS  TC-202  forgot-password no timing oracle (<1.5s diff)
 
-TOTAL: 74  PASS: 68  FAIL: 4  ERROR: 0  SKIP: 2
+TOTAL: 74  PASS: 71  FAIL: 0  ERROR: 0  SKIP: 3

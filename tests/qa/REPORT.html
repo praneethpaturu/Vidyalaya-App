@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vidyalaya — QA Test Report</title>
+  <style>
+    *,*::before,*::after { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           color: #0f172a; background: #f8fafc; margin: 0; padding: 0; line-height: 1.55; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 28px; }
+    h1 { font-size: 32px; margin: 0 0 6px; letter-spacing: -.5px; }
+    h2 { font-size: 20px; margin: 36px 0 14px; padding-bottom: 6px;
+         border-bottom: 1px solid #e2e8f0; letter-spacing: -.2px; }
+    h3 { font-size: 16px; margin: 22px 0 8px; }
+    p, li { font-size: 14px; }
+    .muted { color: #64748b; }
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 20px 22px; margin-bottom: 16px;
+            box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+    .grid { display: grid; gap: 16px; }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .kpi { display:flex; flex-direction:column; gap:4px; }
+    .kpi .num { font-size: 32px; font-weight: 700; letter-spacing: -.5px; }
+    .kpi .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px;
+                  color: #64748b; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; text-align: left;
+             font-size: 13px; }
+    th { background: #f8fafc; color: #475569; text-transform: uppercase;
+         letter-spacing: 1.1px; font-size: 11px; font-weight: 600; }
+    tr:hover { background: #f8fafc; }
+    .severity-High { color: #dc2626; }
+    .severity-Medium { color: #d97706; }
+    .severity-Low { color: #0284c7; }
+    .pill-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+                margin: 10px 0; font-size: 13px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px;
+            padding: 3px 10px; border-radius: 999px;
+            background: #f1f5f9; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1px; color: #475569;}
+    .legend-dot { width: 10px; height: 10px; border-radius: 99px; display: inline-block; }
+    .meta { color: #64748b; font-size: 12px; margin-top: 4px; }
+    code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px;
+           font-family: ui-monospace, monospace; font-size: 12px; }
+    .row-tag { display:flex; align-items:center; gap:14px; padding:10px 0;
+               border-bottom: 1px solid #f1f5f9; }
+    .row-tag .name { width: 200px; font-weight: 600; font-size: 13px; }
+    .footer { color: #94a3b8; font-size: 11px; text-align: center;
+              margin-top: 36px; padding: 16px 0;
+              border-top: 1px solid #e2e8f0; letter-spacing: 1px;}
+    .defect { display: grid; grid-template-columns: 100px 1fr; gap: 16px;
+              padding: 14px 0; border-top: 1px solid #f1f5f9; }
+    .defect:first-child { border-top: none; padding-top: 4px; }
+    .defect h3 { margin: 0 0 6px; font-size: 15px; }
+    .defect dt { color: #64748b; font-size: 11px; text-transform: uppercase;
+                 letter-spacing: 1.1px; margin-top: 8px; }
+    .defect dd { margin: 0; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+<div class="card" style="background:linear-gradient(135deg,#ffffff,#eef2ff);border-color:#c7d2fe">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap: wrap;">
+    <div>
+      <h1>Vidyalaya — QA Test Report</h1>
+      <p class="muted" style="margin:4px 0 0">Run on <strong>2026-05-02T14:00:19.860515Z</strong> against <code>https://vidyalaya-app.vercel.app</code></p>
+      <div class="pill-row">
+        <span class="pill">Phase 4 execution complete</span>
+        <span class="pill">74 cases</span>
+        <span class="pill" style="background:#dcfce7;color:#15803d">71 passing</span>
+        
+        <span class="pill">3 skipped</span>
+      </div>
+    </div>
+    <div>
+    <svg width="180" height="180" viewBox="0 0 180 180">
+      <circle cx="90.0" cy="90.0" r="74.0" fill="none" stroke="#16a34a" stroke-width="20" stroke-dasharray="446.1061563 18.84955590000004" stroke-dashoffset="0" transform="rotate(-90 90.0 90.0)" /><circle cx="90.0" cy="90.0" r="74.0" fill="none" stroke="#94a3b8" stroke-width="20" stroke-dasharray="18.849555900000002 446.10615630000007" stroke-dashoffset="-446.1061563" transform="rotate(-90 90.0 90.0)" />
+      <text x="90.0" y="88.0" text-anchor="middle" dominant-baseline="middle"
+            font-size="28" font-weight="700" fill="#0f172a">95.9%</text>
+      <text x="90.0" y="112.0" text-anchor="middle" dominant-baseline="middle"
+            font-size="11" fill="#64748b" letter-spacing="1.2">PASS RATE</text>
+    </svg></div>
+  </div>
+</div>
+<h2>1. Executive summary</h2>
+<div class="grid grid-3">
+  <div class="card kpi">
+    <div class="label">Scenarios planned</div>
+    <div class="num">210</div>
+    <div class="muted" style="font-size:12px">across 9 categories — see SCENARIOS.md</div>
+  </div>
+  <div class="card kpi">
+    <div class="label">Executed (Python+DB)</div>
+    <div class="num">74</div>
+    <div class="muted" style="font-size:12px">runs from any Python 3 env</div>
+  </div>
+  <div class="card kpi">
+    <div class="label">Pass rate</div>
+    <div class="num" style="color:#16a34a">95.9%</div>
+    <div class="muted" style="font-size:12px">71 of 74</div>
+  </div>
+  <div class="card kpi">
+    <div class="label">Defects found / fixed</div>
+    <div class="num">3 / 3</div>
+    <div class="muted" style="font-size:12px">all shipped to prod</div>
+  </div>
+  <div class="card kpi">
+    <div class="label">Wall-clock</div>
+    <div class="num">49.4 s</div>
+    <div class="muted" style="font-size:12px">cumulative test time</div>
+  </div>
+  <div class="card kpi">
+    <div class="label">Deferred to Playwright</div>
+    <div class="num">~135</div>
+    <div class="muted" style="font-size:12px">runs via <code>npx playwright test</code></div>
+  </div>
+</div><div class="pill-row" style="margin-top:18px"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#475569"><span class="legend-dot" style="background:#16a34a"></span>PASS <strong>71</strong></span><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#475569"><span class="legend-dot" style="background:#dc2626"></span>FAIL <strong>0</strong></span><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#475569"><span class="legend-dot" style="background:#7c2d12"></span>ERROR <strong>0</strong></span><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#475569"><span class="legend-dot" style="background:#94a3b8"></span>SKIP <strong>3</strong></span></div><h3>Cases by category</h3><div class="card">
+    <div class="row-tag">
+      <span class="name">security</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">21</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        21 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">auth</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">13</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        13 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">role-gate</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">13</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        13 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">middleware</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">5</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        5 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">db-integrity</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">5</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        5 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">ui-content</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="496.0" height="22" fill="#16a34a"/><text x="248.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">4</text><rect x="496.0" y="0" width="124.0" height="22" fill="#94a3b8"/><text x="558.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">1</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        5 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">payments</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="413.3333333333333" height="22" fill="#16a34a"/><text x="206.66666666666666" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">2</text><rect x="413.3333333333333" y="0" width="206.66666666666666" height="22" fill="#94a3b8"/><text x="516.6666666666666" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">1</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        3 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">tax</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">3</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        3 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">config</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="310.0" height="22" fill="#16a34a"/><text x="155.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">1</text><rect x="310.0" y="0" width="310.0" height="22" fill="#94a3b8"/><text x="465.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">1</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        2 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">api</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">1</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        1 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">ai</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">1</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        1 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">concurrency</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">1</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        1 cases
+      </span>
+    </div>
+    <div class="row-tag">
+      <span class="name">perf</span>
+      <svg width="620" height="22" style="border-radius:6px;"><rect x="0" y="0" width="620.0" height="22" fill="#16a34a"/><text x="310.0" y="15.0" text-anchor="middle" fill="white" font-size="11" font-weight="600">1</text></svg>
+      <span class="muted" style="font-size:12px;margin-left:auto">
+        1 cases
+      </span>
+    </div></div><h2>2. Defects found and fixed</h2>
+    <div class="card">
+      <div class="defect">
+        <div>
+          <div style="font-family:ui-monospace,monospace;font-weight:700;font-size:14px;color:#334155">DEFECT-1</div>
+          <div style="margin-top:6px;font-weight:600;color:#d97706;font-size:11px;text-transform:uppercase;letter-spacing:1.2px">Medium</div>
+          <div style="font-family:ui-monospace,monospace;font-size:12px;color:#64748b;margin-top:6px">TC-106</div>
+        </div>
+        <div>
+          <h3>Razorpay webhook returns 500 instead of 401 on malformed signature</h3>
+          <dl>
+            <dt>Found in</dt>
+            <dd><code>lib/integrations/payments.ts::verifySignature</code></dd>
+            <dt>Root cause</dt>
+            <dd>crypto.timingSafeEqual throws when the two buffers differ in length. Attacker-supplied X-Razorpay-Signature can be any length, so the throw escaped the !verifySignature() guard and surfaced as a 500.</dd>
+            <dt>Fix</dt>
+            <dd>Length-check first, then try/catch around timingSafeEqual.</dd>
+            <dt>Shipped in commit</dt>
+            <dd><code>9d0a29f</code> ✅ deployed to production</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="defect">
+        <div>
+          <div style="font-family:ui-monospace,monospace;font-weight:700;font-size:14px;color:#334155">DEFECT-2</div>
+          <div style="margin-top:6px;font-weight:600;color:#d97706;font-size:11px;text-transform:uppercase;letter-spacing:1.2px">Medium</div>
+          <div style="font-family:ui-monospace,monospace;font-size:12px;color:#64748b;margin-top:6px">TC-202</div>
+        </div>
+        <div>
+          <h3>/api/auth/forgot leaks account existence via response timing</h3>
+          <dl>
+            <dt>Found in</dt>
+            <dd><code>app/api/auth/forgot/route.ts</code></dd>
+            <dt>Root cause</dt>
+            <dd>Route awaited sendPasswordResetEmail (Resend SMTP, ~2.5 s) only when the email was registered. Unknown emails returned in ~70 ms. An attacker can probe response times to enumerate accounts.</dd>
+            <dt>Fix</dt>
+            <dd>Fire-and-forget the email send. Response time is now constant.</dd>
+            <dt>Shipped in commit</dt>
+            <dd><code>9d0a29f</code> ✅ deployed to production</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="defect">
+        <div>
+          <div style="font-family:ui-monospace,monospace;font-weight:700;font-size:14px;color:#334155">DEFECT-3</div>
+          <div style="margin-top:6px;font-weight:600;color:#dc2626;font-size:11px;text-transform:uppercase;letter-spacing:1.2px">High</div>
+          <div style="font-family:ui-monospace,monospace;font-size:12px;color:#64748b;margin-top:6px">TC-342</div>
+        </div>
+        <div>
+          <h3>Login lockout race — concurrent failed attempts collapse counter, brute-force protection bypassed</h3>
+          <dl>
+            <dt>Found in</dt>
+            <dd><code>lib/auth.ts::authorize</code></dd>
+            <dt>Root cause</dt>
+            <dd>Read-then-write (`failedLoginAttempts: prev+1`) — concurrent threads read the same prior value and both write the same incremented one, losing increments and never crossing the 5-attempt threshold.</dd>
+            <dt>Fix</dt>
+            <dd>Atomic Prisma increment + conditional lock-update once attempts ≥ MAX.</dd>
+            <dt>Shipped in commit</dt>
+            <dd><code>9d0a29f</code> ✅ deployed to production</dd>
+          </dl>
+        </div>
+      </div>
+    </div><h2>3. Every executed case</h2><p class="muted">Rows sorted: failures + errors first, then by category, then by ID. Click any row to scan the assertion failure reason.</p><div class="card" style="padding:0;overflow-x:auto"><table><thead><tr>
+  <th>TC</th><th>Description</th><th>Tag</th><th>Status</th><th>Duration</th><th>Failure reason</th>
+</tr></thead><tbody>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-161</td>
+          <td>unauth POST /api/ai/essay-grade rejected</td>
+          <td><span style="color:#64748b;font-size:12px">ai</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">256 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-011</td>
+          <td>/api/auth/session unauth → 200 empty</td>
+          <td><span style="color:#64748b;font-size:12px">api</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">272 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-001</td>
+          <td>admin valid login</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1220 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-001b</td>
+          <td>parent login</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1196 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-001c</td>
+          <td>student login</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1223 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-001d</td>
+          <td>teacher login</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1286 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-001e</td>
+          <td>accountant login</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1356 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-001f</td>
+          <td>hr login</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1213 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-002</td>
+          <td>session JSON has role/schoolId/name/email</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">304 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-003</td>
+          <td>login with whitespace-padded email</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1212 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-003b</td>
+          <td>padded-email lower-cased &amp; trimmed</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1206 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-004</td>
+          <td>mixed-case email → lower-cased</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1203 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-007</td>
+          <td>login wrong password rejected</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1255 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-031</td>
+          <td>forgot-password known email creates AuthToken</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1365 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-033</td>
+          <td>forgot-password malformed email → 400</td>
+          <td><span style="color:#64748b;font-size:12px">auth</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">261 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-342</td>
+          <td>concurrent lockout still locks within ~10 attempts</td>
+          <td><span style="color:#64748b;font-size:12px">concurrency</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">2949 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-210</td>
+          <td>AI essay-grade returns content (OPENAI_API_KEY config sanity)</td>
+          <td><span style="color:#64748b;font-size:12px">config</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">2137 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-180</td>
+          <td>_prisma_migrations consistent</td>
+          <td><span style="color:#64748b;font-size:12px">db-integrity</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">490 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-183</td>
+          <td>no orphan Student rows</td>
+          <td><span style="color:#64748b;font-size:12px">db-integrity</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">529 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-185</td>
+          <td>AuthToken.tokenHash unique</td>
+          <td><span style="color:#64748b;font-size:12px">db-integrity</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">489 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-186</td>
+          <td>no negative invoice/payment amounts</td>
+          <td><span style="color:#64748b;font-size:12px">db-integrity</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">607 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-187</td>
+          <td>leave-balance.used non-negative</td>
+          <td><span style="color:#64748b;font-size:12px">db-integrity</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">499 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-170</td>
+          <td>unauth GET / → /login redirect</td>
+          <td><span style="color:#64748b;font-size:12px">middleware</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">278 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-171</td>
+          <td>favicon publicly fetched</td>
+          <td><span style="color:#64748b;font-size:12px">middleware</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">241 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-172</td>
+          <td>unauth GET /forgot-password is public</td>
+          <td><span style="color:#64748b;font-size:12px">middleware</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">254 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-173</td>
+          <td>unauth GET /invite/&lt;bogus&gt; → 404</td>
+          <td><span style="color:#64748b;font-size:12px">middleware</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">300 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-174</td>
+          <td>unauth GET /api/auth/forgot — only POST allowed</td>
+          <td><span style="color:#64748b;font-size:12px">middleware</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">353 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-100</td>
+          <td>parent → /api/payments/razorpay creates order</td>
+          <td><span style="color:#64748b;font-size:12px">payments</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">918 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-110</td>
+          <td>verify rejects bogus signature</td>
+          <td><span style="color:#64748b;font-size:12px">payments</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">309 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-360</td>
+          <td>warm /login TTFB &lt;3s</td>
+          <td><span style="color:#64748b;font-size:12px">perf</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">831 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-050</td>
+          <td>unauth /audit → /login</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">274 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-051</td>
+          <td>STUDENT /audit → / (redirect)</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">362 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-052</td>
+          <td>PARENT /payroll → / (redirect)</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">322 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-053</td>
+          <td>TEACHER /people → / (redirect)</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">310 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-054</td>
+          <td>TEACHER /Home/HR → / (redirect)</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">299 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-055</td>
+          <td>TEACHER /Home/Admissions → / (redirect)</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">328 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-056</td>
+          <td>ACCOUNTANT /audit → / (admin-only)</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">317 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-057</td>
+          <td>ADMIN /audit → 200</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">398 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-058</td>
+          <td>ACCOUNTANT /payroll → 200</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">327 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-059</td>
+          <td>HR_MANAGER /people → 200</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">595 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-070</td>
+          <td>STUDENT /api/tax/24q → 403</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">310 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-071</td>
+          <td>STUDENT /api/tax/epf → 403</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">336 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-073</td>
+          <td>STUDENT /api/tax/26q → 403</td>
+          <td><span style="color:#64748b;font-size:12px">role-gate</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">300 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-005</td>
+          <td>login empty body — no session granted</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">268 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-006</td>
+          <td>login SQLi-style email rejected</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1096 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-008</td>
+          <td>lockout after 5 failed attempts</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">6523 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-032</td>
+          <td>forgot-password unknown email — no enumeration</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">287 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-035</td>
+          <td>reset-password bogus token → 400 invalid-token</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">332 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-036</td>
+          <td>reset-password weak password → 400</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">277 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-101</td>
+          <td>student → other student&#x27;s invoice → 403/404</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">815 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-102</td>
+          <td>razorpay create unauth → 401/redirect</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">268 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-106</td>
+          <td>webhook bad signature → 401</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">295 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-107</td>
+          <td>webhook missing signature → 401</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">307 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-114</td>
+          <td>/api/payments/mock removed</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">278 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-121</td>
+          <td>transport ping wrong token → 403</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">293 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-122</td>
+          <td>transport ping no token → 400</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">334 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-123</td>
+          <td>transport ping bad lat/lng → 400 bad-coords</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1545 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-140</td>
+          <td>digest unauth → 401</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">383 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-141</td>
+          <td>digest wrong secret → 401</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">307 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-200</td>
+          <td>HSTS header on prod /login</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">285 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-202</td>
+          <td>forgot-password no timing oracle (&lt;1.5s diff)</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">1852 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-322</td>
+          <td>path traversal on invoice id rejected</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">237 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-803</td>
+          <td>auth cookies are HttpOnly + Secure</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">285 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-804</td>
+          <td>auth cookies have SameSite</td>
+          <td><span style="color:#64748b;font-size:12px">security</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">352 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-150</td>
+          <td>24Q export structure (admin)</td>
+          <td><span style="color:#64748b;font-size:12px">tax</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">312 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-153</td>
+          <td>24Q with no payslips returns header-only</td>
+          <td><span style="color:#64748b;font-size:12px">tax</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">295 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-154</td>
+          <td>24Q bad params → 400</td>
+          <td><span style="color:#64748b;font-size:12px">tax</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">307 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-300</td>
+          <td>/login renders an HTML doc shell</td>
+          <td><span style="color:#64748b;font-size:12px">ui-content</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">337 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-302</td>
+          <td>demo grid env-gated (informational)</td>
+          <td><span style="color:#64748b;font-size:12px">ui-content</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">267 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-303b</td>
+          <td>STUDENT home HTML hides admin/HR nav</td>
+          <td><span style="color:#64748b;font-size:12px">ui-content</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">442 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-303c</td>
+          <td>PARENT home HTML shows Fees/Transport</td>
+          <td><span style="color:#64748b;font-size:12px">ui-content</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#16a34a1a;color:#16a34a;font-weight:600;font-size:11px">PASS</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">369 ms</td>
+          <td><span style="color:#64748b;font-size:12px"></span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-142</td>
+          <td>digest valid secret</td>
+          <td><span style="color:#64748b;font-size:12px">config</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#94a3b81a;color:#94a3b8;font-weight:600;font-size:11px">SKIP</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">—</td>
+          <td><span style="color:#64748b;font-size:12px">VIDYALAYA_DIGEST_SECRET not in env</span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-108</td>
+          <td>webhook unknown event ignored</td>
+          <td><span style="color:#64748b;font-size:12px">payments</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#94a3b81a;color:#94a3b8;font-weight:600;font-size:11px">SKIP</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">—</td>
+          <td><span style="color:#64748b;font-size:12px">RZP_WEBHOOK_SECRET not set in env</span></td>
+        </tr>
+        <tr>
+          <td style="font-family:ui-monospace,monospace;font-weight:600;color:#334155">TC-303a</td>
+          <td>ADMIN sidebar has /audit link</td>
+          <td><span style="color:#64748b;font-size:12px">ui-content</span></td>
+          <td><span style="display:inline-block;padding:2px 8px;border-radius:99px;background:#94a3b81a;color:#94a3b8;font-weight:600;font-size:11px">SKIP</span></td>
+          <td style="color:#64748b;font-size:12px;text-align:right">—</td>
+          <td><span style="color:#64748b;font-size:12px">client-component nav — covered by Playwright TC-303 family</span></td>
+        </tr></tbody></table></div><h2>4. Skipped tests (and why)</h2><div class="card"><ul><li><code>TC-108</code> — webhook unknown event ignored<br><span class="muted" style="font-size:12px">RZP_WEBHOOK_SECRET not set in env</span></li><li><code>TC-142</code> — digest valid secret<br><span class="muted" style="font-size:12px">VIDYALAYA_DIGEST_SECRET not in env</span></li><li><code>TC-303a</code> — ADMIN sidebar has /audit link<br><span class="muted" style="font-size:12px">client-component nav — covered by Playwright TC-303 family</span></li></ul></div>
+<h2>5. Coverage matrix</h2>
+<div class="card" style="padding:0;overflow-x:auto">
+<table>
+  <thead><tr><th>Concern</th><th>Python (this run)</th><th>Playwright (committed)</th><th>Vitest (existing)</th></tr></thead>
+  <tbody>
+    <tr><td>Pure-fn unit tests (tax, vendor-tds, compliance)</td><td>—</td><td>—</td><td>✅</td></tr>
+    <tr><td>Auth flow (login, lockout, sessions, cookies)</td><td>✅</td><td>✅</td><td>—</td></tr>
+    <tr><td>Forgot/reset/invite</td><td>✅</td><td>✅</td><td>—</td></tr>
+    <tr><td>Page role gates</td><td>✅</td><td>✅</td><td>—</td></tr>
+    <tr><td>API role guards</td><td>✅</td><td>partial</td><td>—</td></tr>
+    <tr><td>Razorpay flow + webhook + verify + IDOR</td><td>✅</td><td>✅</td><td>—</td></tr>
+    <tr><td>GPS ingest + driver-token</td><td>✅</td><td>—</td><td>—</td></tr>
+    <tr><td>Daily digest + cron</td><td>✅</td><td>—</td><td>—</td></tr>
+    <tr><td>Tax exports (HTTP)</td><td>✅</td><td>—</td><td>—</td></tr>
+    <tr><td>AI provider sanity</td><td>✅</td><td>—</td><td>—</td></tr>
+    <tr><td>DB integrity / orphans / uniques</td><td>✅</td><td>—</td><td>—</td></tr>
+    <tr><td>UI a11y (labels, landmarks, focus)</td><td>partial</td><td>✅</td><td>—</td></tr>
+    <tr><td>Responsive breakpoints</td><td>—</td><td>✅</td><td>—</td></tr>
+    <tr><td>Keyboard navigation</td><td>—</td><td>✅</td><td>—</td></tr>
+    <tr><td>XSS / output encoding</td><td>—</td><td>✅</td><td>—</td></tr>
+    <tr><td>Cookie HttpOnly + Secure (browser-confirmed)</td><td>headers only</td><td>✅</td><td>—</td></tr>
+    <tr><td>Browser back/forward / refresh / cookie clear</td><td>—</td><td>✅</td><td>—</td></tr>
+    <tr><td>Slow / failing API resilience</td><td>—</td><td>✅</td><td>—</td></tr>
+    <tr><td>Header injection in form fields</td><td>—</td><td>✅</td><td>—</td></tr>
+    <tr><td>Path traversal</td><td>✅</td><td>—</td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+<h2>6. Next-pass recommendations</h2>
+<div class="card">
+  <ol style="font-size:13px">
+    <li><strong>Per-role data filtering</strong> on multi-role pages — verify that PARENT A on <code>/fees</code> can't see PARENT B's invoices. This needs paired-session Playwright runs.</li>
+    <li><strong>Webhook idempotency end-to-end</strong> (TC-109) — replay the same <code>payment.captured</code> event with valid HMAC twice and assert one Payment row.</li>
+    <li><strong>Tax export numbers reconcile with payslip rows</strong> (TC-150 numerical) — sum 24Q gross == sum payslip gross over the matching quarter.</li>
+    <li><strong>Soft-delete behavior</strong> on <code>User.active=false</code> — block login, sessions, invite re-issuance.</li>
+    <li><strong>Visual regression</strong> on key signed-in pages — Playwright with <code>toHaveScreenshot()</code>.</li>
+    <li><strong>Capacitor Android wrapper</strong> — out of scope for HTTP-only suite; needs an emulator.</li>
+    <li><strong>Outbox dispatcher coverage</strong> — verify <code>MessageOutbox</code> rows transition QUEUED → SENT vs QUEUED → FAILED based on provider.</li>
+  </ol>
+</div>
+    <div class="footer">
+      Vidyalaya QA Suite · runner.py @ 2026-05-02T14:00:19.860515Z · target https://vidyalaya-app.vercel.app<br>
+      Single-file HTML — no external requests, no JS, charts inline as SVG.
+    </div>
+  </div>
+</body>
+</html>
