@@ -62,8 +62,8 @@ const CLASSES: EntityDef = {
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       try {
-        const grade = parseInt(r.grade, 10);
-        if (!Number.isFinite(grade)) throw new Error("grade must be a number");
+        const grade = String(r.grade || "").trim();
+        if (!grade) throw new Error("grade is required");
         if (!r.section) throw new Error("section is required");
         const existing = await prisma.class.findFirst({
           where: { schoolId, grade, section: r.section },
