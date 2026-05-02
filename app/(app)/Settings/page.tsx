@@ -2,10 +2,28 @@ import Link from "next/link";
 import {
   Building2, Users, Boxes, Smartphone, ClipboardCheck, IdCard, Wallet,
   Library, Building, Bus, UserCheck, MessageSquare, Plug, Lock, History, GraduationCap,
+  Upload,
 } from "lucide-react";
 import { requirePageRole } from "@/lib/auth";
 
 const SECTIONS = [
+  {
+    title: "Migration Center",
+    icon: Upload,
+    items: [
+      "Bulk-import from your previous school software",
+      "AI-mapped CSV upload (Classes, Staff, Students, Guardians, …)",
+      "Downloadable templates for every entity",
+    ],
+    href: "/Settings/import",
+    highlight: true,
+  },
+  {
+    title: "Users & invitations",
+    icon: Users,
+    items: ["Invite teachers, parents, students", "View members", "Pending invites"],
+    href: "/Settings/users",
+  },
   {
     title: "Organisation",
     icon: Building,
@@ -61,9 +79,19 @@ export default async function SettingsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {SECTIONS.map((s) => (
-          <Link key={s.title} href={s.href} className="card card-pad hover:bg-slate-50 transition">
+          <Link
+            key={s.title}
+            href={s.href}
+            className={`card card-pad transition ${
+              (s as any).highlight
+                ? "ring-2 ring-brand-300 bg-gradient-to-br from-brand-50/60 to-white hover:bg-brand-50"
+                : "hover:bg-slate-50"
+            }`}
+          >
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                (s as any).highlight ? "bg-brand-700 text-white" : "bg-brand-50 text-brand-700"
+              }`}>
                 <s.icon className="w-5 h-5" />
               </div>
               <div className="min-w-0">
