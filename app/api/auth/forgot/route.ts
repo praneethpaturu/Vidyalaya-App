@@ -15,7 +15,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  // Always respond ok (don't leak which emails exist).
+  // Don't await the email send — response time must be the same whether
+  // the email exists or not, otherwise an attacker can use timing as an
+  // existence oracle. DB writes are fast; SMTP is the slow leg.
   const user = await prisma.user.findUnique({ where: { email } });
   if (user && user.active) {
     const raw = randomToken();
@@ -30,7 +32,10 @@ export async function POST(req: Request) {
         expiresAt: expiryFor("PASSWORD_RESET"),
       },
     });
-    await sendPasswordResetEmail({ to: email, token: raw });
+    // Fire-and-forget; do not let SMTP latency leak account existence.
+    sendPasswordResetEmail({ to: email, token: raw }).catch((e) => {
+      console.error("[forgot] email send failed:", e);
+    });
   }
   return NextResponse.json({ ok: true });
 }

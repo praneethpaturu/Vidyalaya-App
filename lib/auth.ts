@@ -32,15 +32,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const ok = await bcrypt.compare(password, user.password);
         if (!ok) {
-          const next = (user.failedLoginAttempts ?? 0) + 1;
-          const shouldLock = next >= MAX_FAILED_ATTEMPTS;
-          await prisma.user.update({
+          // Atomic increment + conditional lock — two concurrent failed
+          // attempts must not collide via read-then-write.
+          const updated = await prisma.user.update({
             where: { id: user.id },
-            data: {
-              failedLoginAttempts: next,
-              lockedUntil: shouldLock ? new Date(Date.now() + LOCKOUT_MS) : null,
-            },
-          }).catch(() => {});
+            data: { failedLoginAttempts: { increment: 1 } },
+            select: { failedLoginAttempts: true },
+          }).catch(() => null);
+          const attempts = updated?.failedLoginAttempts ?? 0;
+          if (attempts >= MAX_FAILED_ATTEMPTS) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { lockedUntil: new Date(Date.now() + LOCKOUT_MS) },
+            }).catch(() => {});
+          }
           return null;
         }
 
