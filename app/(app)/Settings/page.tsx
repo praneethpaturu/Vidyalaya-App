@@ -64,6 +64,12 @@ const SECTIONS = [
     href: "/Settings/store-categories",
   },
   {
+    title: "Help videos",
+    icon: History,
+    items: ["Self-hosted tutorial library", "Add / edit / order"],
+    href: "/Settings/help-videos",
+  },
+  {
     title: "SIS",
     icon: Users,
     items: [

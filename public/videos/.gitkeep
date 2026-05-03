@@ -1,0 +1,2 @@
+# Drop tutorial MP4 files here. They become accessible at /videos/<filename>.mp4
+# and can be referenced from the HelpVideo.videoUrl column.

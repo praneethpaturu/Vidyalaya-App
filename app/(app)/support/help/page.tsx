@@ -1,62 +1,118 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { Play, Settings as SettingsIcon } from "lucide-react";
 import { requirePageRole } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
-const VIDEOS = [
-  { module: "Admissions",   title: "Enquiries → Applications → Admit",     duration: "5 min", href: "https://www.loom.com/share/f3dce48e03ab4f69b8013a30c2cb72af" },
-  { module: "Admissions",   title: "Direct admission",                      duration: "3 min", href: "https://www.loom.com/share/2c6618ac0923489ab3b624e28b92a6cd" },
-  { module: "SIS",          title: "Student promotion year-end",            duration: "4 min", href: "https://www.loom.com/share/7c18d16e37614ee1ba704170214136c4" },
-  { module: "SIS",          title: "PTM scheduling + feedback capture",     duration: "3 min", href: "https://www.loom.com/share/438bcccfa3e447089f224e642ce3934a" },
-  { module: "Finance",      title: "Receipt entry + bank reconciliation",   duration: "6 min", href: "https://www.loom.com/share/e48bf13474dd45e1a2047730cf240ed1" },
-  { module: "Finance",      title: "Concession + approval workflow",        duration: "3 min", href: "https://www.loom.com/share/058cf86a9ca3404fa961284f5a6e61d4" },
-  { module: "HR",           title: "Generate monthly payslips",             duration: "4 min", href: "https://www.loom.com/share/ad33aba59a314450bd7831830bb73a86" },
-  { module: "Online Exams", title: "Question bank + AI exam draft",         duration: "5 min", href: "https://www.loom.com/share/9219c683e44248a8b668408af78a9326" },
-  { module: "Library",      title: "Catalogue + issue + barcodes",          duration: "4 min", href: "https://www.loom.com/share/1e48c11a5d5342248242656d79899e86" },
-  { module: "Reports",      title: "Pre-built + custom builder",            duration: "3 min", href: "https://www.loom.com/share/30e3639784884e9db78bb0d97f97fd08" },
-  { module: "Settings",     title: "Holiday master + working days",         duration: "2 min", href: "https://www.loom.com/share/a2e5ede8d22c4bad94fc882c2cbebd1e" },
-  { module: "Connect",      title: "Bulk SMS / WhatsApp / Email + drip",    duration: "4 min", href: "https://www.loom.com/share/b739aabfb3bd4e389f77f0b10cb473a9" },
-];
+function fmtDuration(s: number): string {
+  if (!s) return "—";
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
 
 export const dynamic = "force-dynamic";
 
 export default async function HelpVideosPage({
   searchParams,
-}: { searchParams: Promise<{ module?: string }> }) {
-  await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TEACHER", "PARENT", "STUDENT", "TRANSPORT_MANAGER", "INVENTORY_MANAGER"]);
+}: { searchParams: Promise<{ module?: string; v?: string }> }) {
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER", "TEACHER", "PARENT", "STUDENT", "TRANSPORT_MANAGER", "INVENTORY_MANAGER"]);
   const sp = await searchParams;
-  const modules = Array.from(new Set(VIDEOS.map((v) => v.module)));
   const filter = sp.module ?? "";
-  const list = filter ? VIDEOS.filter((v) => v.module === filter) : VIDEOS;
+  const isAdmin = u.role === "ADMIN" || u.role === "PRINCIPAL";
+
+  const videos = await prisma.helpVideo.findMany({
+    where: { active: true, ...(filter ? { module: filter } : {}) },
+    orderBy: [{ module: "asc" }, { sequence: "asc" }],
+  });
+  const moduleRows = await prisma.helpVideo.findMany({
+    where: { active: true }, distinct: ["module"], select: { module: true }, orderBy: { module: "asc" },
+  });
+  const active = sp.v ? videos.find((v) => v.id === sp.v) : null;
 
   return (
-    <div className="p-5 max-w-5xl mx-auto">
-      <Link href="/support" className="text-xs text-brand-700 hover:underline">← Back to support</Link>
-      <h1 className="h-page mt-1 mb-1">Help videos</h1>
-      <p className="muted mb-3">Tutorial library — short walkthroughs of every module.</p>
+    <div className="p-5 max-w-screen-2xl mx-auto">
+      <div className="flex items-end justify-between mb-3">
+        <div>
+          <Link href="/support" className="text-xs text-brand-700 hover:underline">← Back to support</Link>
+          <h1 className="h-page mt-1">Help videos</h1>
+          <p className="muted">Tutorial library — short walkthroughs of every module.</p>
+        </div>
+        {isAdmin && (
+          <Link href="/Settings/help-videos" className="btn-outline inline-flex items-center gap-1.5">
+            <SettingsIcon className="w-4 h-4" /> Manage library
+          </Link>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
         <Link href="/support/help" className={`text-xs px-3 py-1 rounded-full ${!filter ? "bg-brand-700 text-white" : "bg-slate-100 hover:bg-slate-200"}`}>All</Link>
-        {modules.map((m) => (
-          <Link key={m} href={`/support/help?module=${encodeURIComponent(m)}`}
-            className={`text-xs px-3 py-1 rounded-full ${filter === m ? "bg-brand-700 text-white" : "bg-slate-100 hover:bg-slate-200"}`}>
-            {m}
+        {moduleRows.map((m) => (
+          <Link key={m.module} href={`/support/help?module=${encodeURIComponent(m.module)}`}
+            className={`text-xs px-3 py-1 rounded-full ${filter === m.module ? "bg-brand-700 text-white" : "bg-slate-100 hover:bg-slate-200"}`}>
+            {m.module}
           </Link>
         ))}
       </div>
 
+      {active && (
+        <section className="card mb-6 overflow-hidden">
+          <div className="bg-slate-900 aspect-video">
+            <video
+              key={active.id}
+              src={active.videoUrl}
+              poster={active.thumbnailUrl ?? undefined}
+              controls
+              className="w-full h-full"
+              preload="metadata"
+            >
+              Your browser does not support video playback.
+            </video>
+          </div>
+          <div className="px-4 py-3 border-t border-slate-100 flex items-start justify-between">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-brand-700">{active.module}</div>
+              <div className="font-medium">{active.title}</div>
+              {active.description && <div className="text-xs text-slate-600 mt-1 max-w-2xl">{active.description}</div>}
+            </div>
+            <div className="text-xs text-slate-500 whitespace-nowrap">{fmtDuration(active.durationSec)}</div>
+          </div>
+        </section>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {list.map((v) => (
-          <a key={v.href} href={v.href} target="_blank" rel="noopener noreferrer"
-            className="card card-pad hover:shadow-cardHover transition">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-brand-700">{v.module}</span>
-              <span className="text-xs text-slate-500">{v.duration}</span>
+        {videos.length === 0 && (
+          <div className="text-sm text-slate-500 col-span-full">No videos available yet.</div>
+        )}
+        {videos.map((v) => (
+          <Link
+            key={v.id}
+            href={filter
+              ? `/support/help?module=${encodeURIComponent(v.module)}&v=${v.id}`
+              : `/support/help?v=${v.id}`}
+            className="card overflow-hidden hover:shadow-cardHover transition group"
+          >
+            <div className="aspect-video relative bg-slate-100">
+              {v.thumbnailUrl ? (
+                <img src={v.thumbnailUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-brand-100 to-brand-200">
+                  <div className="w-14 h-14 rounded-full bg-brand-700/90 text-white grid place-items-center shadow-sm">
+                    <Play className="w-6 h-6" />
+                  </div>
+                </div>
+              )}
+              <span className="absolute bottom-2 right-2 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded">
+                {fmtDuration(v.durationSec)}
+              </span>
             </div>
-            <div className="font-medium leading-tight">{v.title}</div>
-            <div className="flex items-center gap-1 text-xs text-brand-700 mt-2">
-              <ExternalLink className="w-3 h-3" /> Watch on Loom
+            <div className="px-4 py-3">
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-brand-700">{v.module}</div>
+              <div className="font-medium leading-tight mt-0.5 group-hover:text-brand-700">{v.title}</div>
+              {v.description && (
+                <div className="text-xs text-slate-500 mt-1 line-clamp-2">{v.description}</div>
+              )}
             </div>
-          </a>
+          </Link>
         ))}
       </div>
     </div>

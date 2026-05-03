@@ -3438,6 +3438,29 @@ model StaffReview {
 }
 
 // ============================================================
+// Self-hosted help video library — seeded with our own tutorials.
+// videoUrl can point at a static file in /public, an S3 / Supabase Storage
+// signed URL, or any HTTPS endpoint that serves video/* mime-types.
+// Global (no schoolId) — same library across every tenant.
+// ============================================================
+model HelpVideo {
+  id           String   @id @default(cuid())
+  module       String                              // SIS | HR | Finance | Library | Admissions | …
+  title        String
+  description  String?
+  durationSec  Int      @default(0)
+  videoUrl     String                              // mp4 / webm
+  thumbnailUrl String?
+  posterColor  String   @default("brand")          // for placeholder card backgrounds
+  sequence     Int      @default(0)                // display order within module
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([module, sequence])
+  @@index([active])
+}
+
+// ============================================================
 // Support / training requests — covers Help-menu actions:
 // "Raise a ticket" (TICKET), "Book training with Account Manager" (TRAINING_AM),
 // "Book CSM meeting" (CSM_MEETING), "Give feedback" (FEEDBACK).
