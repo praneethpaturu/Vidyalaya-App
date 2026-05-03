@@ -1,23 +1,133 @@
 // Reusable Connect module page (SMS / WhatsApp / Email / Voice).
-// Shows credits / templates / campaigns / DLT info.
+// Shows credits / templates / campaigns / DLT info — and now lets admins create
+// + send a real campaign that fans out via the MessageOutbox dispatcher.
 
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { requirePageRole } from "@/lib/auth";
+
+type Channel = "SMS" | "WHATSAPP" | "EMAIL" | "VOICE";
 
 type Props = {
-  channel: "SMS" | "WHATSAPP" | "EMAIL" | "VOICE";
+  channel: Channel;
   schoolId: string;
   title: string;
   blurb: string;
 };
 
+async function createCampaign(form: FormData) {
+  "use server";
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+  const channel = String(form.get("channel") ?? "SMS") as Channel;
+  const name = String(form.get("name") ?? "").trim();
+  const body = String(form.get("body") ?? "").trim();
+  const audience = String(form.get("audience") ?? "ALL");
+  const classId = (String(form.get("classId") ?? "") || null) as string | null;
+  const scheduledAt = String(form.get("scheduledAt") ?? "");
+  const sendNow = form.get("sendNow") === "on";
+  if (!name || !body) return;
+
+  // Resolve audience → recipient count + outbox rows.
+  const where: any = { schoolId: u.schoolId, active: true };
+  if (audience === "PARENTS") where.role = "PARENT";
+  else if (audience === "STUDENTS") where.role = "STUDENT";
+  else if (audience === "STAFF") where.role = { in: ["TEACHER", "ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"] };
+  else if (audience === "CLASS" && classId) {
+    // Parents + students of this class
+    const stuIds = (await prisma.student.findMany({ where: { schoolId: u.schoolId, classId }, select: { userId: true, id: true } }));
+    const guardianIds = (await prisma.guardianStudent.findMany({
+      where: { studentId: { in: stuIds.map((s) => s.id) } },
+      include: { guardian: { select: { userId: true } } },
+    })).map((g) => g.guardian.userId);
+    where.id = { in: [...stuIds.map((s) => s.userId), ...guardianIds] };
+  }
+  const users = await prisma.user.findMany({ where, select: { id: true, email: true, phone: true } });
+
+  const campaign = await prisma.connectCampaign.create({
+    data: {
+      schoolId: u.schoolId,
+      channel,
+      name,
+      body,
+      audienceFilter: JSON.stringify({ audience, classId }),
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      sentAt: sendNow ? new Date() : null,
+      status: scheduledAt && !sendNow ? "SCHEDULED" : sendNow ? "SENDING" : "DRAFT",
+      recipients: users.length,
+      createdById: u.id,
+    },
+  });
+
+  if (sendNow) {
+    // Enqueue MessageOutbox rows; the existing /api/outbox/flush cron picks
+    // them up and dispatches via lib/notify.
+    const channelKey = channel === "EMAIL" ? "EMAIL" : channel === "VOICE" ? "VOICE" : channel === "WHATSAPP" ? "WHATSAPP" : "SMS";
+    for (const target of users) {
+      const isEmail = channelKey === "EMAIL";
+      const to = isEmail ? target.email : target.phone;
+      if (!to) continue;
+      await prisma.messageOutbox.create({
+        data: {
+          schoolId: u.schoolId,
+          channel: channelKey,
+          toEmail: isEmail ? target.email : null,
+          toPhone: !isEmail ? target.phone : null,
+          toUserId: target.id,
+          subject: name,
+          body,
+          status: "QUEUED",
+        },
+      }).catch(() => {});
+    }
+    await prisma.connectCampaign.update({
+      where: { id: campaign.id },
+      data: { status: "SENT" }, // dispatcher will reconcile delivered/failed counts via MessageOutbox status
+    });
+  }
+
+  revalidatePath(`/Connect/${channel === "WHATSAPP" ? "WhatsApp" : channel === "SMS" ? "SMS" : channel === "EMAIL" ? "Email" : "Voice"}`);
+  redirect(`/Connect/${channel === "WHATSAPP" ? "WhatsApp" : channel === "SMS" ? "SMS" : channel === "EMAIL" ? "Email" : "Voice"}?sent=${campaign.id}`);
+}
+
+async function recharge(form: FormData) {
+  "use server";
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT"]);
+  const channel = String(form.get("channel") ?? "SMS") as Channel;
+  const credits = Math.max(0, Math.floor(Number(form.get("credits") ?? 0)));
+  if (credits <= 0) return;
+  let provider = await prisma.connectProvider.findFirst({
+    where: { schoolId: u.schoolId, channel, active: true },
+  });
+  if (!provider) {
+    provider = await prisma.connectProvider.create({
+      data: {
+        schoolId: u.schoolId,
+        channel,
+        name: channel === "SMS" ? "MSG91" : channel === "WHATSAPP" ? "Gupshup" : channel === "EMAIL" ? "Resend" : "Twilio",
+        senderId: null,
+        active: true,
+        credits: 0,
+      },
+    });
+  }
+  await prisma.connectProvider.update({
+    where: { id: provider.id },
+    data: { credits: { increment: credits } },
+  });
+  revalidatePath(`/Connect/${channel === "WHATSAPP" ? "WhatsApp" : channel === "SMS" ? "SMS" : channel === "EMAIL" ? "Email" : "Voice"}`);
+}
+
 export default async function ConnectModule({ channel, schoolId, title, blurb }: Props) {
-  const [providers, templates, campaigns] = await Promise.all([
+  const [providers, templates, campaigns, classes] = await Promise.all([
     prisma.connectProvider.findMany({ where: { schoolId, channel } }),
     prisma.connectTemplate.findMany({ where: { schoolId, channel, active: true } }),
     prisma.connectCampaign.findMany({ where: { schoolId, channel }, orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.class.findMany({ where: { schoolId }, orderBy: [{ grade: "asc" }, { section: "asc" }] }),
   ]);
   const totalCredits = providers.reduce((s, p) => s + p.credits, 0);
+
   return (
     <div className="p-5 max-w-screen-2xl mx-auto">
       <div className="flex items-end justify-between mb-3">
@@ -25,7 +135,6 @@ export default async function ConnectModule({ channel, schoolId, title, blurb }:
           <h1 className="h-page">{title}</h1>
           <p className="muted">{blurb}</p>
         </div>
-        <button className="btn-primary">+ New campaign</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
@@ -44,7 +153,17 @@ export default async function ConnectModule({ channel, schoolId, title, blurb }:
         <div className="card card-pad">
           <div className="text-sm font-medium">Credits balance</div>
           <div className="text-3xl font-medium tracking-tight mt-1">{totalCredits.toLocaleString()}</div>
-          <button className="btn-tonal text-xs px-3 py-1 mt-2">Recharge</button>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs text-brand-700">Recharge</summary>
+            <form action={recharge} className="flex gap-2 mt-2">
+              <input type="hidden" name="channel" value={channel} />
+              <input
+                name="credits" type="number" min={1} step={1}
+                placeholder="Credits to add" className="input text-sm"
+              />
+              <button type="submit" className="btn-tonal text-xs px-3">Add</button>
+            </form>
+          </details>
         </div>
         {channel === "SMS" && (
           <div className="card card-pad">
@@ -70,8 +189,7 @@ export default async function ConnectModule({ channel, schoolId, title, blurb }:
           <div className="card card-pad">
             <div className="text-sm font-medium">SMTP</div>
             <ul className="mt-2 text-xs text-slate-600 space-y-1">
-              <li>From: noreply@school.in</li>
-              <li>Bounce rate: 0.3%</li>
+              <li>Configured at <Link className="underline" href="/Home/email-settings">/email-settings</Link></li>
               <li>Templates: {templates.length}</li>
             </ul>
           </div>
@@ -87,6 +205,49 @@ export default async function ConnectModule({ channel, schoolId, title, blurb }:
           </div>
         )}
       </div>
+
+      <details className="card card-pad mb-6">
+        <summary className="cursor-pointer font-medium">+ New campaign</summary>
+        <form action={createCampaign} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mt-3">
+          <input type="hidden" name="channel" value={channel} />
+          <div className="md:col-span-2">
+            <label className="label">Name *</label>
+            <input required name="name" className="input" placeholder="Term-1 PTM reminder" />
+          </div>
+          <div>
+            <label className="label">Audience</label>
+            <select name="audience" className="input" defaultValue="ALL">
+              <option>ALL</option>
+              <option>PARENTS</option>
+              <option>STUDENTS</option>
+              <option>STAFF</option>
+              <option>CLASS</option>
+            </select>
+          </div>
+          <div className="md:col-span-3">
+            <label className="label">Body / template *</label>
+            <textarea required name="body" rows={3} className="input"
+              placeholder="Dear {{parent.name}}, the PTM is on Saturday at 10am. Regards, School." />
+          </div>
+          <div>
+            <label className="label">Class (if Audience = CLASS)</label>
+            <select name="classId" className="input" defaultValue="">
+              <option value="">—</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Schedule for (optional)</label>
+            <input type="datetime-local" name="scheduledAt" className="input" />
+          </div>
+          <label className="text-sm flex items-center gap-2 pt-6">
+            <input type="checkbox" name="sendNow" /> Send now
+          </label>
+          <button type="submit" className="btn-primary md:col-span-3">
+            Save / send
+          </button>
+        </form>
+      </details>
 
       <h2 className="h-section mb-2">Templates</h2>
       <div className="card overflow-x-auto mb-5">

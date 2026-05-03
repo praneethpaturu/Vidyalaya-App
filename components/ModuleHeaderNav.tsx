@@ -34,6 +34,7 @@ const GLOBAL_MODULES: Module[] = [
     pages: [
       { href: "/Home/SIS",            label: "Enrollments" },
       { href: "/Home/SIS/promotion",  label: "Promotion" },
+      { href: "/Home/SIS/transfer",   label: "Branch Transfer" },
       { href: "/Home/SIS/ptm",        label: "PTM" },
       { href: "/Home/SIS/approvals",  label: "Approvals" },
       { href: "/Home/SIS/contracts",  label: "Student Contracts" },
@@ -64,6 +65,7 @@ const GLOBAL_MODULES: Module[] = [
     pages: [
       { href: "/Home/Finance",             label: "Fee Management" },
       { href: "/Home/Finance/collect",     label: "Collect Fees" },
+      { href: "/Home/Finance/late-fee",    label: "Late Fee" },
       { href: "/Home/Finance/reconciliation", label: "Bank Reconciliation" },
       { href: "/Home/Finance/approvals",   label: "Approvals" },
       { href: "/Home/Finance/concessions", label: "Concessions" },

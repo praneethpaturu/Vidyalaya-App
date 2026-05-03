@@ -5,7 +5,8 @@
   "framework": "nextjs",
   "regions": ["bom1"],
   "crons": [
-    { "path": "/api/digest",       "schedule": "30 1 * * 0" },
-    { "path": "/api/outbox/flush", "schedule": "0 2 * * *" }
+    { "path": "/api/digest",                 "schedule": "30 1 * * 0" },
+    { "path": "/api/outbox/flush",           "schedule": "0 2 * * *" },
+    { "path": "/api/finance/late-fee/accrue","schedule": "30 2 * * *" }
   ]
 }

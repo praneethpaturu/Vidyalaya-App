@@ -3054,6 +3054,73 @@ model BankStatementRow {
   @@index([importId, status])
 }
 
+// ============================================================
+// Holiday master — per-school list of dated holidays. Combined with the
+// SchoolSetting "workingDays" array (e.g. [1,2,3,4,5,6] = Mon-Sat) to drive
+// attendance calculations and the monthly working-day count.
+// ============================================================
+model Holiday {
+  id          String   @id @default(cuid())
+  schoolId    String
+  date        DateTime
+  name        String
+  category    String   @default("PUBLIC")  // PUBLIC | LOCAL | RELIGIOUS | OBSERVANCE | EXAM_BREAK | VACATION
+  fullDay     Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@unique([schoolId, date])
+  @@index([schoolId, date])
+}
+
+// ============================================================
+// Inter-branch student transfer — used when a chain has multiple schools and
+// a student moves from one branch to another. The Student row stays in the
+// source branch as a historical record; a new Student is created in the
+// destination branch. We log the transfer for auditing.
+// ============================================================
+model StudentTransfer {
+  id              String   @id @default(cuid())
+  fromSchoolId    String
+  toSchoolId      String
+  studentId       String   // source-side student id (will be soft-deleted there)
+  newStudentId    String?  // destination-side student id (created post-transfer)
+  effectiveAt     DateTime @default(now())
+  reason          String?
+  initiatedById   String?
+  status          String   @default("INITIATED")  // INITIATED | COMPLETED | CANCELLED
+  createdAt       DateTime @default(now())
+
+  @@index([fromSchoolId, status])
+  @@index([toSchoolId, status])
+}
+
+// ============================================================
+// Exam invigilator allocation + seating plan.
+// ============================================================
+model ExamInvigilator {
+  id            String   @id @default(cuid())
+  examSubjectId String
+  staffId       String
+  room          String?
+  notes         String?
+
+  @@unique([examSubjectId, staffId])
+  @@index([examSubjectId])
+}
+
+model ExamSeating {
+  id            String   @id @default(cuid())
+  examSubjectId String
+  studentId     String
+  room          String
+  rowNo         Int
+  seatNo        Int
+
+  @@unique([examSubjectId, studentId])
+  @@index([examSubjectId, room])
+}
+
 model StudentGroupMember {
   id         String   @id @default(cuid())
   groupId    String
