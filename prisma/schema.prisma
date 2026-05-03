@@ -3303,6 +3303,141 @@ model DripEnrollment {
 }
 
 // ============================================================
+// CPD — staff training log.
+// ============================================================
+model CPDActivity {
+  id             String   @id @default(cuid())
+  schoolId       String
+  staffId        String
+  title          String
+  type           String   @default("WORKSHOP")
+  hours          Float    @default(0)
+  completedAt    DateTime
+  certificateUrl String?
+  notes          String?
+  recordedById   String?
+  createdAt      DateTime @default(now())
+
+  @@index([schoolId, staffId])
+  @@index([schoolId, completedAt])
+}
+
+// ============================================================
+// Infirmary — sick-bay visit log.
+// ============================================================
+model InfirmaryVisit {
+  id             String   @id @default(cuid())
+  schoolId       String
+  studentId      String?
+  staffId        String?
+  visitedAt      DateTime @default(now())
+  symptoms       String
+  diagnosis      String?
+  medication     String?
+  vitals         String?
+  outcome        String   @default("RETURNED_TO_CLASS")
+  parentNotified Boolean  @default(false)
+  recordedById   String?
+
+  @@index([schoolId, visitedAt])
+  @@index([studentId])
+}
+
+// ============================================================
+// PDC — post-dated cheque register.
+// ============================================================
+model PDCCheque {
+  id          String   @id @default(cuid())
+  schoolId    String
+  drawerName  String
+  drawerPhone String?
+  bankName    String?
+  chequeNo    String
+  amount      Int
+  dueDate     DateTime
+  status      String   @default("PENDING")
+  depositedAt DateTime?
+  invoiceId   String?
+  notes       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId, status, dueDate])
+}
+
+// ============================================================
+// Recruitment — job openings + applicants.
+// ============================================================
+model JobOpening {
+  id             String   @id @default(cuid())
+  schoolId       String
+  title          String
+  department     String?
+  employmentType String   @default("FULL_TIME")
+  description    String
+  requirements   String?
+  closeAt        DateTime?
+  status         String   @default("OPEN")
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  applicants     JobApplicant[]
+
+  @@index([schoolId, status])
+}
+
+model JobApplicant {
+  id              String   @id @default(cuid())
+  openingId       String
+  name            String
+  email           String?
+  phone           String?
+  resumeUrl       String?
+  currentEmployer String?
+  status          String   @default("NEW")
+  notes           String?
+  appliedAt       DateTime @default(now())
+
+  opening         JobOpening @relation(fields: [openingId], references: [id], onDelete: Cascade)
+
+  @@index([openingId, status])
+}
+
+// ============================================================
+// PMS — staff goals + reviews.
+// ============================================================
+model StaffGoal {
+  id          String   @id @default(cuid())
+  schoolId    String
+  staffId     String
+  fy          String
+  title       String
+  description String?
+  kpi         String?
+  weight      Int      @default(20)
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+
+  reviews     StaffReview[]
+
+  @@index([schoolId, fy, staffId])
+}
+
+model StaffReview {
+  id           String   @id @default(cuid())
+  goalId       String
+  period       String   @default("MID")
+  rating       Int?
+  comments     String?
+  reviewedById String?
+  reviewedAt   DateTime @default(now())
+
+  goal         StaffGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, period])
+}
+
+// ============================================================
 // Pickup requests — parent self-serve early-pickup.
 // ============================================================
 model PickupRequest {

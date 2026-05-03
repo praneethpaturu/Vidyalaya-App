@@ -35,17 +35,22 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
           <Link href={`/classes/${id}/classwork`} className="p-2 rounded-full hover:bg-slate-200">
             <ChevronLeft className="w-5 h-5" />
           </Link>
-          <button className="p-2 rounded-full hover:bg-slate-200"><MoreVertical className="w-5 h-5" /></button>
+          <Link href={`/classes/${id}`} className="p-2 rounded-full hover:bg-slate-200" aria-label="Open class">
+            <MoreVertical className="w-5 h-5" />
+          </Link>
         </div>
 
         <div className="px-6 bg-white pt-6 pb-8">
           <div className="text-xs text-slate-500">Due {fmtDate(a.dueAt)}</div>
           <h1 className="text-3xl font-medium text-slate-900 mt-1">{a.title}</h1>
           <div className="text-sm text-slate-600 mt-2">{a.maxPoints} points</div>
-          <button className="mt-3 text-brand-700 text-sm flex items-center gap-2">
+          <Link
+            href={`/classes/${id}/announce?ref=${aid}`}
+            className="mt-3 text-brand-700 text-sm flex items-center gap-2 hover:underline"
+          >
             <span className="w-5 h-5 rounded-md bg-brand-100 text-brand-700 grid place-items-center">💬</span>
-            Add class comments
-          </button>
+            Post a class announcement about this assignment
+          </Link>
           <hr className="my-5" />
           <p className="text-base text-slate-700 whitespace-pre-line">{a.description}</p>
         </div>
@@ -82,8 +87,12 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
           ✏️ {a.maxPoints} points
         </div>
         <div className="flex items-center gap-1">
-          <button className="p-2 rounded-full hover:bg-slate-200"><Share2 className="w-5 h-5" /></button>
-          <button className="p-2 rounded-full hover:bg-slate-200"><MoreVertical className="w-5 h-5" /></button>
+          <Link href={`/classes/${id}/announce?ref=${aid}`} className="p-2 rounded-full hover:bg-slate-200" aria-label="Share / announce">
+            <Share2 className="w-5 h-5" />
+          </Link>
+          <Link href={`/classes/${id}/work/${aid}/edit`} className="p-2 rounded-full hover:bg-slate-200" aria-label="Edit assignment">
+            <MoreVertical className="w-5 h-5" />
+          </Link>
         </div>
       </div>
 
