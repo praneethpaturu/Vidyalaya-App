@@ -103,30 +103,30 @@ export default function BreadcrumbBar({ role, hiddenModules = [] }: { role?: str
 
         {/* Help / info cluster */}
         <div className="ml-auto flex items-center gap-1 text-slate-300 shrink-0">
-          <button
-            type="button"
+          <a
+            href="/support/help"
             aria-label="Help video"
             title="Help video"
             className="p-1.5 rounded-md hover:bg-slate-700/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
             <Video className="w-4 h-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="More info"
-            title="More info"
+          </a>
+          <a
+            href="/whats-new"
+            aria-label="What's new"
+            title="What's new"
             className="p-1.5 rounded-md hover:bg-slate-700/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
             <Info className="w-4 h-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="Help"
-            title="Help"
+          </a>
+          <a
+            href="/support"
+            aria-label="Help & resources"
+            title="Help & resources"
             className="w-6 h-6 rounded-full bg-accent-600 text-white flex items-center justify-center hover:bg-accent-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
           >
             <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
-          </button>
+          </a>
         </div>
       </div>
     </div>

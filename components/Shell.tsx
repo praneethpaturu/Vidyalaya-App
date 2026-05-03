@@ -114,22 +114,22 @@ export default function Shell({ children, user, hiddenModules = [] }: Props) {
                       <ProfileLink href="/Settings"    icon={Settings}    label="Settings" />
                       <ProfileLink href="/profile"     icon={KeyRound}    label="Change Password" />
                       <ProfileLink href="/MobileApps"  icon={Smartphone}  label="Mobile App Logins" />
-                      <ProfileLink href="#bio"         icon={Fingerprint} label="Biometric / RFID" />
+                      <ProfileLink href="/Home/HR/biometric" icon={Fingerprint} label="Biometric / RFID" />
                       <div className="border-t border-slate-100 my-2" />
-                      <a
-                        href="#book-am"
+                      <Link
+                        href="/support/training"
                         className="block w-full text-center py-2 rounded-lg bg-brand-50 text-brand-700 text-xs font-medium hover:bg-brand-100 transition-colors"
                         role="menuitem"
                       >
                         Book a slot · Account Manager
-                      </a>
-                      <a
-                        href="#book-csm"
+                      </Link>
+                      <Link
+                        href="/support/training"
                         className="block w-full text-center py-2 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors mt-1.5"
                         role="menuitem"
                       >
                         Book a slot · Customer Success
-                      </a>
+                      </Link>
                       <button
                         onClick={() => {
                           trackEvent("logout", { role: user.role });

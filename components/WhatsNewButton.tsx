@@ -7,7 +7,7 @@ import { Lightbulb } from "lucide-react";
 export default function WhatsNewButton() {
   return (
     <a
-      href="#whats-new"
+      href="/whats-new"
       title="What's new"
       aria-label="What's new"
       className="relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200/60 hover:bg-amber-100 hover:text-amber-800 transition-colors duration-150 focus-visible:outline-none focus-visible:shadow-focus"

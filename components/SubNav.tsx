@@ -40,18 +40,18 @@ export default function SubNav({ helpUrl }: { helpUrl?: string }) {
           })}
         </nav>
         <a
-          href={helpUrl ?? "#help-video"}
+          href={helpUrl ?? "/support/help"}
           title="Help video"
           className="p-1.5 rounded-md hover:bg-slate-700/50 text-slate-300"
         >
           <Video className="w-4 h-4" />
         </a>
-        <button title="Information" className="p-1.5 rounded-md hover:bg-slate-700/50 text-slate-300">
+        <a href="/whats-new" title="What's new" className="p-1.5 rounded-md hover:bg-slate-700/50 text-slate-300">
           <Info className="w-4 h-4" />
-        </button>
-        <button title="Help" className="p-1.5 rounded-md hover:bg-slate-700/50 text-slate-300">
+        </a>
+        <a href="/support" title="Help & resources" className="p-1.5 rounded-md hover:bg-slate-700/50 text-slate-300">
           <HelpCircle className="w-4 h-4" />
-        </button>
+        </a>
       </div>
     </div>
   );

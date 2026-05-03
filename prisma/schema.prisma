@@ -3438,6 +3438,33 @@ model StaffReview {
 }
 
 // ============================================================
+// Support / training requests — covers Help-menu actions:
+// "Raise a ticket" (TICKET), "Book training with Account Manager" (TRAINING_AM),
+// "Book CSM meeting" (CSM_MEETING), "Give feedback" (FEEDBACK).
+// ============================================================
+model SupportRequest {
+  id             String   @id @default(cuid())
+  schoolId       String
+  requestedById  String?
+  requestedByName String
+  type           String                          // TICKET | TRAINING_AM | CSM_MEETING | FEEDBACK
+  subject        String
+  body           String
+  preferredAt    DateTime?
+  rating         Int?                            // for feedback type
+  contactPhone   String?
+  contactEmail   String?
+  status         String   @default("OPEN")       // OPEN | SCHEDULED | RESOLVED | CANCELLED
+  scheduledAt    DateTime?
+  resolutionNote String?
+  resolvedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([schoolId, type, status])
+  @@index([schoolId, createdAt])
+}
+
+// ============================================================
 // Pickup requests — parent self-serve early-pickup.
 // ============================================================
 model PickupRequest {
