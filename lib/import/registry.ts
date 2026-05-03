@@ -16,7 +16,8 @@ export type ImportEntity =
   | "fee_structures" | "salary_structures" | "buses" | "routes"
   | "inventory_items" | "books" | "vendors" | "org_tax_profile"
   | "invoices" | "payments" | "payslips" | "class_attendance"
-  | "staff_attendance" | "exam_marks" | "book_issues" | "vendor_tds";
+  | "staff_attendance" | "exam_marks" | "book_issues" | "vendor_tds"
+  | "question_bank";
 
 export type Tier = 1 | 2 | 3;
 
@@ -1221,11 +1222,90 @@ const VENDOR_TDS: EntityDef = {
   },
 };
 
+const QUESTION_BANK: EntityDef = {
+  key: "question_bank", tier: 2, status: "ready",
+  label: "Question bank",
+  description: "Bulk-import quiz/test questions. Options are pipe-separated; correct is a 0-based index list (or text for FILL/DESCRIPTIVE).",
+  dependsOn: [],
+  fields: [
+    { key: "text",       label: "Question text",   required: true,  example: "What is 2+2?", hints: [/^text$|^question$/i] },
+    { key: "type",       label: "Type",            required: false, example: "MCQ",          hints: [/^type$/i] },
+    { key: "options",    label: "Options (|-sep)", required: false, example: "1|2|3|4",      hints: [/option/i] },
+    { key: "correct",    label: "Correct (idx CSV or text)", required: false, example: "3", hints: [/^correct/i] },
+    { key: "marks",      label: "Marks",           required: false, example: "1",            hints: [/^marks$/i] },
+    { key: "difficulty", label: "Difficulty",      required: false, example: "MEDIUM",       hints: [/diff/i] },
+    { key: "className",  label: "Class",           required: false, example: "Grade 8 - A",  hints: [/class|grade/i] },
+    { key: "subjectCode",label: "Subject code",    required: false, example: "MATH",         hints: [/subj/i] },
+    { key: "chapter",    label: "Chapter",         required: false, example: "Algebra",      hints: [/chapter/i] },
+    { key: "topic",      label: "Topic",           required: false, example: "Linear eqns",  hints: [/topic/i] },
+    { key: "tags",       label: "Tags (CSV)",      required: false, example: "ncert,easy",   hints: [/tags?/i] },
+  ],
+  async create(rows, { schoolId }) {
+    const out: ImportRunResult = { created: 0, skipped: 0, errors: [] };
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      try {
+        if (!r.text) throw new Error("text is required");
+        const type = (r.type || "MCQ").toUpperCase();
+        if (!["MCQ", "MULTI", "TRUE_FALSE", "FILL", "DESCRIPTIVE"].includes(type)) {
+          throw new Error(`bad type: ${type}`);
+        }
+
+        let options: string[] = [];
+        if (type === "MCQ" || type === "MULTI") {
+          options = (r.options || "").split("|").map((s) => s.trim()).filter(Boolean);
+          if (options.length < 2) throw new Error("MCQ/MULTI needs at least 2 options (pipe-separated)");
+        } else if (type === "TRUE_FALSE") {
+          options = ["True", "False"];
+        }
+
+        let correct: any = [];
+        if (type === "MCQ" || type === "MULTI" || type === "TRUE_FALSE") {
+          correct = (r.correct || "")
+            .split(/[,\s]+/).map((s) => Number(s.trim()))
+            .filter((n) => Number.isInteger(n) && n >= 0 && n < options.length);
+          if (correct.length === 0) throw new Error("correct index missing or out of range");
+        } else {
+          // FILL / DESCRIPTIVE
+          correct = (r.correct || "").trim();
+        }
+
+        const cls = r.className ? await classByName(schoolId, r.className) : null;
+        const sub = r.subjectCode ? await prisma.subject.findFirst({ where: { schoolId, code: r.subjectCode } }) : null;
+
+        await prisma.questionBankItem.create({
+          data: {
+            schoolId,
+            text: r.text,
+            type,
+            options: JSON.stringify(options),
+            correct: JSON.stringify(correct),
+            marks: parseInt0(r.marks) || 1,
+            difficulty: ["EASY", "MEDIUM", "HARD"].includes((r.difficulty || "").toUpperCase())
+              ? (r.difficulty as string).toUpperCase()
+              : "MEDIUM",
+            classId: cls?.id ?? null,
+            subjectId: sub?.id ?? null,
+            chapter: r.chapter || null,
+            topic: r.topic || null,
+            tags: JSON.stringify((r.tags || "").split(",").map((s) => s.trim()).filter(Boolean)),
+          },
+        });
+        out.created++;
+      } catch (e: any) {
+        out.errors.push({ row: i + 2, reason: e?.message ?? String(e) });
+      }
+    }
+    return out;
+  },
+};
+
 export const REGISTRY: Record<ImportEntity, EntityDef> = Object.fromEntries(
   [
     CLASSES, SUBJECTS, STAFF, STUDENTS, GUARDIANS,
     FEE_STRUCTURES, SALARY_STRUCTURES, BUSES, ROUTES, INVENTORY_ITEMS, BOOKS, VENDORS, ORG_TAX_PROFILE,
     INVOICES, PAYMENTS, PAYSLIPS, CLASS_ATTENDANCE, STAFF_ATTENDANCE, EXAM_MARKS, BOOK_ISSUES, VENDOR_TDS,
+    QUESTION_BANK,
   ].map((e) => [e.key, e]),
 ) as Record<ImportEntity, EntityDef>;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Q = {
@@ -21,12 +21,15 @@ type Props = {
   totalMarks: number;
   questions: Q[];
   existingResponses: Record<string, any>;
+  webcam: boolean;
+  tabSwitchDetect: boolean;
 };
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 export default function TakeExamClient({
   attemptId, examId, title, durationMin, startedAt, endAt, totalMarks, questions, existingResponses,
+  webcam, tabSwitchDetect,
 }: Props) {
   const router = useRouter();
   const [responses, setResponses] = useState<Record<string, any>>(existingResponses ?? {});
@@ -34,6 +37,57 @@ export default function TakeExamClient({
   const [busy, setBusy] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showFinish, setShowFinish] = useState(false);
+  const [tabSwitches, setTabSwitches] = useState(0);
+  const [proctorState, setProctorState] = useState<"idle" | "requesting" | "live" | "denied">("idle");
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Webcam proctoring — request camera once on mount, attach to a small
+  // bottom-right preview. We don't record or upload frames; the presence of
+  // an active camera + the proctorState badge is what enforces it.
+  useEffect(() => {
+    if (!webcam) return;
+    let cancelled = false;
+    setProctorState("requesting");
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then((stream) => {
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+        setProctorState("live");
+      })
+      .catch(() => setProctorState("denied"));
+    return () => {
+      cancelled = true;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
+  }, [webcam]);
+
+  // Tab-switch detection — every time the user hides this tab, increment
+  // the local counter and post to /progress so it persists.
+  useEffect(() => {
+    if (!tabSwitchDetect) return;
+    function onVis() {
+      if (document.visibilityState === "hidden") {
+        setTabSwitches((n) => {
+          const next = n + 1;
+          fetch(`/api/online-exams/${examId}/progress`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ attemptId, responses, tabSwitches: next }),
+          }).catch(() => {});
+          return next;
+        });
+      }
+    }
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabSwitchDetect, examId, attemptId]);
 
   const deadlineMs = useMemo(() => {
     const startedAtMs = new Date(startedAt).getTime();
@@ -216,6 +270,35 @@ export default function TakeExamClient({
           )}
         </div>
       </div>
+
+      {/* Proctoring overlay */}
+      {(webcam || tabSwitchDetect) && (
+        <div className="fixed bottom-4 right-4 z-30 flex flex-col items-end gap-2">
+          {tabSwitchDetect && tabSwitches > 0 && (
+            <div className={`px-3 py-1.5 rounded-lg text-xs font-medium shadow ${
+              tabSwitches > 3 ? "bg-rose-700 text-white" : "bg-amber-100 text-amber-800"
+            }`}>
+              ⚠ {tabSwitches} tab switch{tabSwitches !== 1 ? "es" : ""} detected
+            </div>
+          )}
+          {webcam && proctorState === "live" && (
+            <div className="bg-slate-900 rounded-lg overflow-hidden shadow-lg ring-2 ring-emerald-500">
+              <video ref={videoRef} muted playsInline className="w-32 h-24 object-cover" />
+              <div className="text-[10px] text-emerald-400 px-2 py-0.5 text-center">● Proctored</div>
+            </div>
+          )}
+          {webcam && proctorState === "denied" && (
+            <div className="px-3 py-2 rounded-lg bg-rose-50 text-rose-800 text-xs shadow max-w-xs">
+              ⚠ Camera permission denied. This exam requires webcam proctoring — submission may be flagged for review.
+            </div>
+          )}
+          {webcam && proctorState === "requesting" && (
+            <div className="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs shadow">
+              Requesting camera access…
+            </div>
+          )}
+        </div>
+      )}
 
       {showFinish && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4" onClick={() => setShowFinish(false)}>

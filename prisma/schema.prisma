@@ -3438,6 +3438,94 @@ model StaffReview {
 }
 
 // ============================================================
+// PoSH — Prevention of Sexual Harassment Act 2013 register.
+// Per-school complaint tracker with Internal Committee (IC) members,
+// hearings, and final resolution. Confidentiality: only ADMIN, PRINCIPAL,
+// HR_MANAGER (and IC members) can read.
+// ============================================================
+model PoshComplaint {
+  id              String   @id @default(cuid())
+  schoolId        String
+  caseNo          String
+  filedAt         DateTime @default(now())
+  filedById       String?
+  complainantName String
+  complainantRole String?              // STAFF | STUDENT | PARENT | OTHER
+  respondentName  String
+  respondentRole  String?
+  incidentDate    DateTime?
+  incidentLocation String?
+  natureOfIncident String
+  evidenceUrl     String?
+  status          String   @default("FILED") // FILED | UNDER_INQUIRY | RESOLVED | DISMISSED | WITHDRAWN
+  closedAt        DateTime?
+  closingNote     String?
+  recommendation  String?              // ICOC recommendation text
+  actionTaken     String?              // school's final action
+
+  hearings        PoshHearing[]
+
+  @@unique([schoolId, caseNo])
+  @@index([schoolId, status])
+}
+
+model PoshHearing {
+  id          String   @id @default(cuid())
+  complaintId String
+  scheduledAt DateTime
+  attendees   String?              // free text comma-list
+  notes       String?
+  outcome     String?
+  recordedAt  DateTime @default(now())
+
+  complaint   PoshComplaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId, scheduledAt])
+}
+
+// ============================================================
+// Push notification token registry. The native shells (Capacitor / iOS /
+// Android web push) call POST /api/push/register on login to deposit their
+// device token. PUSH-channel outbox rows pick up active tokens via toUserId
+// and dispatch through FCM/APNs (provider step is wired generically; until
+// a real key is set, sends are logged as push-stub).
+// ============================================================
+model PushToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String
+  platform   String   @default("WEB")
+  deviceTag  String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@unique([userId, token])
+  @@index([userId, active])
+}
+
+// ============================================================
+// Scheduled report subscription — fires a preset / custom report on a
+// cadence and emails the CSV to the configured recipients.
+// ============================================================
+model ReportSubscription {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String
+  preset      String                                    // matches PRESETS.key in lib/reports/runner
+  cadence     String   @default("WEEKLY")               // DAILY | WEEKLY | MONTHLY
+  recipients  String   @default("[]")                    // JSON array of email strings
+  active      Boolean  @default(true)
+  nextRunAt   DateTime
+  lastRunAt   DateTime?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([active, nextRunAt])
+  @@index([schoolId])
+}
+
+// ============================================================
 // Self-hosted help video library — seeded with our own tutorials.
 // videoUrl can point at a static file in /public, an S3 / Supabase Storage
 // signed URL, or any HTTPS endpoint that serves video/* mime-types.

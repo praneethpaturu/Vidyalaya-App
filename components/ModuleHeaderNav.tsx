@@ -237,6 +237,8 @@ const GLOBAL_MODULES: Module[] = [
     roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"],
     pages: [
       { href: "/Home/Reports",             label: "Templates & saved" },
+      { href: "/Home/Reports/zones",       label: "Multi-branch rollup" },
+      { href: "/Home/Reports/subscriptions", label: "Subscriptions" },
     ],
   },
   {
@@ -246,6 +248,8 @@ const GLOBAL_MODULES: Module[] = [
     pages: [
       { href: "/Home/Compliance",          label: "DPDP overview" },
       { href: "/Home/Compliance/rte",      label: "RTE quota" },
+      { href: "/Home/Compliance/posh",     label: "PoSH register" },
+      { href: "/Home/Compliance/udise",    label: "UDISE+" },
     ],
   },
 ];

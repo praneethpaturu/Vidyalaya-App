@@ -166,6 +166,8 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
           marks: q.marks,
         }))}
         existingResponses={(() => { try { return JSON.parse(attempt.responses || "{}"); } catch { return {}; } })()}
+        webcam={exam.webcam}
+        tabSwitchDetect={exam.tabSwitchDetect}
       />
     );
   }

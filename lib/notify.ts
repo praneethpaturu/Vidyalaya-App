@@ -70,13 +70,19 @@ export async function notify(args: NotifyArgs): Promise<string> {
 export async function deliver(id: string) {
   const row = await prisma.messageOutbox.findUnique({ where: { id } });
   if (!row || row.status === "SENT") return;
+  // Expand {{merge}} tokens once per recipient before dispatch.
+  const { expandTokens } = await import("@/lib/merge-tokens");
+  const body = await expandTokens(row.body, { schoolId: row.schoolId, userId: row.toUserId });
+  const subject = row.subject
+    ? await expandTokens(row.subject, { schoolId: row.schoolId, userId: row.toUserId })
+    : row.subject;
   try {
     let providerRef: string | undefined;
     if (row.channel === "EMAIL" && row.toEmail) {
-      const r = await email.send(row.toEmail, row.subject ?? "(no subject)", row.body);
+      const r = await email.send(row.toEmail, subject ?? "(no subject)", body);
       providerRef = r.id;
     } else if (row.channel === "SMS" && row.toPhone) {
-      const r = await sms.send(row.toPhone, row.body);
+      const r = await sms.send(row.toPhone, body);
       providerRef = r.id;
     } else if (row.channel === "INAPP" && row.toUserId) {
       // INAPP — also write to Notification table for header bell
@@ -84,13 +90,41 @@ export async function deliver(id: string) {
         data: {
           schoolId: row.schoolId,
           userId: row.toUserId,
-          title: row.subject ?? "Update",
-          body: row.body,
+          title: subject ?? "Update",
+          body,
         },
       });
       providerRef = "inapp";
-    } else if (row.channel === "PUSH") {
-      providerRef = "push-stub";
+    } else if (row.channel === "PUSH" && row.toUserId) {
+      // Look up active push tokens for the recipient and dispatch via FCM /
+      // APNs. Without a provider key set we record what would have been
+      // delivered so the operator can inspect it in the outbox.
+      const tokens = await prisma.pushToken.findMany({
+        where: { userId: row.toUserId, active: true },
+        select: { id: true, token: true, platform: true },
+      });
+      const fcmKey = process.env.FCM_SERVER_KEY;
+      let delivered = 0;
+      let failed = 0;
+      for (const t of tokens) {
+        if (!fcmKey) continue;
+        try {
+          const r = await fetch("https://fcm.googleapis.com/fcm/send", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: `key=${fcmKey}`,
+            },
+            body: JSON.stringify({
+              to: t.token,
+              notification: { title: subject ?? "Update", body },
+              data: { url: "/" },
+            }),
+          });
+          if (r.ok) delivered++; else failed++;
+        } catch { failed++; }
+      }
+      providerRef = `push:${tokens.length}/${delivered}/${failed}` + (fcmKey ? "" : ":no-key");
     }
     await prisma.messageOutbox.update({
       where: { id },

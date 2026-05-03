@@ -4,6 +4,7 @@ import Link from "next/link";
 import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import FileUploadInput from "@/components/FileUploadInput";
+import BulkPhotoUpload from "./BulkPhotoUpload";
 
 async function addPhoto(form: FormData) {
   "use server";
@@ -78,21 +79,25 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ id
       </div>
 
       {isStaff && (
-        <details className="card card-pad mb-5" open>
-          <summary className="cursor-pointer font-medium">+ Add photo</summary>
-          <form action={addPhoto} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mt-3">
-            <input type="hidden" name="albumId" value={album.id} />
-            <div className="md:col-span-2">
-              <label className="label">Photo *</label>
-              <FileUploadInput name="url" accept="image/*" kind="PHOTO" ownerEntity="PhotoAlbum" ownerId={album.id} label="Upload photo (JPEG / PNG / WebP)" />
-            </div>
-            <div>
-              <label className="label">Caption</label>
-              <input name="caption" className="input" />
-            </div>
-            <button type="submit" className="btn-primary md:col-span-3">Add photo</button>
-          </form>
-        </details>
+        <div className="card card-pad mb-5">
+          <h2 className="h-section mb-3">Add photos</h2>
+          <BulkPhotoUpload albumId={album.id} />
+
+          <details className="mt-4">
+            <summary className="cursor-pointer text-sm text-slate-600">Or add a single photo with a caption</summary>
+            <form action={addPhoto} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mt-3">
+              <input type="hidden" name="albumId" value={album.id} />
+              <div className="md:col-span-2">
+                <FileUploadInput name="url" accept="image/*" kind="PHOTO" ownerEntity="PhotoAlbum" ownerId={album.id} label="Upload single photo" />
+              </div>
+              <div>
+                <label className="label">Caption</label>
+                <input name="caption" className="input" />
+              </div>
+              <button type="submit" className="btn-primary md:col-span-3">Add photo</button>
+            </form>
+          </details>
+        </div>
       )}
 
       {album.photos.length === 0 ? (

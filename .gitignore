@@ -39,3 +39,6 @@ Thumbs.db
 playwright-report/
 test-results/
 tests/qa/playwright-stdout.log
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo

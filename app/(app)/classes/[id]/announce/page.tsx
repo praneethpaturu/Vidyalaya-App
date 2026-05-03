@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createAnnouncement } from "@/app/actions/lms";
+import AIComposeButtons from "@/components/AIComposeButtons";
 
 export default async function NewAnnouncementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,6 +21,9 @@ export default async function NewAnnouncementPage({ params }: { params: Promise<
         <div>
           <label className="label">Message</label>
           <textarea className="input min-h-[140px]" name="body" required />
+          <div className="mt-2">
+            <AIComposeButtons fieldName="body" kind="ANNOUNCEMENT" audience="PARENTS" />
+          </div>
         </div>
         <div className="flex gap-2 justify-end">
           <Link href={`/classes/${id}`} className="btn-outline">Cancel</Link>

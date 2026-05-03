@@ -34,6 +34,7 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
             <a href={`/api/exams/${id}/hall-tickets`} target="_blank" className="btn-outline">Hall tickets</a>
             <Link href={`/exams/${id}/seating`} className="btn-outline">Seating plan</Link>
             <Link href={`/exams/${id}/omr`} className="btn-outline">OMR sheets</Link>
+            <Link href={`/exams/${id}/hpc`} className="btn-outline">✨ HPC narrative</Link>
             <Link href={`/exams/${id}/report-cards`} className="btn-outline"><FileText className="w-4 h-4" /> Report cards</Link>
             {exam.status !== "PUBLISHED" && (
               <form action={async () => { "use server"; await publishExam(id); }}>

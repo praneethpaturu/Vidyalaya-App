@@ -12,9 +12,10 @@ export const maxDuration = 300;
 // Auth: same dual-secret pattern as the underlying handlers.
 
 const JOBS: Array<{ name: string; path: string }> = [
-  { name: "outbox-flush",   path: "/api/outbox/flush"            },
-  { name: "late-fee",       path: "/api/finance/late-fee/accrue" },
-  { name: "drip-fire",      path: "/api/connect/drip/fire"       },
+  { name: "outbox-flush",     path: "/api/outbox/flush"                  },
+  { name: "late-fee",         path: "/api/finance/late-fee/accrue"       },
+  { name: "drip-fire",        path: "/api/connect/drip/fire"             },
+  { name: "report-subs-fire", path: "/api/reports/subscriptions/fire"    },
 ];
 
 async function authorize(req: Request): Promise<boolean> {

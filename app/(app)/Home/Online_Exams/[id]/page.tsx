@@ -87,12 +87,15 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
 
       <div className="flex items-center justify-between mb-2">
         <h2 className="h-section">Questions ({exam.questions.length})</h2>
-        {exam.status === "DRAFT" && (
-          <form action={publish}>
-            <input type="hidden" name="id" value={exam.id} />
-            <button className="btn-tonal text-sm">Publish exam</button>
-          </form>
-        )}
+        <div className="flex gap-2">
+          <a href={`/Home/Online_Exams/${exam.id}/grade`} className="btn-outline text-sm">Grade submissions</a>
+          {exam.status === "DRAFT" && (
+            <form action={publish}>
+              <input type="hidden" name="id" value={exam.id} />
+              <button className="btn-tonal text-sm">Publish exam</button>
+            </form>
+          )}
+        </div>
       </div>
 
       <ul className="card divide-y divide-slate-100 mb-5">

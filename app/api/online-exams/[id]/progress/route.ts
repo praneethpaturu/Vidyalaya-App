@@ -24,9 +24,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ ok: false, error: "window-closed" }, { status: 400 });
   }
 
+  const tabSwitches = Number(body?.tabSwitches);
   await prisma.onlineExamAttempt.update({
     where: { id: attempt.id },
-    data: { responses: JSON.stringify(responses) },
+    data: {
+      responses: JSON.stringify(responses),
+      ...(Number.isFinite(tabSwitches) ? { tabSwitches, flagged: tabSwitches > 3 } : {}),
+    },
   });
   return NextResponse.json({ ok: true });
 }
