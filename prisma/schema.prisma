@@ -2886,6 +2886,174 @@ model SchoolSetting {
   @@index([schoolId])
 }
 
+// ============================================================
+// Question Bank — school-scoped pool of reusable questions independent
+// of any single OnlineExam. Authors can pull from the bank when creating
+// an exam (server action copies into OnlineQuestion).
+// ============================================================
+model QuestionBankItem {
+  id          String   @id @default(cuid())
+  schoolId    String
+  classId     String?
+  subjectId   String?
+  chapter     String?
+  topic       String?
+  text        String
+  type        String   @default("MCQ")        // MCQ | MULTI | TRUE_FALSE | FILL | DESCRIPTIVE
+  options     String   @default("[]")         // JSON array
+  correct     String   @default("[]")         // JSON: indexes / "true"-"false" / text
+  marks       Int      @default(1)
+  difficulty  String   @default("MEDIUM")     // EASY | MEDIUM | HARD
+  tags        String   @default("[]")
+  active      Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId, classId, subjectId])
+  @@index([schoolId, active])
+}
+
+// ============================================================
+// PTM (Parent-Teacher Meeting) — schedule and feedback log.
+// ============================================================
+model PTM {
+  id          String   @id @default(cuid())
+  schoolId    String
+  classId     String?     // null = school-wide
+  title       String
+  scheduledAt DateTime
+  durationMin Int      @default(60)
+  venue       String?
+  notes       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  feedback    PTMFeedback[]
+
+  @@index([schoolId, scheduledAt])
+}
+
+model PTMFeedback {
+  id         String   @id @default(cuid())
+  ptmId      String
+  studentId  String
+  attended   Boolean  @default(false)
+  parentName String?
+  feedback   String?
+  followUp   String?
+  rating     Int?     // 1-5
+  recordedById String?
+  recordedAt DateTime @default(now())
+
+  ptm        PTM      @relation(fields: [ptmId], references: [id], onDelete: Cascade)
+
+  @@unique([ptmId, studentId])
+}
+
+// ============================================================
+// Pre-Admission Exams — separate from OnlineExam; tied to applications.
+// ============================================================
+model PreAdmissionExam {
+  id          String   @id @default(cuid())
+  schoolId    String
+  title       String
+  optingClass String?     // free-text — application's optingClassName
+  scheduledAt DateTime
+  durationMin Int      @default(60)
+  venue       String?
+  totalMarks  Int      @default(100)
+  passMarks   Int      @default(35)
+  status      String   @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELLED
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  candidates  PreAdmissionCandidate[]
+  subjects    PreAdmissionExamSubject[]
+
+  @@index([schoolId, scheduledAt])
+}
+
+model PreAdmissionExamSubject {
+  id        String  @id @default(cuid())
+  examId    String
+  name      String
+  maxMarks  Int     @default(20)
+  sequence  Int     @default(0)
+
+  exam      PreAdmissionExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  scores    PreAdmissionScore[]
+
+  @@unique([examId, name])
+}
+
+model PreAdmissionCandidate {
+  id            String   @id @default(cuid())
+  examId        String
+  applicationId String?     // FK soft to ApplicationForm
+  candidateName String
+  parentPhone   String?
+  hallTicketNo  String
+  attendance    String   @default("PENDING")  // PENDING | PRESENT | ABSENT
+  totalScore    Int      @default(0)
+  result        String   @default("PENDING")  // PENDING | PASS | FAIL
+  remarks       String?
+  recordedAt    DateTime @default(now())
+
+  exam          PreAdmissionExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  scores        PreAdmissionScore[]
+
+  @@unique([examId, hallTicketNo])
+}
+
+model PreAdmissionScore {
+  id             String   @id @default(cuid())
+  candidateId    String
+  examSubjectId  String
+  marks          Int      @default(0)
+
+  candidate      PreAdmissionCandidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  examSubject    PreAdmissionExamSubject  @relation(fields: [examSubjectId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, examSubjectId])
+}
+
+// ============================================================
+// Bank Reconciliation — operator uploads a bank statement; we match
+// rows against existing Payment records by amount + reference and
+// flag mismatches for review.
+// ============================================================
+model BankStatementImport {
+  id           String   @id @default(cuid())
+  schoolId     String
+  fileName     String?
+  uploadedAt   DateTime @default(now())
+  uploadedById String?
+  rowCount     Int      @default(0)
+  matchedCount Int      @default(0)
+  unmatchedCount Int    @default(0)
+
+  rows         BankStatementRow[]
+
+  @@index([schoolId, uploadedAt])
+}
+
+model BankStatementRow {
+  id            String   @id @default(cuid())
+  importId      String
+  txnDate       DateTime
+  description   String
+  reference     String?
+  debit         Int      @default(0)   // paise
+  credit        Int      @default(0)
+  balance       Int      @default(0)
+  matchedPaymentId String?
+  status        String   @default("UNMATCHED") // UNMATCHED | MATCHED | IGNORED
+
+  import        BankStatementImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId, status])
+}
+
 model StudentGroupMember {
   id         String   @id @default(cuid())
   groupId    String

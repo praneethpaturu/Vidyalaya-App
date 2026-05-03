@@ -43,7 +43,11 @@ export default async function OnlineExamsPage({ searchParams }: { searchParams: 
           <h1 className="h-page">Online Exam or Worksheet</h1>
           <p className="muted">12-month grid by class. Add objective or descriptive exams.</p>
         </div>
-        <Link href="/Home/Online_Exams/new" className="btn-primary">+ Exam</Link>
+        <div className="flex gap-2">
+          <Link href="/Home/Online_Exams/ai-new" className="btn-tonal">✨ AI exam</Link>
+          <Link href="/Home/Online_Exams/questions" className="btn-outline">Question Bank</Link>
+          <Link href="/Home/Online_Exams/new" className="btn-primary">+ Exam</Link>
+        </div>
       </div>
 
       {/* Tabs */}

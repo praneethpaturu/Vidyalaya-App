@@ -34,6 +34,7 @@ const GLOBAL_MODULES: Module[] = [
     pages: [
       { href: "/Home/SIS",            label: "Enrollments" },
       { href: "/Home/SIS/promotion",  label: "Promotion" },
+      { href: "/Home/SIS/ptm",        label: "PTM" },
       { href: "/Home/SIS/approvals",  label: "Approvals" },
       { href: "/Home/SIS/contracts",  label: "Student Contracts" },
       { href: "/Home/SIS/timetable",  label: "Time Table" },
@@ -51,6 +52,7 @@ const GLOBAL_MODULES: Module[] = [
       { href: "/Home/HR/attendance",  label: "Attendance" },
       { href: "/Home/HR/biometric",   label: "Biometric Attendance" },
       { href: "/Home/HR/leaves",      label: "Leaves" },
+      { href: "/Home/HR/payroll",     label: "Payroll" },
       { href: "/Home/HR/tasks",       label: "Staff Tasks" },
       { href: "/Home/HR/reports",     label: "Reports" },
     ],
@@ -61,6 +63,8 @@ const GLOBAL_MODULES: Module[] = [
     roles: ["ADMIN", "PRINCIPAL", "ACCOUNTANT"],
     pages: [
       { href: "/Home/Finance",             label: "Fee Management" },
+      { href: "/Home/Finance/collect",     label: "Collect Fees" },
+      { href: "/Home/Finance/reconciliation", label: "Bank Reconciliation" },
       { href: "/Home/Finance/approvals",   label: "Approvals" },
       { href: "/Home/Finance/concessions", label: "Concessions" },
       { href: "/Home/Finance/collections", label: "Collection Reports" },
@@ -76,9 +80,10 @@ const GLOBAL_MODULES: Module[] = [
     activePrefixes: ["/Home/Admissions"],
     roles: ["ADMIN", "PRINCIPAL"],
     pages: [
-      { href: "/Home/Admissions",                 label: "Enquiries" },
-      { href: "/Home/Admissions/applications",    label: "Applications" },
-      { href: "/Home/Admissions/pre-admission",   label: "Pre admission Reports" },
+      { href: "/Home/Admissions",                       label: "Enquiries" },
+      { href: "/Home/Admissions/applications",          label: "Applications" },
+      { href: "/Home/Admissions/pre-admission/exams",   label: "Pre-Admission Exams" },
+      { href: "/Home/Admissions/pre-admission",         label: "Pre admission Reports" },
       { href: "/Home/Admissions/documents",       label: "Documents and Fields" },
       { href: "/Home/Admissions/mis",             label: "MIS" },
       { href: "/Home/Admissions/approvals",       label: "Approvals" },
@@ -156,8 +161,9 @@ const GLOBAL_MODULES: Module[] = [
     activePrefixes: ["/Home/Online_Exams"],
     roles: ["ADMIN", "PRINCIPAL", "TEACHER"],
     pages: [
-      { href: "/Home/Online_Exams",         label: "Online Exams" },
-      { href: "/Home/Online_Exams/reports", label: "Reports" },
+      { href: "/Home/Online_Exams",          label: "Online Exams" },
+      { href: "/Home/Online_Exams/questions", label: "Question Bank" },
+      { href: "/Home/Online_Exams/reports",  label: "Reports" },
     ],
   },
   {
