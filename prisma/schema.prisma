@@ -2629,3 +2629,126 @@ model RateLimitBucket {
 
   @@index([resetAt])
 }
+
+// ============================================================
+// Admissions — Source + Stage masters (admin-defined, per school)
+// ============================================================
+model EnquirySource {
+  id                String   @id @default(cuid())
+  schoolId          String
+  name              String
+  isDigitalCampaign Boolean  @default(false)
+  showAtBranchForm  Boolean  @default(true)
+  showAtOnlineForm  Boolean  @default(true)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  @@unique([schoolId, name])
+  @@index([schoolId, active])
+}
+
+model EnquiryStage {
+  id                       String   @id @default(cuid())
+  schoolId                 String
+  name                     String
+  level                    Int      @default(1)
+  sequence                 Int      @default(0)
+  isLeadCancel             Boolean  @default(false)
+  dateCaptureEnabled       Boolean  @default(false)
+  parentVisitOrSchoolTour  Boolean  @default(false)
+  parentStageId            String?  // for substage hierarchy
+  active                   Boolean  @default(true)
+  createdAt                DateTime @default(now())
+
+  @@unique([schoolId, name])
+  @@index([schoolId, active])
+  @@index([parentStageId])
+}
+
+// ============================================================
+// Student promotion log — captures the AY transition
+// ============================================================
+model StudentPromotion {
+  id               String   @id @default(cuid())
+  schoolId         String
+  studentId        String
+  fromAcademicYear String
+  toAcademicYear   String
+  fromClassId      String?
+  toClassId        String?
+  type             String   // PASS_AND_PROMOTION | FINANCIAL_PROMOTION | DETAIN | ALUMNI | DROPOUT
+  effectiveAt      DateTime @default(now())
+  promotedById     String?
+  reverted         Boolean  @default(false)
+  revertedAt       DateTime?
+  revertedById     String?
+  notes            String?
+
+  @@index([schoolId, toAcademicYear])
+  @@index([studentId])
+}
+
+// ============================================================
+// Monthly attendance — class+student aggregated per academic month
+// ============================================================
+model MonthlyAttendance {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  classId         String
+  year            Int
+  month           Int      // 1-12
+  workingDays     Int      @default(0)
+  presentDays     Int      @default(0)
+  lateDays        Int      @default(0)
+  earlyLeaveDays  Int      @default(0)
+  remarks         String?
+  enteredById     String?
+  enteredAt       DateTime @default(now())
+
+  @@unique([studentId, year, month])
+  @@index([schoolId, year, month])
+  @@index([classId, year, month])
+}
+
+// ============================================================
+// Application form — concrete admission application (post-enquiry
+// or direct). Promotes to a Student row once admitted.
+// ============================================================
+model ApplicationForm {
+  id                String   @id @default(cuid())
+  schoolId          String
+  enquiryId         String?  // null = direct application
+  applicationNo     String
+  studentFirstName  String
+  studentLastName   String?
+  studentDob        DateTime?
+  studentGender     String?
+  optingClassId     String?
+  optingClassName   String?
+  admissionType     String?  // DAY_SCHOLAR | RESIDENTIAL | SEMI_RESIDENTIAL
+  fatherName        String?
+  fatherEmail       String?
+  fatherPhone       String?
+  motherName        String?
+  motherEmail       String?
+  motherPhone       String?
+  address           String?
+  previousSchool    String?
+  vaccineStatus     String?
+  needsTransport    Boolean  @default(false)
+  documents         String   @default("[]") // JSON array of {name, url, uploadedAt}
+  applicationFee    Int      @default(0)
+  feePaid           Boolean  @default(false)
+  feeReceiptNo      String?
+  status            String   @default("OPEN") // OPEN | ACCEPTED | REJECTED | ADMITTED | CANCELLED
+  expectedReportingDate DateTime?
+  admittedStudentId String?  // FK to Student once admission happens
+  createdById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([schoolId, applicationNo])
+  @@index([schoolId, status])
+  @@index([enquiryId])
+}

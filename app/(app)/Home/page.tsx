@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { fmtDate, inr } from "@/lib/utils";
 import {
   Users, GraduationCap, Bus, BookOpen, Boxes, AlertCircle, Phone, Mail,
-  MessageSquare, Crown, ChevronRight, LogIn, Building2,
+  MessageSquare, Crown, ChevronRight, LogIn, Building2, ShieldCheck,
 } from "lucide-react";
 import HomePageTabs from "@/components/HomePageTabs";
 
@@ -200,6 +200,7 @@ export default async function HomeMcbPage() {
             { href: "/Home/Admissions", icon: GraduationCap, label: "Admissions", tone: "emerald", allow: ["ADMIN","PRINCIPAL"] },
             { href: "/Home/Transport",  icon: Bus,           label: "Transport",  tone: "rose",    allow: ["ADMIN","PRINCIPAL","TRANSPORT_MANAGER"] },
             { href: "/Home/Library",    icon: BookOpen,      label: "Library",    tone: "sky",     allow: ["ADMIN","PRINCIPAL","HR_MANAGER","TEACHER"] },
+            { href: "/Home/Approvals",  icon: ShieldCheck,   label: "Approvals",  tone: "indigo",  allow: ["ADMIN","PRINCIPAL","ACCOUNTANT","HR_MANAGER"] },
           ];
           return tiles
             .filter((t) => t.allow.includes(user.role))

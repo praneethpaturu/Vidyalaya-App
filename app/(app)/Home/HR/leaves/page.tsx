@@ -18,7 +18,10 @@ export default async function HRLeavesPage() {
     <div className="p-5 max-w-screen-2xl mx-auto">
       <div className="flex items-end justify-between mb-3">
         <h1 className="h-page text-slate-700">Leaves</h1>
-        <Link href="/hr/leave/apply" className="btn-primary">+ Apply Leave</Link>
+        <div className="flex gap-2">
+          <Link href="/Home/HR/leaves/on-behalf" className="btn-outline">+ On behalf</Link>
+          <Link href="/hr/leave/apply" className="btn-primary">+ Apply Leave</Link>
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-3 mb-5">
         <Tile label="Pending" value={pending} />

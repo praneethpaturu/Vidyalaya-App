@@ -510,8 +510,7 @@ export type ReportCardPdfProps = {
   passed: boolean;
 };
 
-export async function buildReportCardPdf(p: ReportCardPdfProps): Promise<Buffer> {
-  const doc = newDoc();
+function renderReportCardOnDoc(doc: PDFKit.PDFDocument, p: ReportCardPdfProps) {
   brandBar(doc, "Report Card", `${p.exam.name} · ${p.exam.type}`, "RESULT", p.passed ? "PASS" : "NEEDS WORK");
   school(doc, p.school.name, `${p.school.city}, ${p.school.state}`);
   twoCol(doc,
@@ -532,7 +531,6 @@ export async function buildReportCardPdf(p: ReportCardPdfProps): Promise<Buffer>
     ["left", "right", "right", "right", "left", "left"]
   );
 
-  // Totals
   doc.moveDown(0.5);
   const colWidth = 240;
   const rightX = doc.page.width - doc.page.margins.right - colWidth;
@@ -554,6 +552,21 @@ export async function buildReportCardPdf(p: ReportCardPdfProps): Promise<Buffer>
   doc.text("Principal", x + w - 100, doc.y - 10, { width: 100, align: "right" });
 
   footer(doc, "Computer-generated report card · Verified at the school office");
+}
+
+export async function buildReportCardPdf(p: ReportCardPdfProps): Promise<Buffer> {
+  const doc = newDoc();
+  renderReportCardOnDoc(doc, p);
+  return streamToBuffer(doc);
+}
+
+// One PDF that contains every student's report card (one student per page).
+export async function buildBulkReportCardPdf(cards: ReportCardPdfProps[]): Promise<Buffer> {
+  const doc = newDoc();
+  cards.forEach((p, idx) => {
+    if (idx > 0) doc.addPage();
+    renderReportCardOnDoc(doc, p);
+  });
   return streamToBuffer(doc);
 }
 

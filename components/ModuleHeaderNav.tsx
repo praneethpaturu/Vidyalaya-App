@@ -33,6 +33,7 @@ const GLOBAL_MODULES: Module[] = [
     roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER", "TEACHER"],
     pages: [
       { href: "/Home/SIS",            label: "Enrollments" },
+      { href: "/Home/SIS/promotion",  label: "Promotion" },
       { href: "/Home/SIS/approvals",  label: "Approvals" },
       { href: "/Home/SIS/contracts",  label: "Student Contracts" },
       { href: "/Home/SIS/timetable",  label: "Time Table" },
@@ -76,11 +77,13 @@ const GLOBAL_MODULES: Module[] = [
     roles: ["ADMIN", "PRINCIPAL"],
     pages: [
       { href: "/Home/Admissions",                 label: "Enquiries" },
+      { href: "/Home/Admissions/applications",    label: "Applications" },
       { href: "/Home/Admissions/pre-admission",   label: "Pre admission Reports" },
       { href: "/Home/Admissions/documents",       label: "Documents and Fields" },
       { href: "/Home/Admissions/mis",             label: "MIS" },
       { href: "/Home/Admissions/approvals",       label: "Approvals" },
       { href: "/Home/Admissions/reports",         label: "Reports" },
+      { href: "/Home/Admissions/settings",        label: "Settings" },
     ],
   },
   {

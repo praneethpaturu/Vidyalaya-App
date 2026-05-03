@@ -35,7 +35,11 @@ export default async function ReportCardsPage({ params }: { params: Promise<{ id
           <h1 className="h-page">Report cards · {exam.name}</h1>
           <p className="muted mt-1">{exam.class.name} · {exam.class.students.length} students</p>
         </div>
-        <Link href={`/exams/${id}`} className="btn-outline">← Marks entry</Link>
+        <div className="flex gap-2">
+          <Link href={`/api/exams/${id}/report-cards/bulk?format=pdf`} target="_blank" className="btn-outline">All-in-one PDF</Link>
+          <Link href={`/api/exams/${id}/report-cards/bulk?format=csv`} className="btn-outline">CSV</Link>
+          <Link href={`/exams/${id}`} className="btn-outline">← Marks entry</Link>
+        </div>
       </div>
 
       <div className="card">

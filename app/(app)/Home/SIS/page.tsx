@@ -34,8 +34,9 @@ export default async function SISEnrollmentsPage({ searchParams }: { searchParam
           <p className="muted">Search by Admission No / Name / Class. Add, edit, bulk import.</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-outline" disabled title="Demo: bulk import">Bulk Import</button>
-          <button className="btn-primary" disabled title="Demo: add student">+ Add Student</button>
+          <a href="/api/students/export" className="btn-outline">Export CSV</a>
+          <a href="/Settings/import/students" className="btn-outline">Bulk Import</a>
+          <a href="/Home/Admissions/applications/new" className="btn-primary">+ Add Student</a>
         </div>
       </div>
 

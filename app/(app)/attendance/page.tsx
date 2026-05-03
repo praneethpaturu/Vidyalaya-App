@@ -37,8 +37,15 @@ export default async function AttendanceOverview() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="h-page mb-1">Attendance</h1>
-      <p className="muted mb-6">Mark or view attendance for {fmtDate(today)}</p>
+      <div className="flex items-end justify-between mb-6">
+        <div>
+          <h1 className="h-page mb-1">Attendance</h1>
+          <p className="muted">Mark or view attendance for {fmtDate(today)}</p>
+        </div>
+        {(user.role === "ADMIN" || user.role === "PRINCIPAL" || user.role === "TEACHER") && (
+          <Link href="/attendance/monthly" className="btn-tonal text-sm">Monthly entry</Link>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {classes.map((c: any) => (

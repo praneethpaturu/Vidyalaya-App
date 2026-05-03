@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { inr } from "@/lib/utils";
@@ -24,7 +25,7 @@ export default async function ConcessionsPage() {
     <div className="p-5 max-w-screen-2xl mx-auto">
       <div className="flex items-end justify-between mb-3">
         <h1 className="h-page">Concessions</h1>
-        <button className="btn-primary" disabled title="Demo">+ New Concession</button>
+        <Link href="/Home/Finance/concessions/new" className="btn-primary">+ New Concession</Link>
       </div>
 
       <h2 className="h-section mb-2">Concession types</h2>

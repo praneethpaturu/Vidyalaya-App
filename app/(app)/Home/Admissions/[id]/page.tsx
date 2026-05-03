@@ -58,7 +58,13 @@ export default async function EnquiryDetailPage({ params }: { params: Promise<{ 
           <h1 className="h-page">{e.childName}</h1>
           <p className="muted">{e.expectedGrade} · {e.parentName} · {e.parentPhone}</p>
         </div>
-        <span className={`badge ${STAGE_COLOR[e.status as AdmissionStage] ?? "bg-slate-100"}`}>{STAGE_LABEL[e.status as AdmissionStage] ?? e.status}</span>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/Home/Admissions/applications/new?from=${e.id}`}
+            className="btn-tonal text-xs"
+          >Convert to application</a>
+          <span className={`badge ${STAGE_COLOR[e.status as AdmissionStage] ?? "bg-slate-100"}`}>{STAGE_LABEL[e.status as AdmissionStage] ?? e.status}</span>
+        </div>
       </div>
 
       {/* Funnel timeline */}

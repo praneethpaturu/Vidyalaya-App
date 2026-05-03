@@ -26,6 +26,37 @@ function parseCsvLine(line: string): string[] {
   return out;
 }
 
+// Quote a single CSV field if it needs it (contains , " \n) and escape inner quotes.
+function quoteField(s: string): string {
+  if (s == null) return "";
+  const v = String(s);
+  if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+  return v;
+}
+
+// Build a CSV string from a list of objects + header order. The values are
+// stringified with String(); pass formatted strings (dates, currency, …) in.
+export function toCsv<T extends Record<string, unknown>>(
+  rows: T[],
+  columns: { key: keyof T & string; label: string }[],
+): string {
+  const head = columns.map((c) => quoteField(c.label)).join(",");
+  const body = rows.map((r) => columns.map((c) => quoteField(String(r[c.key] ?? ""))).join(","));
+  return [head, ...body].join("\n");
+}
+
+// Build a `Response` object suitable for returning from an API route /
+// server action. The browser is told to download the file with the given name.
+export function csvResponse(csv: string, filename: string): Response {
+  return new Response("﻿" + csv, {
+    headers: {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": `attachment; filename="${filename.replace(/"/g, "")}"`,
+      "cache-control": "no-store",
+    },
+  });
+}
+
 export function parseCsv(text: string): { headers: string[]; rows: CsvRow[] } {
   // Strip BOM if present.
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
