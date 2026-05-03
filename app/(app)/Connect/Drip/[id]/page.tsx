@@ -34,6 +34,27 @@ async function deleteStep(form: FormData) {
   revalidatePath(`/Connect/Drip/${campaignId}`);
 }
 
+async function updateStep(form: FormData) {
+  "use server";
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
+  const id = String(form.get("id"));
+  const campaignId = String(form.get("campaignId"));
+  const step = await prisma.dripStep.findFirst({
+    where: { id, campaign: { schoolId: u.schoolId } },
+  });
+  if (!step) return;
+  await prisma.dripStep.update({
+    where: { id },
+    data: {
+      delayDays: Math.max(0, Number(form.get("delayDays") ?? step.delayDays)),
+      channel: String(form.get("channel") ?? step.channel),
+      subject: String(form.get("subject") ?? "") || null,
+      body: String(form.get("body") ?? step.body),
+    },
+  });
+  revalidatePath(`/Connect/Drip/${campaignId}`);
+}
+
 async function enrollAudience(form: FormData) {
   "use server";
   const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
@@ -167,7 +188,22 @@ export default async function DripDetailPage({
                 <td className="font-mono text-xs">{s.sequence}</td>
                 <td className="text-xs">+{s.delayDays}d</td>
                 <td><span className="badge-blue text-xs">{s.channel}</span></td>
-                <td className="max-w-md truncate">{s.body}</td>
+                <td className="max-w-md">
+                  <details>
+                    <summary className="cursor-pointer truncate">{s.body}</summary>
+                    <form action={updateStep} className="mt-3 grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-lg">
+                      <input type="hidden" name="id" value={s.id} />
+                      <input type="hidden" name="campaignId" value={c.id} />
+                      <input type="number" min={0} max={365} name="delayDays" defaultValue={s.delayDays} className="input text-xs" />
+                      <select name="channel" defaultValue={s.channel} className="input text-xs">
+                        <option>SMS</option><option>EMAIL</option><option>WHATSAPP</option><option>VOICE</option>
+                      </select>
+                      <input name="subject" defaultValue={s.subject ?? ""} className="input text-xs col-span-2" placeholder="Subject (email)" />
+                      <textarea required name="body" defaultValue={s.body} rows={3} className="input text-xs col-span-2" />
+                      <button type="submit" className="btn-primary text-xs col-span-2">Save changes</button>
+                    </form>
+                  </details>
+                </td>
                 <td>{s._count.enrollments}</td>
                 <td className="text-right">
                   <form action={deleteStep} className="inline">

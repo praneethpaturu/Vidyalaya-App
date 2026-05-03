@@ -40,23 +40,38 @@ export type StoredFile = {
 };
 
 const ALLOWED_MIME = new Set([
+  // Documents
   "application/pdf",
-  "image/png", "image/jpeg", "image/gif", "image/webp",
   "text/plain", "text/csv", "text/markdown",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "application/zip",
+  // Images
+  "image/png", "image/jpeg", "image/gif", "image/webp",
+  // Video (help library, event capture)
+  "video/mp4", "video/webm", "video/quicktime",
+  // Audio
+  "audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/webm",
 ]);
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+// Per-mime cap: docs/images 10 MB, audio 50 MB, video 200 MB.
+const MAX_BYTES_DEFAULT = 10 * 1024 * 1024;
+const MAX_BYTES_AUDIO   = 50 * 1024 * 1024;
+const MAX_BYTES_VIDEO   = 200 * 1024 * 1024;
+function maxBytesFor(mime: string): number {
+  if (mime.startsWith("video/")) return MAX_BYTES_VIDEO;
+  if (mime.startsWith("audio/")) return MAX_BYTES_AUDIO;
+  return MAX_BYTES_DEFAULT;
+}
 
 export function sanitiseName(name: string) {
   return name.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 120);
 }
 
 export async function saveLocal(schoolId: string, file: File): Promise<StoredFile> {
-  if (file.size > MAX_BYTES) throw new Error(`File too large (>${MAX_BYTES / 1024 / 1024} MB)`);
+  const cap = maxBytesFor(file.type);
+  if (file.size > cap) throw new Error(`File too large (>${cap / 1024 / 1024} MB)`);
   if (!ALLOWED_MIME.has(file.type)) throw new Error(`Unsupported type: ${file.type}`);
 
   const yyyymm = new Date().toISOString().slice(0, 7);

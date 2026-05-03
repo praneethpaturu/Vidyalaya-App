@@ -47,12 +47,18 @@ export default async function SISTransferPage({
 
   return (
     <div className="p-5 max-w-5xl mx-auto">
-      <h1 className="h-page mb-1">Inter-branch transfer</h1>
-      <p className="muted mb-3">
-        Move a student from this branch to another branch in the same chain.
-        Source record is soft-deleted; the destination branch can complete the
-        admission with the same admission number to maintain continuity.
-      </p>
+      <div className="flex items-end justify-between mb-3">
+        <div>
+          <h1 className="h-page">Inter-branch transfer</h1>
+          <p className="muted">
+            Move a student from this branch to another branch in the same chain.
+            Source record is soft-deleted; the destination branch admin completes intake.
+          </p>
+        </div>
+        <Link href="/Home/SIS/transfer/inbox" className="btn-tonal text-sm">
+          Inbound transfers →
+        </Link>
+      </div>
 
       {sp.transferred && (
         <div className="mb-4 rounded-lg bg-emerald-50 text-emerald-900 px-3 py-2 text-sm">

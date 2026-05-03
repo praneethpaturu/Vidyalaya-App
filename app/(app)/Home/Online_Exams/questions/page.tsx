@@ -58,6 +58,51 @@ async function deleteQuestion(form: FormData) {
   revalidatePath("/Home/Online_Exams/questions");
 }
 
+async function updateQuestion(form: FormData) {
+  "use server";
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "TEACHER"]);
+  const id = String(form.get("id"));
+  const cur = await prisma.questionBankItem.findFirst({ where: { id, schoolId: u.schoolId } });
+  if (!cur) return;
+
+  const type = String(form.get("type") ?? cur.type);
+  const optionsRaw = String(form.get("options") ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
+  const correctIdxRaw = String(form.get("correctIdx") ?? "").trim();
+  const correctText = String(form.get("correctText") ?? "").trim();
+  let correct: any = JSON.parse(cur.correct || "[]");
+  let options: any = JSON.parse(cur.options || "[]");
+
+  if (optionsRaw.length > 0) options = optionsRaw;
+  if (type === "MCQ" || type === "MULTI") {
+    if (correctIdxRaw) {
+      correct = correctIdxRaw.split(",").map((s) => Number(s.trim()))
+        .filter((n) => Number.isInteger(n) && n >= 0 && n < (options as string[]).length);
+    }
+  } else if (type === "TRUE_FALSE") {
+    options = ["True", "False"];
+    if (correctText) correct = [String(correctText).toLowerCase().startsWith("t") ? 0 : 1];
+  } else if (type === "FILL" || type === "DESCRIPTIVE") {
+    if (correctText) correct = correctText;
+  }
+
+  await prisma.questionBankItem.update({
+    where: { id },
+    data: {
+      text: String(form.get("text") ?? cur.text),
+      type,
+      options: JSON.stringify(options),
+      correct: typeof correct === "string" ? JSON.stringify(correct) : JSON.stringify(correct),
+      marks: Number(form.get("marks") ?? cur.marks),
+      difficulty: String(form.get("difficulty") ?? cur.difficulty),
+      classId: (String(form.get("classId") ?? "") || null) as any,
+      subjectId: (String(form.get("subjectId") ?? "") || null) as any,
+      chapter: String(form.get("chapter") ?? "") || null,
+      topic: String(form.get("topic") ?? "") || null,
+    },
+  });
+  revalidatePath("/Home/Online_Exams/questions");
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function QuestionBankPage({
@@ -208,28 +253,66 @@ export default async function QuestionBankPage({
             {items.length === 0 && (
               <tr><td colSpan={6} className="text-center text-slate-500 py-8">No questions match.</td></tr>
             )}
-            {items.map((q) => (
-              <tr key={q.id}>
-                <td className="max-w-xl">{q.text}</td>
-                <td><span className="badge-blue text-xs">{q.type}</span></td>
-                <td className="text-xs">
-                  {q.classId ? cMap.get(q.classId) : "Any"} · {q.subjectId ? sMap.get(q.subjectId) : "—"}
-                </td>
-                <td>
-                  <span className={
-                    q.difficulty === "HARD" ? "badge-red" :
-                    q.difficulty === "EASY" ? "badge-green" : "badge-amber"
-                  }>{q.difficulty}</span>
-                </td>
-                <td>{q.marks}</td>
-                <td className="text-right">
-                  <form action={deleteQuestion} className="inline">
-                    <input type="hidden" name="id" value={q.id} />
-                    <button className="text-rose-700 text-xs hover:underline" type="submit">Delete</button>
-                  </form>
-                </td>
-              </tr>
-            ))}
+            {items.map((q) => {
+              const opts = (() => { try { return JSON.parse(q.options) as string[]; } catch { return []; } })();
+              const corr = (() => { try { return JSON.parse(q.correct); } catch { return []; } })();
+              const correctIdxStr = Array.isArray(corr) ? corr.join(",") : "";
+              const correctText = Array.isArray(corr) ? "" : String(corr ?? "");
+              return (
+                <tr key={q.id}>
+                  <td className="max-w-xl">
+                    <details>
+                      <summary className="cursor-pointer">{q.text}</summary>
+                      <form action={updateQuestion} className="mt-3 grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-lg">
+                        <input type="hidden" name="id" value={q.id} />
+                        <textarea name="text" defaultValue={q.text} className="input text-xs col-span-2" rows={2} />
+                        <select name="type" defaultValue={q.type} className="input text-xs">
+                          <option value="MCQ">MCQ</option>
+                          <option value="MULTI">Multi-select</option>
+                          <option value="TRUE_FALSE">True / False</option>
+                          <option value="FILL">Fill</option>
+                          <option value="DESCRIPTIVE">Descriptive</option>
+                        </select>
+                        <select name="difficulty" defaultValue={q.difficulty} className="input text-xs">
+                          <option>EASY</option><option>MEDIUM</option><option>HARD</option>
+                        </select>
+                        <input type="number" min={1} name="marks" defaultValue={q.marks} className="input text-xs" placeholder="Marks" />
+                        <select name="classId" defaultValue={q.classId ?? ""} className="input text-xs">
+                          <option value="">Any class</option>
+                          {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <select name="subjectId" defaultValue={q.subjectId ?? ""} className="input text-xs">
+                          <option value="">Any subject</option>
+                          {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <input name="chapter" defaultValue={q.chapter ?? ""} className="input text-xs" placeholder="Chapter" />
+                        <textarea name="options" defaultValue={opts.join("\n")} rows={3} className="input text-xs col-span-2" placeholder="Options (one per line)" />
+                        <input name="correctIdx" defaultValue={correctIdxStr} className="input text-xs" placeholder="Correct idx (e.g. 0 or 1,2)" />
+                        <input name="correctText" defaultValue={correctText} className="input text-xs" placeholder="Or text (TRUE/FALSE/FILL)" />
+                        <button type="submit" className="btn-primary text-xs col-span-2">Save changes</button>
+                      </form>
+                    </details>
+                  </td>
+                  <td><span className="badge-blue text-xs">{q.type}</span></td>
+                  <td className="text-xs">
+                    {q.classId ? cMap.get(q.classId) : "Any"} · {q.subjectId ? sMap.get(q.subjectId) : "—"}
+                  </td>
+                  <td>
+                    <span className={
+                      q.difficulty === "HARD" ? "badge-red" :
+                      q.difficulty === "EASY" ? "badge-green" : "badge-amber"
+                    }>{q.difficulty}</span>
+                  </td>
+                  <td>{q.marks}</td>
+                  <td className="text-right">
+                    <form action={deleteQuestion} className="inline">
+                      <input type="hidden" name="id" value={q.id} />
+                      <button className="text-rose-700 text-xs hover:underline" type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import FileUploadInput from "@/components/FileUploadInput";
 
 async function record(form: FormData) {
   "use server";
@@ -102,8 +103,8 @@ export default async function NewAchievementPage() {
           <textarea name="description" className="input" rows={3} />
         </div>
         <div>
-          <label className="label">Certificate URL (optional)</label>
-          <input name="certificateUrl" className="input" placeholder="https://…" />
+          <label className="label">Certificate (optional)</label>
+          <FileUploadInput name="certificateUrl" accept="application/pdf,image/*" kind="ACHIEVEMENT_CERT" label="Upload certificate (PDF / image)" />
         </div>
         <div className="flex justify-end gap-2">
           <a href="/Achievements" className="btn-outline">Cancel</a>

@@ -20,6 +20,7 @@ const PARENT_ALLOWED = new Set([
 const STUDENT_ALLOWED = new Set([
   "/", "/classes", "/timetable", "/exams", "/library",
   "/announcements", "/events", "/transport", "/fees", "/pickup", "/profile",
+  "/Online_Exams",
 ]);
 
 export default function AppLauncher({ role }: { role?: string } = {}) {

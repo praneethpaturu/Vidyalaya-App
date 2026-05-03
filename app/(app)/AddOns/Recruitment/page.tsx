@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import FileUploadInput from "@/components/FileUploadInput";
 
 async function postOpening(form: FormData) {
   "use server";
@@ -160,7 +161,9 @@ export default async function RecruitmentPage({
                   <input name="email" type="email" className="input text-sm" placeholder="Email" />
                   <input name="phone" className="input text-sm" placeholder="Phone" />
                   <input name="currentEmployer" className="input text-sm" placeholder="Current employer" />
-                  <input name="resumeUrl" type="url" className="input text-sm col-span-2" placeholder="Resume URL" />
+                  <div className="col-span-2">
+                    <FileUploadInput name="resumeUrl" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" kind="RESUME" label="Upload résumé (PDF / Word)" />
+                  </div>
                   <button type="submit" className="btn-tonal text-xs col-span-2">Add applicant</button>
                 </form>
               </details>

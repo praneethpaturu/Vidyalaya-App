@@ -3,12 +3,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import FileUploadInput from "@/components/FileUploadInput";
 
 async function addVideo(form: FormData) {
   "use server";
   await requirePageRole(["ADMIN", "PRINCIPAL"]);
   const title = String(form.get("title") ?? "").trim();
-  const videoUrl = String(form.get("videoUrl") ?? "").trim();
+  // Accept either the upload (videoUrl) or the manual paste (videoUrlAlt).
+  const videoUrl = String(form.get("videoUrl") ?? "").trim() || String(form.get("videoUrlAlt") ?? "").trim();
   const module = String(form.get("module") ?? "").trim();
   if (!title || !videoUrl || !module) return;
   await prisma.helpVideo.create({
@@ -109,12 +111,12 @@ export default async function HelpVideosAdminPage({
             </select>
           </div>
           <div className="md:col-span-3">
-            <label className="label">Video URL *</label>
-            <input required type="url" name="videoUrl" className="input" placeholder="/videos/sis-promotion.mp4 or https://…/file.mp4" />
+            <label className="label">Video *</label>
+            <FileUploadInput name="videoUrl" accept="video/mp4,video/webm,video/quicktime" kind="HELP_VIDEO" label="Upload video (MP4 / WebM, up to 200 MB)" />
             <p className="text-xs text-slate-500 mt-1">
-              Tip: drop the file in <span className="font-mono">public/videos/</span> in the repo and use a relative path,
-              or paste a Supabase / S3 signed URL.
+              Or paste an external URL (S3 / CloudFront / etc.) directly here:
             </p>
+            <input type="url" name="videoUrlAlt" className="input mt-1" placeholder="https://…/file.mp4" />
           </div>
           <div>
             <label className="label">Duration (sec)</label>
@@ -131,8 +133,8 @@ export default async function HelpVideosAdminPage({
             </select>
           </div>
           <div className="md:col-span-3">
-            <label className="label">Thumbnail URL</label>
-            <input type="url" name="thumbnailUrl" className="input" placeholder="https://…/thumb.jpg" />
+            <label className="label">Thumbnail (optional)</label>
+            <FileUploadInput name="thumbnailUrl" accept="image/png,image/jpeg,image/webp" kind="HELP_VIDEO_THUMB" label="Upload thumbnail image" />
           </div>
           <div className="md:col-span-3">
             <label className="label">Description</label>

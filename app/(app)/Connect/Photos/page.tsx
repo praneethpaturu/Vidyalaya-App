@@ -73,7 +73,7 @@ export default async function PhotosPage({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {albums.map((a) => (
-          <div key={a.id} className="card overflow-hidden">
+          <a key={a.id} href={`/Connect/Photos/${a.id}`} className="card overflow-hidden hover:shadow-cardHover transition">
             <div className="grid grid-cols-2 gap-0.5 bg-slate-100 h-40">
               {a.photos.length === 0 && (
                 <div className="col-span-2 flex items-center justify-center bg-slate-100">
@@ -89,7 +89,7 @@ export default async function PhotosPage({
               <div className="text-xs text-slate-500">{a._count.photos} photos · {a.audience}</div>
               <div className="text-[10px] text-slate-400 mt-1">{a.watermark ? "Watermarked" : "No watermark"} · {a.downloadAllowed ? "Download allowed" : "View only"}</div>
             </div>
-          </div>
+          </a>
         ))}
       </div>
     </div>
