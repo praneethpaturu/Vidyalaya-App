@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
@@ -17,7 +18,7 @@ export default async function AchievementsPage() {
           <h1 className="h-page">Achievements</h1>
           <p className="muted">Student / staff achievements with proofs, leaderboards, certificate generation.</p>
         </div>
-        <button className="btn-primary">+ Record achievement</button>
+        <Link href="/Achievements/new" className="btn-primary">+ Record achievement</Link>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">

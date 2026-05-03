@@ -580,6 +580,33 @@ export type CertCommon = {
   issueDate?: Date;
 };
 
+// Generic single-paragraph certificate. Used for Study / Conduct / Migration /
+// Provisional / No-Objection — anywhere we don't have a bespoke template.
+export async function buildGenericCertPdf(
+  c: CertCommon & { title: string; body: string; purpose?: string }
+): Promise<Buffer> {
+  const doc = newDoc();
+  brandBar(doc, c.title, c.certNo, "ISSUE DATE", (c.issueDate ?? new Date()).toLocaleDateString("en-IN"));
+  school(doc, c.school.name, `${c.school.city}, ${c.school.state} ${c.school.pincode}`);
+  doc.moveDown(2);
+  doc.font("Helvetica").fontSize(11).fillColor(C.ink).text("To Whomsoever It May Concern", { align: "center" }).moveDown(2);
+  doc.font("Helvetica").fontSize(11).fillColor(C.ink).text(c.body, { align: "justify", lineGap: 4 });
+
+  if (c.purpose) {
+    doc.moveDown(1);
+    doc.font("Helvetica-Bold").fontSize(10).fillColor(C.ink).text(`Purpose: ${c.purpose}`);
+  }
+
+  doc.moveDown(4);
+  const x = doc.page.margins.left;
+  const w = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  doc.font("Helvetica").fontSize(10).text(`Date: ${(c.issueDate ?? new Date()).toLocaleDateString("en-IN")}`, x, doc.y);
+  doc.text("Principal · Signature & Seal", x + w - 240, doc.y - 10, { width: 240, align: "right" });
+
+  footer(doc, `${c.title} · ${c.certNo}`);
+  return streamToBuffer(doc);
+}
+
 export async function buildBonafidePdf(c: CertCommon): Promise<Buffer> {
   const doc = newDoc();
   brandBar(doc, "Bonafide Certificate", c.certNo, "ISSUE DATE", (c.issueDate ?? new Date()).toLocaleDateString("en-IN"));

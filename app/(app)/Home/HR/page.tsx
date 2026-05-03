@@ -60,7 +60,7 @@ export default async function HRStaffPage() {
         </div>
         <div className="flex gap-2">
           <Link href="/people" className="btn-outline">View Directory</Link>
-          <button className="btn-primary" disabled title="Demo">+ Add Staff</button>
+          <Link href="/Settings/users" className="btn-primary">+ Add Staff</Link>
         </div>
       </div>
 

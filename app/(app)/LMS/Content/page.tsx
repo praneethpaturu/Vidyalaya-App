@@ -14,7 +14,7 @@ export default async function ContentMgmtPage() {
           <h1 className="h-page">Content Management</h1>
           <p className="muted">Repository by Class/Subject/Chapter/Topic with versioning, approval (Draft/Submitted/Approved/Published).</p>
         </div>
-        <button className="btn-primary">+ Upload</button>
+        <a href="/Home/Library/digital" className="btn-primary">+ Upload</a>
       </div>
 
       <div className="card overflow-x-auto">

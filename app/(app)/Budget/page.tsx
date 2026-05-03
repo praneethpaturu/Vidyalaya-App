@@ -1,10 +1,35 @@
-import { auth } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { inr } from "@/lib/utils";
 
-export default async function BudgetPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+async function addLine(form: FormData) {
+  "use server";
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT"]);
+  const headName = String(form.get("headName") ?? "").trim();
+  const fy = String(form.get("fy") ?? "").trim();
+  const planned = Math.round(Number(form.get("plannedAmount") ?? 0) * 100);
+  if (!headName || !fy || planned <= 0) return;
+  await prisma.budgetLine.create({
+    data: {
+      schoolId: u.schoolId, fy, headName, plannedAmount: planned,
+      costCenter: String(form.get("costCenter") ?? "") || null,
+      notes: String(form.get("notes") ?? "") || null,
+    },
+  }).catch(() => {});
+  revalidatePath("/Budget");
+  redirect("/Budget?added=1");
+}
+
+export const dynamic = "force-dynamic";
+
+export default async function BudgetPage({
+  searchParams,
+}: { searchParams: Promise<{ added?: string }> }) {
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT"]);
+  const sp = await searchParams;
+  const sId = u.schoolId;
   const [lines, expenses] = await Promise.all([
     prisma.budgetLine.findMany({ where: { schoolId: sId } }),
     prisma.expense.findMany({ where: { schoolId: sId, status: { in: ["PAID", "APPROVED"] } } }),
@@ -18,13 +43,21 @@ export default async function BudgetPage() {
 
   return (
     <div className="p-5 max-w-screen-2xl mx-auto">
-      <div className="flex items-end justify-between mb-3">
-        <div>
-          <h1 className="h-page">Budget</h1>
-          <p className="muted">Per cost-center / department / project. Planned vs actual variance.</p>
-        </div>
-        <button className="btn-primary">+ Budget line</button>
-      </div>
+      <h1 className="h-page mb-1">Budget</h1>
+      <p className="muted mb-3">Per cost-center / department / project. Planned vs actual variance.</p>
+      {sp.added && <div className="mb-4 rounded-lg bg-emerald-50 text-emerald-900 px-3 py-2 text-sm">Budget line added.</div>}
+
+      <details className="card card-pad mb-5">
+        <summary className="cursor-pointer font-medium">+ Budget line</summary>
+        <form action={addLine} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end mt-3">
+          <div><label className="label">FY *</label><input required name="fy" className="input" placeholder="2026-27" /></div>
+          <div><label className="label">Cost centre</label><input name="costCenter" className="input" placeholder="Academics" /></div>
+          <div className="md:col-span-2"><label className="label">Head *</label><input required name="headName" className="input" placeholder="Stationery" /></div>
+          <div><label className="label">Planned (₹) *</label><input required type="number" min={0} step={1} name="plannedAmount" className="input" /></div>
+          <div className="md:col-span-5"><label className="label">Notes</label><input name="notes" className="input" /></div>
+          <button type="submit" className="btn-primary md:col-span-5">Add line</button>
+        </form>
+      </details>
 
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="card card-pad"><div className="text-[11px] text-slate-500">Planned (FY)</div><div className="text-xl font-medium">{inr(totalPlanned)}</div></div>

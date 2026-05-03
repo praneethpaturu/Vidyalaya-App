@@ -17,8 +17,8 @@ export default async function IDCardsPage() {
           <p className="muted">Bulk print queue, single print, re-print log, lost-card request.</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-outline">Bulk print</button>
-          <button className="btn-primary">+ New batch</button>
+          <a href="/api/certificates/id-cards/bulk" target="_blank" className="btn-outline">Bulk print PDF</a>
+          <a href="/Settings/import/students" className="btn-primary">+ Import students</a>
         </div>
       </div>
 

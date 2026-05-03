@@ -14,8 +14,8 @@ export default async function CertificateAchievementsPage() {
       <div className="flex items-end justify-between mb-3">
         <h1 className="h-page text-slate-700">Achievements & Competitions</h1>
         <div className="flex gap-2">
-          <Link href="/Achievements" className="btn-outline text-sm">Open Achievements module</Link>
-          <button className="btn-primary text-sm">+ Bulk Generate</button>
+          <Link href="/Achievements/new" className="btn-primary text-sm">+ Record achievement</Link>
+          <Link href="/Achievements" className="btn-outline text-sm">Open module</Link>
         </div>
       </div>
       <p className="muted mb-4">Generate certificates for sports, academics, cultural events. Bulk-generate by event.</p>
@@ -32,7 +32,11 @@ export default async function CertificateAchievementsPage() {
                 <td>{a.position ?? "—"}</td>
                 <td className="text-xs">{new Date(a.awardedAt).toLocaleDateString("en-IN")}</td>
                 <td>{a.certificateUrl ? <a className="text-brand-700 text-xs hover:underline" href={a.certificateUrl}>Open</a> : "—"}</td>
-                <td className="text-right"><button className="btn-tonal text-xs px-3 py-1">Generate</button></td>
+                <td className="text-right">
+                  {a.certificateUrl
+                    ? <a className="text-brand-700 text-xs hover:underline" target="_blank" href={a.certificateUrl}>Download</a>
+                    : <span className="text-xs text-slate-400">—</span>}
+                </td>
               </tr>
             ))}
           </tbody>

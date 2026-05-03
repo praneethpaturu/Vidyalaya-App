@@ -1,25 +1,83 @@
-import { auth } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { inr } from "@/lib/utils";
 
-export default async function ExpensesPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId;
+async function addVoucher(form: FormData) {
+  "use server";
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT"]);
+  const description = String(form.get("description") ?? "").trim();
+  const amount = Math.round(Number(form.get("amount") ?? 0) * 100);
+  const headName = String(form.get("headName") ?? "").trim() || "General";
+  if (!description || amount <= 0) return;
+  const seq = await prisma.expense.count({ where: { schoolId: u.schoolId } });
+  const voucherNo = `EXP-${new Date().getFullYear()}-${String(seq + 1).padStart(5, "0")}`;
+  await prisma.expense.create({
+    data: {
+      schoolId: u.schoolId, voucherNo, headName, amount, description,
+      expenseDate: new Date(String(form.get("expenseDate") ?? new Date().toISOString())),
+      paymentMethod: String(form.get("paymentMethod") ?? "") || null,
+      status: "SUBMITTED",
+      createdById: u.id,
+    },
+  });
+  revalidatePath("/Expenses");
+  redirect("/Expenses?added=1");
+}
+
+export const dynamic = "force-dynamic";
+
+export default async function ExpensesPage({
+  searchParams,
+}: { searchParams: Promise<{ added?: string }> }) {
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT"]);
+  const sp = await searchParams;
   const [exps, heads] = await Promise.all([
-    prisma.expense.findMany({ where: { schoolId: sId }, orderBy: { expenseDate: "desc" }, take: 100 }),
-    prisma.expenseHead.findMany({ where: { schoolId: sId, active: true } }),
+    prisma.expense.findMany({ where: { schoolId: u.schoolId }, orderBy: { expenseDate: "desc" }, take: 100 }),
+    prisma.expenseHead.findMany({ where: { schoolId: u.schoolId, active: true } }),
   ]);
   const byHead: Record<string, number> = {};
   exps.forEach((e) => byHead[e.headName] = (byHead[e.headName] ?? 0) + e.amount);
+
   return (
     <div className="p-5 max-w-screen-2xl mx-auto">
-      <div className="flex items-end justify-between mb-3">
-        <div>
-          <h1 className="h-page">Expenses</h1>
-          <p className="muted">Voucher entry, head-of-account, approval workflow, attachments, monthly closing.</p>
-        </div>
-        <button className="btn-primary">+ New voucher</button>
-      </div>
+      <h1 className="h-page mb-1">Expenses</h1>
+      <p className="muted mb-4">Voucher entry, head-of-account, approval workflow, attachments, monthly closing.</p>
+      {sp.added && <div className="mb-4 rounded-lg bg-emerald-50 text-emerald-900 px-3 py-2 text-sm">Voucher added.</div>}
+
+      <details className="card card-pad mb-5">
+        <summary className="cursor-pointer font-medium">+ New voucher</summary>
+        <form action={addVoucher} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end mt-3">
+          <div className="md:col-span-2">
+            <label className="label">Description *</label>
+            <input required name="description" className="input" />
+          </div>
+          <div>
+            <label className="label">Head</label>
+            <input name="headName" className="input" list="exp-heads" placeholder="General" />
+            <datalist id="exp-heads">
+              {heads.map((h) => <option key={h.id} value={h.name} />)}
+            </datalist>
+          </div>
+          <div>
+            <label className="label">Amount (₹) *</label>
+            <input required type="number" min={0} step={0.01} name="amount" className="input" />
+          </div>
+          <div>
+            <label className="label">Date *</label>
+            <input required type="date" name="expenseDate" className="input" defaultValue={new Date().toISOString().slice(0, 10)} />
+          </div>
+          <div>
+            <label className="label">Payment method</label>
+            <select name="paymentMethod" className="input" defaultValue="">
+              <option value="">—</option>
+              <option>CASH</option><option>UPI</option><option>NEFT</option><option>CHEQUE</option><option>CARD</option>
+            </select>
+          </div>
+          <button type="submit" className="btn-primary md:col-span-4">Submit voucher</button>
+        </form>
+      </details>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
         {heads.length === 0 && (

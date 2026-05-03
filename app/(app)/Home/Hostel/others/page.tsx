@@ -51,7 +51,7 @@ function Card({ title, desc }: { title: string; desc: string }) {
     <div className="card card-pad">
       <div className="font-medium">{title}</div>
       <div className="text-xs text-slate-500 mt-1">{desc}</div>
-      <button className="btn-tonal text-xs px-3 py-1 mt-3" disabled>Open</button>
+      <span className="inline-block mt-3 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Coming next</span>
     </div>
   );
 }

@@ -2849,3 +2849,51 @@ model MenuVisibility {
   @@unique([schoolId, role, moduleKey])
   @@index([schoolId, role])
 }
+
+// ============================================================
+// Student groups — Houses / Clubs / Sports / Activities.
+// Multi-membership; one student can be in many groups.
+// ============================================================
+model StudentGroup {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  type      String   @default("CLUB")    // HOUSE | CLUB | SPORT | ACTIVITY
+  color     String   @default("blue")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  members   StudentGroupMember[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, active])
+}
+
+// ============================================================
+// Generic key/value setting bag — used by visitor / email / per-module
+// preferences pages where defining a typed table per module is overkill.
+// Values are JSON strings. Look up by (schoolId, key).
+// ============================================================
+model SchoolSetting {
+  id        String   @id @default(cuid())
+  schoolId  String
+  key       String
+  value     String   @default("{}")
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@unique([schoolId, key])
+  @@index([schoolId])
+}
+
+model StudentGroupMember {
+  id         String   @id @default(cuid())
+  groupId    String
+  studentId  String
+  role       String?  // captain | vice-captain | member
+  joinedAt   DateTime @default(now())
+
+  group      StudentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, studentId])
+}

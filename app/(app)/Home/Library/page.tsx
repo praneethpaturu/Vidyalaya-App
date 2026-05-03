@@ -73,7 +73,7 @@ export default async function LibraryDaySheetPage({ searchParams }: { searchPara
           </div>
         </div>
         <div className="text-right">
-          <button className="btn-primary">Issue Book</button>
+          <Link href="/library/issue" className="btn-primary">Issue Book</Link>
         </div>
       </div>
 
