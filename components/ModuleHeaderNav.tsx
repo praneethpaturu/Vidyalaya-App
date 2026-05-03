@@ -73,6 +73,8 @@ const GLOBAL_MODULES: Module[] = [
       { href: "/Home/Finance/audit",       label: "Audit Reports" },
       { href: "/Home/Finance/scholarship", label: "Scholarship" },
       { href: "/Home/Finance/dues",        label: "Due Reports" },
+      { href: "/Home/Finance/assets",      label: "Fixed Assets" },
+      { href: "/Home/Finance/tally",       label: "Tally Export" },
       { href: "/Home/Finance/log",         label: "Log" },
       { href: "/Home/Finance/reports",     label: "Reports" },
     ],
@@ -101,6 +103,7 @@ const GLOBAL_MODULES: Module[] = [
       { href: "/Home/Visitor_Mgmt",                label: "Visitor Entry" },
       { href: "/Home/Visitor_Mgmt/log",            label: "Visitor Log" },
       { href: "/Home/Visitor_Mgmt/pre-registered", label: "Pre-Registered" },
+      { href: "/pickup",                           label: "Pickup Requests" },
       { href: "/Home/Visitor_Mgmt/purposes",       label: "Visit Purposes" },
       { href: "/Home/Visitor_Mgmt/categories",     label: "Categories" },
       { href: "/Home/Visitor_Mgmt/banned",         label: "Banned List" },
@@ -225,6 +228,7 @@ const GLOBAL_MODULES: Module[] = [
     roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER"],
     pages: [
       { href: "/Home/Alumni",              label: "Directory" },
+      { href: "/Home/Alumni/donations",    label: "Donations" },
     ],
   },
   {
@@ -241,6 +245,7 @@ const GLOBAL_MODULES: Module[] = [
     roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"],
     pages: [
       { href: "/Home/Compliance",          label: "DPDP overview" },
+      { href: "/Home/Compliance/rte",      label: "RTE quota" },
     ],
   },
 ];

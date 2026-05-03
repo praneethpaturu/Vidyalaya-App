@@ -3121,6 +3121,210 @@ model ExamSeating {
   @@index([examSubjectId, room])
 }
 
+// ============================================================
+// Tally ERP exports — audit trail of generated XMLs.
+// ============================================================
+model TallyExport {
+  id            String   @id @default(cuid())
+  schoolId      String
+  type          String   // VOUCHERS | RECEIPTS | PAYMENTS | LEDGERS
+  fromDate      DateTime
+  toDate        DateTime
+  rowCount      Int      @default(0)
+  generatedById String?
+  generatedAt   DateTime @default(now())
+
+  @@index([schoolId, generatedAt])
+}
+
+// ============================================================
+// OMR (Optical Mark Recognition) sheets — one per exam-subject.
+// ============================================================
+model OMRSheet {
+  id              String   @id @default(cuid())
+  schoolId        String
+  examSubjectId   String   @unique
+  title           String
+  questionCount   Int      @default(0)
+  optionCount     Int      @default(4)
+  marksPerCorrect Float    @default(1)
+  negativeMarks   Float    @default(0)
+  answerKey       String   @default("[]")
+  generatedAt     DateTime @default(now())
+
+  responses       OMRResponse[]
+}
+
+model OMRResponse {
+  id          String   @id @default(cuid())
+  sheetId     String
+  studentId   String
+  responses   String   @default("[]")
+  scoredMarks Float    @default(0)
+  scannedAt   DateTime @default(now())
+  scannedById String?
+
+  sheet       OMRSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+
+  @@unique([sheetId, studentId])
+}
+
+// ============================================================
+// Fixed asset register + per-FY depreciation entries.
+// ============================================================
+model FixedAsset {
+  id                 String   @id @default(cuid())
+  schoolId           String
+  assetCode          String
+  name               String
+  category           String   @default("OTHER")
+  purchaseDate       DateTime
+  purchaseCost       Int
+  vendor             String?
+  location           String?
+  depreciationMethod String   @default("STRAIGHT_LINE")
+  usefulLifeYears    Int      @default(5)
+  wdvRatePct         Float    @default(15)
+  salvageValue       Int      @default(0)
+  status             String   @default("ACTIVE")
+  disposedAt         DateTime?
+  disposalNotes      String?
+  createdAt          DateTime @default(now())
+
+  entries            AssetDepreciationEntry[]
+
+  @@unique([schoolId, assetCode])
+  @@index([schoolId, status])
+}
+
+model AssetDepreciationEntry {
+  id             String   @id @default(cuid())
+  assetId        String
+  fy             String
+  amount         Int
+  method         String
+  bookValueAfter Int
+  recordedAt     DateTime @default(now())
+
+  asset          FixedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, fy])
+}
+
+// ============================================================
+// RTE 25% quota — flag a student admission as RTE-mandate intake.
+// ============================================================
+model RTEAdmission {
+  id           String   @id @default(cuid())
+  schoolId     String
+  studentId    String   @unique
+  fy           String
+  district     String?
+  category     String?
+  documentUrl  String?
+  approvedAt   DateTime?
+  approvedById String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  @@index([schoolId, fy])
+}
+
+// ============================================================
+// Alumni donations — pledge → received → 80G-style receipt.
+// ============================================================
+model AlumniDonation {
+  id              String   @id @default(cuid())
+  schoolId        String
+  alumniProfileId String?
+  donorName       String
+  donorEmail      String?
+  donorPhone      String?
+  donorPan        String?
+  amount          Int
+  purpose         String?
+  pledgedAt       DateTime?
+  receivedAt      DateTime?
+  receiptNo       String?
+  status          String   @default("PLEDGED")
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@unique([schoolId, receiptNo])
+  @@index([schoolId, status])
+}
+
+// ============================================================
+// Drip campaigns — sequenced communications over time.
+// ============================================================
+model DripCampaign {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String
+  description String?
+  audience    String   @default("ALL")
+  classId     String?
+  active      Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  steps       DripStep[]
+
+  @@index([schoolId, active])
+}
+
+model DripStep {
+  id         String   @id @default(cuid())
+  campaignId String
+  sequence   Int
+  delayDays  Int      @default(0)
+  channel    String   @default("SMS")
+  subject    String?
+  body       String
+
+  campaign    DripCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  enrollments DripEnrollment[]
+
+  @@unique([campaignId, sequence])
+}
+
+model DripEnrollment {
+  id          String   @id @default(cuid())
+  stepId      String
+  userId      String
+  scheduledAt DateTime
+  sentAt      DateTime?
+  status      String   @default("SCHEDULED")
+
+  step        DripStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledAt, status])
+  @@index([stepId, userId])
+}
+
+// ============================================================
+// Pickup requests — parent self-serve early-pickup.
+// ============================================================
+model PickupRequest {
+  id             String   @id @default(cuid())
+  schoolId       String
+  studentId      String
+  requestedById  String
+  pickupAt       DateTime
+  reason         String
+  pickerName     String?
+  pickerPhone    String?
+  pickerRelation String?
+  status         String   @default("PENDING")
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionNote   String?
+  createdAt      DateTime @default(now())
+
+  @@index([schoolId, status, pickupAt])
+  @@index([studentId])
+}
+
 model StudentGroupMember {
   id         String   @id @default(cuid())
   groupId    String

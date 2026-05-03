@@ -120,6 +120,7 @@ export const MODULES: ModuleEntry[] = [
   { href: "/Connect/WhatsApp",    label: "WhatsApp",          icon: Phone,           group: "CONNECT" },
   { href: "/Connect/Email",       label: "Email",             icon: Mail,            group: "CONNECT" },
   { href: "/Connect/Voice",       label: "Voice Calls",       icon: Phone,           group: "CONNECT" },
+  { href: "/Connect/Drip",        label: "Drip Campaigns",    icon: Megaphone,       group: "CONNECT" },
   { href: "/Connect/Diary",       label: "Diary",             icon: BookMarked,      group: "CONNECT" },
   { href: "/announcements",       label: "Announcements",     icon: Megaphone,       group: "CONNECT" },
   { href: "/events",              label: "School Calendar",   icon: Calendar,        group: "CONNECT" },

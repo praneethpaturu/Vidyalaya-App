@@ -15,11 +15,11 @@ const GROUP_ORDER: ModuleGroup[] = [
 // TEACHER) keep the full launcher.
 const PARENT_ALLOWED = new Set([
   "/", "/fees", "/transport", "/announcements", "/events",
-  "/timetable", "/attendance", "/exams", "/library", "/profile",
+  "/timetable", "/attendance", "/exams", "/library", "/pickup", "/profile",
 ]);
 const STUDENT_ALLOWED = new Set([
   "/", "/classes", "/timetable", "/exams", "/library",
-  "/announcements", "/events", "/transport", "/fees", "/profile",
+  "/announcements", "/events", "/transport", "/fees", "/pickup", "/profile",
 ]);
 
 export default function AppLauncher({ role }: { role?: string } = {}) {
