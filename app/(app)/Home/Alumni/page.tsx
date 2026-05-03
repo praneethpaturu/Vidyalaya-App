@@ -35,7 +35,7 @@ export default async function AlumniPage() {
             Past pupils, mentor connections for current students, and giving-back campaigns.
           </p>
         </div>
-        <Link href="#invite" className="btn-primary">+ Invite an alum</Link>
+        <Link href="/Settings/users" className="btn-primary">+ Invite an alum</Link>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">

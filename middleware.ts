@@ -23,6 +23,8 @@ const PUBLIC = [
   "/api/outbox/flush",                // shared-secret OR Vercel cron token
   "/api/transport/ping",              // driver-phone GPS, bus.driverToken auth
   "/driver",                           // /driver/track/[busId] — bus.driverToken auth
+  "/enquire",                          // /enquire/[schoolCode] — public enquiry form
+  "/api/enquire",                      // public POST handler
   "/_next", "/favicon", "/assets",
 ];
 

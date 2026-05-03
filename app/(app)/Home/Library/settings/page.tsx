@@ -68,9 +68,9 @@ export default async function LibrarySettingsPage() {
         </Card>
         <Card title="Other settings" empty="">
           <ul className="divide-y divide-slate-100 text-sm">
-            <li className="px-4 py-2 flex justify-between"><span>Generate Library Book Barcodes</span><Link href="#" className="text-brand-700">Bulk</Link></li>
-            <li className="px-4 py-2 flex justify-between"><span>Library Languages</span><Link href="#" className="text-brand-700">Manage</Link></li>
-            <li className="px-4 py-2 flex justify-between"><span>Library Vendors (with GST)</span><Link href="#" className="text-brand-700">Manage</Link></li>
+            <li className="px-4 py-2 flex justify-between"><span>Generate Library Book Barcodes</span><a href="/api/library/barcodes" className="text-brand-700 hover:underline">Download PDF</a></li>
+            <li className="px-4 py-2 flex justify-between"><span>Library Languages</span><Link href="/Settings/master-subjects" className="text-brand-700 hover:underline">Manage</Link></li>
+            <li className="px-4 py-2 flex justify-between"><span>Library Vendors (with GST)</span><Link href="/Settings/import/vendors" className="text-brand-700 hover:underline">Import</Link></li>
           </ul>
         </Card>
       </div>

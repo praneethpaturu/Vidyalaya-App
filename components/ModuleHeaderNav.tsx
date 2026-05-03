@@ -230,7 +230,7 @@ const GLOBAL_MODULES: Module[] = [
     activePrefixes: ["/Home/Reports"],
     roles: ["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"],
     pages: [
-      { href: "/Home/Reports",             label: "Templates &amp; saved" },
+      { href: "/Home/Reports",             label: "Templates & saved" },
     ],
   },
   {

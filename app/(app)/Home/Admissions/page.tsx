@@ -44,8 +44,9 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
         </div>
         <div className="flex gap-2">
           <a href="/api/admissions/enquiries/export" className="btn-outline">Export CSV</a>
-          <button className="btn-outline flex items-center gap-1.5"><QrCode className="w-4 h-4" /> Print QR Code</button>
-          <button className="btn-outline flex items-center gap-1.5"><QrCode className="w-4 h-4" /> Print Parent Walkin QR</button>
+          <Link href="/Home/Admissions/qr" className="btn-outline flex items-center gap-1.5">
+            <QrCode className="w-4 h-4" /> Print QR Codes
+          </Link>
           <Link href="/Home/Admissions/new" className="btn-primary flex items-center gap-1.5"><Plus className="w-4 h-4" /> New Enquiry</Link>
         </div>
       </div>

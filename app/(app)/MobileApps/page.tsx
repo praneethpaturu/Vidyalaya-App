@@ -22,7 +22,7 @@ export default function MobileAppsPage() {
         <div className="card card-pad">
           <div className="text-sm font-medium">Banners & Push</div>
           <div className="text-xs text-slate-500 mt-1">Configure home banners, push notification campaigns and FCM keys.</div>
-          <button className="btn-tonal text-xs px-3 py-1 mt-2">Manage</button>
+          <a href="/Connect/SMS" className="btn-tonal text-xs px-3 py-1 mt-2 inline-block">Manage</a>
         </div>
       </div>
     </div>

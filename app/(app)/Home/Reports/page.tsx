@@ -1,32 +1,33 @@
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { FileText, Plus, Download, Clock } from "lucide-react";
 import Link from "next/link";
+import { FileText, Plus, Download, Clock } from "lucide-react";
+import { requirePageRole } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { PRESETS } from "@/lib/reports/runner";
 
-const PRESET_TEMPLATES = [
-  { id: "p1",  name: "Daily fee collection",         category: "FINANCE",   icon: "💰" },
-  { id: "p2",  name: "Class attendance summary",     category: "SIS",       icon: "🗓️" },
-  { id: "p3",  name: "Bus utilisation",              category: "TRANSPORT", icon: "🚌" },
-  { id: "p4",  name: "Library overdue books",        category: "LIBRARY",   icon: "📚" },
-  { id: "p5",  name: "Hostel occupancy",             category: "HOSTEL",    icon: "🏢" },
-  { id: "p6",  name: "Staff payroll register",       category: "HR",        icon: "💵" },
-  { id: "p7",  name: "Admissions funnel",            category: "ADMISSIONS",icon: "📋" },
-  { id: "p8",  name: "Concerns SLA breaches",        category: "CONNECT",   icon: "⚠️" },
-  { id: "p9",  name: "Concession utilisation",       category: "FINANCE",   icon: "🎟️" },
-  { id: "p10", name: "Online exam attempt analytics",category: "LMS",       icon: "📝" },
-];
+const ICONS: Record<string, string> = {
+  daily_fee_collection:     "💰",
+  class_attendance_summary: "🗓️",
+  bus_utilisation:          "🚌",
+  library_overdue_books:    "📚",
+  hostel_occupancy:         "🏢",
+  staff_payroll_register:   "💵",
+  admissions_funnel:        "📋",
+  concerns_sla:             "⚠️",
+  concession_utilisation:   "🎟️",
+  online_exam_attempts:     "📝",
+};
+
+export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
-  const session = await auth();
-  const sId = (session!.user as any).schoolId as string;
-
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL", "ACCOUNTANT", "HR_MANAGER"]);
   const [recent, customTemplates] = await Promise.all([
     prisma.savedReport.findMany({
-      where: { schoolId: sId },
+      where: { schoolId: u.schoolId },
       orderBy: { generatedAt: "desc" },
       take: 12,
     }),
-    prisma.reportTemplate.findMany({ where: { schoolId: sId } }),
+    prisma.reportTemplate.findMany({ where: { schoolId: u.schoolId } }),
   ]);
 
   return (
@@ -40,26 +41,29 @@ export default async function ReportsPage() {
             Reports
           </h1>
           <p className="text-sm text-slate-500 mt-1.5">
-            Pre-built templates for the most-asked-for reports, plus a custom builder for the rest.
+            Pre-built templates download a CSV computed live from your data. Or use the custom builder for ad-hoc queries.
           </p>
         </div>
-        <Link href="#new" className="btn-primary">
+        <Link href="/Home/Reports/new" className="btn-primary inline-flex items-center gap-1.5">
           <Plus className="w-4 h-4" /> Build custom report
         </Link>
       </header>
 
       <h2 className="h-section mb-3">Pre-built templates</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-        {PRESET_TEMPLATES.map((t) => (
-          <div key={t.id} className="card card-pad hover:shadow-md transition-shadow flex items-start gap-3">
-            <div className="text-2xl">{t.icon}</div>
+        {PRESETS.map((t) => (
+          <div key={t.key} className="card card-pad hover:shadow-md transition-shadow flex items-start gap-3">
+            <div className="text-2xl">{ICONS[t.key] ?? "📄"}</div>
             <div className="flex-1 min-w-0">
               <div className="font-medium text-slate-900">{t.name}</div>
               <div className="text-[11px] uppercase tracking-wider text-slate-500 mt-0.5">{t.category}</div>
             </div>
-            <button className="btn-tonal">
+            <a
+              href={`/api/reports/run/${t.key}`}
+              className="btn-tonal inline-flex items-center gap-1.5"
+            >
               <Download className="w-4 h-4" /> Run
-            </button>
+            </a>
           </div>
         ))}
       </div>
@@ -72,7 +76,12 @@ export default async function ReportsPage() {
               <div key={t.id} className="card card-pad hover:shadow-md transition-shadow">
                 <div className="font-medium">{t.name}</div>
                 <div className="text-[11px] uppercase tracking-wider text-slate-500 mt-0.5">{t.category}</div>
-                <button className="btn-tonal mt-3"><Download className="w-4 h-4" /> Run</button>
+                <Link
+                  href={`/Home/Reports/custom/${t.id}`}
+                  className="btn-tonal mt-3 inline-flex items-center gap-1.5"
+                >
+                  <Download className="w-4 h-4" /> Open
+                </Link>
               </div>
             ))}
           </div>
@@ -92,8 +101,18 @@ export default async function ReportsPage() {
             {recent.map((r) => (
               <tr key={r.id}>
                 <td className="font-medium">{r.name}</td>
-                <td className="text-xs flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-slate-400"/>{r.generatedAt.toISOString().slice(0, 16).replace("T", " ")}</td>
-                <td><button className="btn-ghost"><Download className="w-4 h-4" /> Download</button></td>
+                <td className="text-xs flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400"/>
+                  {r.generatedAt.toISOString().slice(0, 16).replace("T", " ")}
+                </td>
+                <td>
+                  <a
+                    href={`/api/reports/saved/${r.id}`}
+                    className="text-brand-700 text-sm hover:underline inline-flex items-center gap-1"
+                  >
+                    <Download className="w-4 h-4" /> Download
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>

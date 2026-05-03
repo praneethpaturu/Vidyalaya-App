@@ -38,9 +38,9 @@ export default async function ClassStreamPage({ params }: { params: Promise<{ id
           <Link href={`/classes/${id}/announce`} className="btn-tonal">
             <Pencil className="w-4 h-4" /> New announcement
           </Link>
-          <button className="btn-outline">
+          <Link href={`/classes/${id}/announce?repost=1`} className="btn-outline">
             <Repeat2 className="w-4 h-4" /> Repost
-          </button>
+          </Link>
         </div>
       )}
 

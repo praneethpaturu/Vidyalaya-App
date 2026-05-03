@@ -1,6 +1,30 @@
+import { revalidatePath } from "next/cache";
 import { requirePageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { ShieldCheck, AlertTriangle, FileLock, Eye, Download, Trash2 } from "lucide-react";
+import { ShieldCheck, FileLock, Eye, Download } from "lucide-react";
+
+async function decideRequest(form: FormData) {
+  "use server";
+  const u = await requirePageRole(["ADMIN", "PRINCIPAL"]);
+  const id = String(form.get("id"));
+  const decision = String(form.get("decision"));
+  const row = await prisma.dataExportRequest.findFirst({ where: { id, schoolId: u.schoolId } });
+  if (!row) return;
+  if (decision === "FULFIL") {
+    await prisma.dataExportRequest.update({
+      where: { id }, data: { status: "DELIVERED", fulfilledAt: new Date() },
+    });
+  } else if (decision === "DENY") {
+    await prisma.dataExportRequest.update({
+      where: { id }, data: { status: "DENIED", reason: String(form.get("reason") ?? "") || "Not provided" },
+    });
+  } else if (decision === "READY") {
+    await prisma.dataExportRequest.update({
+      where: { id }, data: { status: "READY" },
+    });
+  }
+  revalidatePath("/Home/Compliance");
+}
 
 export default async function CompliancePage() {
   const u = await requirePageRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
@@ -79,8 +103,29 @@ export default async function CompliancePage() {
                 </td>
                 <td className="text-xs">{r.createdAt.toISOString().slice(0, 10)}</td>
                 <td className="flex gap-2">
-                  <button className="btn-ghost text-xs"><Eye className="w-3.5 h-3.5" /> Review</button>
-                  <button className="btn-tonal text-xs"><Download className="w-3.5 h-3.5" /> Fulfil</button>
+                  {r.exportUrl ? (
+                    <a href={r.exportUrl} target="_blank" className="btn-ghost text-xs inline-flex items-center gap-1">
+                      <Eye className="w-3.5 h-3.5" /> View
+                    </a>
+                  ) : (
+                    <form action={decideRequest} className="inline">
+                      <input type="hidden" name="id" value={r.id} />
+                      <input type="hidden" name="decision" value="READY" />
+                      <button className="btn-ghost text-xs inline-flex items-center gap-1" type="submit"
+                        disabled={r.status !== "PENDING"}>
+                        <Eye className="w-3.5 h-3.5" /> Mark ready
+                      </button>
+                    </form>
+                  )}
+                  {r.status !== "DELIVERED" && r.status !== "DENIED" && (
+                    <form action={decideRequest} className="inline">
+                      <input type="hidden" name="id" value={r.id} />
+                      <input type="hidden" name="decision" value="FULFIL" />
+                      <button className="btn-tonal text-xs inline-flex items-center gap-1" type="submit">
+                        <Download className="w-3.5 h-3.5" /> Fulfil
+                      </button>
+                    </form>
+                  )}
                 </td>
               </tr>
             ))}

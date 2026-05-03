@@ -112,7 +112,7 @@ export default async function FinanceFeeDaySheetPage() {
             </li>
           </ul>
           <div className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-t border-amber-100">
-            New payment gateway? <a className="underline" href="#">Help guide</a>
+            Add or rotate keys in <a className="underline" href="/Settings">Settings → Integrations</a>.
           </div>
         </div>
       </div>
