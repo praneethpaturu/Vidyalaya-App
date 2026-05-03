@@ -24,9 +24,10 @@ import { trackEvent } from "@/lib/analytics";
 type Props = {
   children: React.ReactNode;
   user: { name: string; email: string; role: string; schoolName: string };
+  hiddenModules?: string[];
 };
 
-export default function Shell({ children, user }: Props) {
+export default function Shell({ children, user, hiddenModules = [] }: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
 
   return (
@@ -148,7 +149,7 @@ export default function Shell({ children, user }: Props) {
         </div>
       </header>
 
-      <BreadcrumbBar role={user.role} />
+      <BreadcrumbBar role={user.role} hiddenModules={hiddenModules} />
 
       <main className="min-w-0" role="main">{children}</main>
     </div>

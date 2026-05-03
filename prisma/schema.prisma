@@ -31,6 +31,8 @@ model School {
   logoUrl      String?
   academicYear String   @default("2026-2027")
   currency     String   @default("INR")
+  zoneId       String?  // soft FK to Zone (multi-school chain rollup)
+  groupId      String?  // soft FK to OrgGroup
   createdAt    DateTime @default(now())
 
   users           User[]
@@ -2751,4 +2753,99 @@ model ApplicationForm {
   @@unique([schoolId, applicationNo])
   @@index([schoolId, status])
   @@index([enquiryId])
+}
+
+// ============================================================
+// Academic year master — multi-AY model
+//
+// Until now, School.academicYear held a single string. We keep that field
+// (as the "current AY shortcut") but introduce AcademicYear so schools can
+// see and switch between historical and future years without losing data.
+// Marking a row isCurrent=true will sync School.academicYear in app code.
+// ============================================================
+model AcademicYear {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String   // "2026-2027"
+  startsOn  DateTime
+  endsOn    DateTime
+  isCurrent Boolean  @default(false)
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([schoolId, name])
+  @@index([schoolId, isCurrent])
+}
+
+// ============================================================
+// Zonal layer — Group → Zone → Branch (School)
+//
+// A multi-school operator (chain) groups branches into zones for reporting.
+// School.zoneId is a soft FK; null = unzoned. Zones don't enforce row-level
+// visibility on their own — RBAC at the school level still gates data.
+// ============================================================
+model Zone {
+  id        String   @id @default(cuid())
+  groupId   String?
+  name      String
+  region    String?
+  createdAt DateTime @default(now())
+
+  @@index([groupId])
+}
+
+model OrgGroup {
+  id        String   @id @default(cuid())
+  name      String
+  hqCity    String?
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// Master subject taxonomy — cross-school subject catalogue.
+// School-level Subject rows can reference a MasterSubject for reporting
+// roll-up across branches and to enforce a consistent CBSE/IB code list.
+// ============================================================
+model MasterSubject {
+  id          String   @id @default(cuid())
+  code        String   @unique     // "MATH", "ENG-LIT", "PHY"
+  name        String
+  scope       String   @default("CORE")  // CORE | ELECTIVE | SKILL | LANGUAGE
+  curriculum  String?  // CBSE | ICSE | IB | STATE
+  createdAt   DateTime @default(now())
+}
+
+// ============================================================
+// Store hierarchy — Inventory Category → Subcategory.
+// Inventory items today carry a String category — this provides a typed
+// taxonomy that the Store + Inventory pages can lean on.
+// ============================================================
+model StoreCategory {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  parentId  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([schoolId, name, parentId])
+  @@index([schoolId, parentId])
+}
+
+// ============================================================
+// Manage menus — per-role visibility overrides for nav modules.
+// One row per (schoolId, role, moduleKey). visible=false hides the module
+// from that role even if the default policy would allow it. Inserted lazily
+// from the admin UI; absent rows fall back to defaults.
+// ============================================================
+model MenuVisibility {
+  id        String   @id @default(cuid())
+  schoolId  String
+  role      String
+  moduleKey String
+  visible   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, role, moduleKey])
+  @@index([schoolId, role])
 }

@@ -249,7 +249,8 @@ function findActiveModule(pathname: string): Module | null {
 export default function ModuleHeaderNav({
   theme = "light",
   role: roleProp,
-}: { theme?: "light" | "dark"; role?: string } = {}) {
+  hiddenModules = [],
+}: { theme?: "light" | "dark"; role?: string; hiddenModules?: string[] } = {}) {
   const pathname = usePathname() ?? "/";
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   // Fall back to session if no role prop was passed by the caller (e.g.
@@ -263,8 +264,12 @@ export default function ModuleHeaderNav({
   // for school staff only. Hide entirely.
   if (!role || role === "PARENT" || role === "STUDENT") return null;
 
-  // Filter modules to those allowed for this role.
-  const allowed = GLOBAL_MODULES.filter((m) => !m.roles || m.roles.includes(role));
+  // Filter modules to those allowed for this role, then drop any keys that
+  // an admin has hidden via Settings → Manage menus.
+  const hide = new Set(hiddenModules);
+  const allowed = GLOBAL_MODULES
+    .filter((m) => !m.roles || m.roles.includes(role))
+    .filter((m) => !hide.has(m.key));
   if (allowed.length === 0) return null;
 
   // On /Home and its inner tabs, render global module list.

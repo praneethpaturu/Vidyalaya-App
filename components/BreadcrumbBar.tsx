@@ -59,7 +59,7 @@ function lastSegment(p: string): string {
     .replace(/\bNep[Hh]pc\b/i, "NEP HPC");
 }
 
-export default function BreadcrumbBar({ role }: { role?: string } = {}) {
+export default function BreadcrumbBar({ role, hiddenModules = [] }: { role?: string; hiddenModules?: string[] } = {}) {
   const pathname = usePathname() ?? "/";
   if (pathname === "/login") return null;
 
@@ -98,7 +98,7 @@ export default function BreadcrumbBar({ role }: { role?: string } = {}) {
             ModuleHeaderNav internally returns null for PARENT/STUDENT and
             filters modules by the rest of the roles. */}
         <div className="flex-1 min-w-0 hidden lg:flex items-center">
-          <ModuleHeaderNav theme="dark" role={role} />
+          <ModuleHeaderNav theme="dark" role={role} hiddenModules={hiddenModules} />
         </div>
 
         {/* Help / info cluster */}

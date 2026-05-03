@@ -34,6 +34,36 @@ const SECTIONS = [
     href: "#org",
   },
   {
+    title: "Academic years",
+    icon: GraduationCap,
+    items: ["Multi-AY master", "Set current year", "Archive past years"],
+    href: "/Settings/academic-years",
+  },
+  {
+    title: "Zones & Groups",
+    icon: Building2,
+    items: ["Multi-school chain", "Group → Zone → Branch", "Tag this branch"],
+    href: "/Settings/zones",
+  },
+  {
+    title: "Manage menus",
+    icon: Lock,
+    items: ["Per-role module visibility", "Hide modules from selected roles"],
+    href: "/Settings/menus",
+  },
+  {
+    title: "Master subjects",
+    icon: Library,
+    items: ["Cross-school subject taxonomy", "Curriculum-tagged"],
+    href: "/Settings/master-subjects",
+  },
+  {
+    title: "Store categories",
+    icon: Boxes,
+    items: ["Inventory + store taxonomy", "Two-level hierarchy"],
+    href: "/Settings/store-categories",
+  },
+  {
     title: "SIS",
     icon: Users,
     items: [
