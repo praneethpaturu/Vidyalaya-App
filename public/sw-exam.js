@@ -2,13 +2,24 @@
 // Caches the exam page + assets and queues failed /progress + /submit
 // requests in IndexedDB so they auto-flush when connectivity returns.
 
-const CACHE = "vidyalaya-exam-v1";
+const CACHE = "vidyalaya-exam-v2";
+const STATIC_PRECACHE = ["/", "/Online_Exams"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil((async () => {
+    const c = await caches.open(CACHE);
+    // Best-effort precache; don't block install if any URL fails.
+    await Promise.all(STATIC_PRECACHE.map((u) => c.add(u).catch(() => {})));
+    await self.skipWaiting();
+  })());
 });
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    // Drop old caches.
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
 // Background sync: replay queued /api/offline-sync POSTs.
@@ -26,13 +37,44 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkOrQueue(req));
     return;
   }
-  // For navigations / static assets, prefer cache-first when offline.
+  // Network-first for HTML, but cache the latest response so a subsequent
+  // offline reload can still serve it.
   if (req.method === "GET" && req.headers.get("accept")?.includes("text/html")) {
     event.respondWith((async () => {
-      try { return await fetch(req); }
-      catch {
+      try {
+        const r = await fetch(req);
+        if (r.ok) {
+          const clone = r.clone();
+          (async () => { try { (await caches.open(CACHE)).put(req, clone); } catch {} })();
+        }
+        return r;
+      } catch {
         const cached = await caches.match(req);
-        return cached || new Response("Offline — your answers are saved locally and will sync when you reconnect.", { status: 200, headers: { "content-type": "text/html" } });
+        if (cached) return cached;
+        return new Response(
+          `<!doctype html><meta charset=utf-8><title>Offline</title><style>body{font-family:system-ui;padding:2rem;color:#0f172a;background:#f8fafc;text-align:center}</style>` +
+          `<h1>You're offline.</h1><p>Your answers are being saved locally and will sync once you reconnect.</p>`,
+          { status: 200, headers: { "content-type": "text/html" } },
+        );
+      }
+    })());
+    return;
+  }
+
+  // Static asset: cache-first then network. Helps offline reloads of CSS/JS.
+  if (req.method === "GET" && (req.destination === "style" || req.destination === "script" || req.destination === "image" || req.destination === "font")) {
+    event.respondWith((async () => {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      try {
+        const r = await fetch(req);
+        if (r.ok) {
+          const clone = r.clone();
+          (async () => { try { (await caches.open(CACHE)).put(req, clone); } catch {} })();
+        }
+        return r;
+      } catch {
+        return new Response("", { status: 504 });
       }
     })());
   }

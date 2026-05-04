@@ -97,7 +97,60 @@ export default function TakeExamClient(props: Props) {
     });
   }, [questions, sectional, sectionsLocked, activeSectionId]);
 
-  const cur = visibleQuestions[idx] ?? questions[0];
+  // -- Adaptive testing (BRD §4.1) -----------------------------------------
+  // When `adaptive=true`, the question stream is driven by
+  // /api/online-exams/adaptive — the server decides the next question
+  // based on the previous answer's correctness. We hide the global
+  // navigator and only ever render `adaptiveQuestion`.
+  const [adaptiveQuestion, setAdaptiveQuestion] = useState<Q | null>(null);
+  const [adaptiveAsked, setAdaptiveAsked] = useState(0);
+  const [adaptiveCap, setAdaptiveCap] = useState(0);
+  const [adaptiveDone, setAdaptiveDone] = useState(false);
+  const [adaptiveLoading, setAdaptiveLoading] = useState(false);
+  const [adaptiveError, setAdaptiveError] = useState<string | null>(null);
+
+  async function fetchAdaptive(lastQid: string | null, lastResp: any) {
+    if (!adaptive) return;
+    setAdaptiveLoading(true);
+    setAdaptiveError(null);
+    try {
+      const r = await fetch("/api/online-exams/adaptive", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ attemptId, lastQuestionId: lastQid, lastResponse: lastResp }),
+      });
+      const data = await r.json();
+      if (!data?.ok) {
+        setAdaptiveError(data?.error === "plan-required"
+          ? "Adaptive testing requires the Pro plan."
+          : (data?.error ?? "Adaptive engine unavailable."));
+        return;
+      }
+      if (data.done || !data.nextQuestion) {
+        setAdaptiveDone(true);
+        setAdaptiveQuestion(null);
+        return;
+      }
+      setAdaptiveQuestion(data.nextQuestion);
+      setAdaptiveAsked(data.asked ?? 0);
+      setAdaptiveCap(data.capItems ?? 20);
+    } catch (e: any) {
+      setAdaptiveError(e?.message ?? "Network error");
+    } finally {
+      setAdaptiveLoading(false);
+    }
+  }
+
+  // Bootstrap the first adaptive question once we're armed.
+  useEffect(() => {
+    if (!adaptive) return;
+    if (fullscreenLock && !armedFullscreen) return; // wait for "Begin" click
+    if (adaptiveQuestion || adaptiveDone || adaptiveLoading) return;
+    fetchAdaptive(null, null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adaptive, armedFullscreen]);
+
+  const cur: Q | undefined = adaptive ? (adaptiveQuestion ?? undefined) : (visibleQuestions[idx] ?? questions[0]);
 
   // -- Register the offline service worker once on mount.
   // BRD §4.2 — when device goes offline, /progress and /submit fall back
@@ -408,28 +461,45 @@ export default function TakeExamClient(props: Props) {
         </div>
       )}
 
-      {/* Question navigator */}
-      <div className="card card-pad mb-3 relative z-10">
-        <div className="text-xs text-slate-500 mb-2">
-          Answered {answered} / {visibleQuestions.length}
-          {savedAt && <span className="ml-2 text-emerald-600">· saved {savedAt.toLocaleTimeString("en-IN")}</span>}
+      {/* Question navigator — hidden in adaptive mode (no random access) */}
+      {!adaptive ? (
+        <div className="card card-pad mb-3 relative z-10">
+          <div className="text-xs text-slate-500 mb-2">
+            Answered {answered} / {visibleQuestions.length}
+            {savedAt && <span className="ml-2 text-emerald-600">· saved {savedAt.toLocaleTimeString("en-IN")}</span>}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {visibleQuestions.map((q, i) => {
+              const has = responses[q.id] != null && responses[q.id] !== "" && (!Array.isArray(responses[q.id]) || responses[q.id].length > 0);
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => setIdx(i)}
+                  className={`w-8 h-8 rounded-md text-xs font-mono ${
+                    i === idx ? "bg-brand-700 text-white" :
+                    has ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >{i + 1}</button>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1">
-          {visibleQuestions.map((q, i) => {
-            const has = responses[q.id] != null && responses[q.id] !== "" && (!Array.isArray(responses[q.id]) || responses[q.id].length > 0);
-            return (
-              <button
-                key={q.id}
-                onClick={() => setIdx(i)}
-                className={`w-8 h-8 rounded-md text-xs font-mono ${
-                  i === idx ? "bg-brand-700 text-white" :
-                  has ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >{i + 1}</button>
-            );
-          })}
+      ) : (
+        <div className="card card-pad mb-3 relative z-10 text-sm">
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>
+              Adaptive · Question <strong className="text-slate-800">{adaptiveAsked + (adaptiveQuestion ? 1 : 0)}</strong>
+              {adaptiveCap > 0 && <span> of ~{adaptiveCap}</span>}
+            </span>
+            {savedAt && <span className="text-emerald-600">saved {savedAt.toLocaleTimeString("en-IN")}</span>}
+          </div>
+          <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-brand-500 transition-[width] duration-300"
+                 style={{ width: `${adaptiveCap > 0 ? Math.min(100, ((adaptiveAsked + (adaptiveQuestion ? 1 : 0)) / adaptiveCap) * 100) : 5}%` }} />
+          </div>
+          {adaptiveError && <div className="text-xs text-rose-700 mt-2">{adaptiveError}</div>}
         </div>
-      </div>
+      )}
 
       {/* Active question */}
       {cur && (
@@ -508,13 +578,37 @@ export default function TakeExamClient(props: Props) {
 
       {/* Footer controls */}
       <div className="flex items-center justify-between relative z-10">
-        <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} className="btn-outline">← Prev</button>
+        {adaptive ? (
+          <span className="text-xs text-slate-500">
+            {adaptiveDone ? "Adaptive cap reached." : adaptiveLoading ? "Picking next question…" : "No back-nav in adaptive mode."}
+          </span>
+        ) : (
+          <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} className="btn-outline">← Prev</button>
+        )}
         <div className="flex gap-2">
-          <button onClick={saveProgress} className="btn-outline">Save progress</button>
-          {idx < visibleQuestions.length - 1 ? (
-            <button onClick={() => setIdx((i) => Math.min(visibleQuestions.length - 1, i + 1))} className="btn-tonal">Next →</button>
+          {!adaptive && <button onClick={saveProgress} className="btn-outline">Save progress</button>}
+          {adaptive ? (
+            adaptiveDone ? (
+              <button onClick={() => setShowFinish(true)} className="btn-primary">Submit exam</button>
+            ) : (
+              <button
+                onClick={async () => {
+                  const last = adaptiveQuestion;
+                  if (!last) return;
+                  await fetchAdaptive(last.id, responses[last.id]);
+                }}
+                disabled={adaptiveLoading || !cur || responses[cur.id] == null}
+                className="btn-tonal"
+              >
+                {adaptiveLoading ? "Loading…" : "Next →"}
+              </button>
+            )
           ) : (
-            <button onClick={() => setShowFinish(true)} className="btn-primary">Submit exam</button>
+            idx < visibleQuestions.length - 1 ? (
+              <button onClick={() => setIdx((i) => Math.min(visibleQuestions.length - 1, i + 1))} className="btn-tonal">Next →</button>
+            ) : (
+              <button onClick={() => setShowFinish(true)} className="btn-primary">Submit exam</button>
+            )
           )}
         </div>
       </div>

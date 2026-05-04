@@ -17,6 +17,35 @@ function newDoc() {
   return new PDFDocument({ size: "A4", margin: 36, info: { Producer: "Vidyalaya", Creator: "Vidyalaya School OS" } });
 }
 
+// BRD §4.4 — Dynamic watermarking on every PDF page.
+// Stamps a tiled, rotated, semi-transparent label across the page so any
+// screenshot / leaked PDF can be traced back to the issued holder.
+// Hooks pageAdded so multi-page docs (Form 16, ECR, long invoices) are
+// covered without manual recalls.
+export function applyWatermark(doc: PDFKit.PDFDocument, label: string) {
+  if (!label || !label.trim()) return;
+  const stamp = (page: PDFKit.PDFPage) => {
+    const { width, height } = page;
+    doc.save();
+    doc.fillColor("#000000").fillOpacity(0.05);
+    doc.font("Helvetica-Bold").fontSize(36);
+    // Diagonal tile across the page
+    doc.rotate(-30, { origin: [width / 2, height / 2] });
+    const stepX = 240;
+    const stepY = 140;
+    for (let y = -height; y < height * 2; y += stepY) {
+      for (let x = -width; x < width * 2; x += stepX) {
+        doc.text(label, x, y, { lineBreak: false, width: 220, align: "left" });
+      }
+    }
+    doc.restore();
+    doc.fillOpacity(1);
+  };
+  // First page is already added when the doc was constructed.
+  stamp(doc.page);
+  doc.on("pageAdded", () => stamp(doc.page));
+}
+
 async function streamToBuffer(doc: PDFKit.PDFDocument): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -194,8 +223,10 @@ export type PayslipPdfProps = {
   bank?: { accountLast4?: string; ifsc?: string; mode?: string; utr?: string } | null;
 };
 
-export async function buildPayslipPdf(p: PayslipPdfProps): Promise<Buffer> {
+export async function buildPayslipPdf(p: PayslipPdfProps & { watermarkLabel?: string | null }): Promise<Buffer> {
   const doc = newDoc();
+  // BRD §4.4 — anti-leak watermark with employee identifier.
+  applyWatermark(doc, p.watermarkLabel ?? `${p.staff.employeeId} · ${p.staff.name}`);
   const x = doc.page.margins.left;
   const W = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
@@ -473,8 +504,9 @@ export type InvoicePdfProps = {
   student: { name: string; admissionNo: string; class?: string | null; rollNo: string };
 };
 
-export async function buildInvoicePdf(p: InvoicePdfProps): Promise<Buffer> {
+export async function buildInvoicePdf(p: InvoicePdfProps & { watermarkLabel?: string | null }): Promise<Buffer> {
   const doc = newDoc();
+  applyWatermark(doc, p.watermarkLabel ?? `${p.student.admissionNo} · ${p.student.name}`);
   brandBar(doc, "Tax invoice", p.invoice.number, p.invoice.status, inr(p.invoice.total));
   school(doc, p.school.name, `${p.school.city}, ${p.school.state} · ${p.school.phone} · ${p.school.email}`);
 
@@ -521,8 +553,9 @@ export type ReceiptPdfProps = {
   invoice?: { number: string } | null;
 };
 
-export async function buildReceiptPdf(p: ReceiptPdfProps): Promise<Buffer> {
+export async function buildReceiptPdf(p: ReceiptPdfProps & { watermarkLabel?: string | null }): Promise<Buffer> {
   const doc = newDoc();
+  applyWatermark(doc, p.watermarkLabel ?? `${p.student.admissionNo} · ${p.student.name}`);
   brandBar(doc, "Payment receipt", p.payment.receiptNo, "AMOUNT", inr(p.payment.amount));
   school(doc, p.school.name, `${p.school.city}, ${p.school.state}`);
 
@@ -584,8 +617,9 @@ export type Form16PdfProps = {
   };
 };
 
-export async function buildForm16Pdf(p: Form16PdfProps): Promise<Buffer> {
+export async function buildForm16Pdf(p: Form16PdfProps & { watermarkLabel?: string | null }): Promise<Buffer> {
   const doc = newDoc();
+  applyWatermark(doc, p.watermarkLabel ?? `${p.employee.employeeId} · ${p.employee.name} · ${p.employee.pan ?? "no PAN"}`);
   brandBar(doc, "Form 16 — Part B", `Salary TDS Certificate · FY ${p.fyLabel}`, "CERT NO", p.certificateNo);
   school(doc, p.school.name, `${p.school.city}, ${p.school.state} · TAN: ${p.school.tan ?? "—"} · PAN: ${p.school.pan ?? "—"}`);
 
@@ -826,8 +860,9 @@ function renderReportCardOnDoc(doc: PDFKit.PDFDocument, p: ReportCardPdfProps) {
   footer(doc, "Computer-generated report card · Verified at the school office");
 }
 
-export async function buildReportCardPdf(p: ReportCardPdfProps): Promise<Buffer> {
+export async function buildReportCardPdf(p: ReportCardPdfProps & { watermarkLabel?: string | null }): Promise<Buffer> {
   const doc = newDoc();
+  applyWatermark(doc, p.watermarkLabel ?? `${p.student.admissionNo} · ${p.student.name}`);
   renderReportCardOnDoc(doc, p);
   return streamToBuffer(doc);
 }
@@ -963,6 +998,77 @@ export async function buildCharacterCertPdf(c: CertCommon & { conduct?: string }
   doc.text("Principal · Signature & Seal", x + w - 240, doc.y - 10, { width: 240, align: "right" });
 
   footer(doc, `Character Certificate · ${c.certNo}`);
+  return streamToBuffer(doc);
+}
+
+// ============================================================
+// ONLINE EXAM RESULT
+// ============================================================
+export type ExamResultPdfProps = {
+  school: { name: string; city: string; state: string };
+  student: { name: string; admissionNo: string; class?: string | null };
+  exam: {
+    title: string; month: string; year: number;
+    durationMin: number; totalMarks: number; passMarks: number;
+    submittedAt: Date | null;
+  };
+  attempt: {
+    scoreObtained: number;
+    flagged: boolean;
+    tabSwitches: number;
+    fullscreenViolations: number;
+    copyAttempts: number;
+  };
+  topicMastery?: { topic: string; attempted: number; correct: number; mastery: number }[];
+  watermarkLabel?: string | null;
+};
+
+export async function buildExamResultPdf(p: ExamResultPdfProps): Promise<Buffer> {
+  const doc = newDoc();
+  applyWatermark(doc, p.watermarkLabel ?? `${p.student.admissionNo} · ${p.student.name}`);
+  brandBar(doc, "Online exam result", p.exam.title, "SCORE", `${p.attempt.scoreObtained} / ${p.exam.totalMarks}`);
+  school(doc, p.school.name, `${p.school.city}, ${p.school.state}`);
+
+  twoCol(doc, "Student", [p.student.name, `Adm: ${p.student.admissionNo}${p.student.class ? ` · ${p.student.class}` : ""}`],
+              "Exam", [`${p.exam.month} ${p.exam.year}`, p.exam.submittedAt ? `Submitted ${new Date(p.exam.submittedAt).toLocaleString("en-IN")}` : "Pending"]);
+
+  const isPass = p.attempt.scoreObtained >= p.exam.passMarks;
+  netBox(doc, isPass ? "PASS" : "BELOW PASS MARK", `${p.attempt.scoreObtained} / ${p.exam.totalMarks}  ·  pass cut-off ${p.exam.passMarks}`);
+
+  if (p.topicMastery && p.topicMastery.length > 0) {
+    doc.font("Helvetica-Bold").fontSize(10).fillColor(C.ink).text("Topic-wise performance");
+    doc.moveDown(0.5);
+    p.topicMastery.forEach((t) => {
+      const x = doc.page.margins.left;
+      const w = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+      const y = doc.y;
+      doc.font("Helvetica").fontSize(9).fillColor(C.ink).text(t.topic, x, y, { width: w * 0.4 });
+      doc.font("Helvetica").fontSize(9).fillColor(C.muted).text(`${t.correct}/${t.attempted}`, x + w * 0.85, y, { width: w * 0.15, align: "right" });
+      // Bar
+      const barX = x + w * 0.42;
+      const barW = w * 0.4;
+      doc.rect(barX, y + 4, barW, 4).fillColor("#eef2f7").fill();
+      doc.rect(barX, y + 4, barW * t.mastery, 4).fillColor(t.mastery >= 0.75 ? C.green : t.mastery >= 0.5 ? "#f59e0b" : C.red).fill();
+      doc.moveDown(0.6);
+    });
+    doc.moveDown(0.5);
+    doc.fillColor(C.ink);
+  }
+
+  if (p.attempt.flagged || p.attempt.tabSwitches > 0 || p.attempt.fullscreenViolations > 0 || p.attempt.copyAttempts > 0) {
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(C.red).text("Integrity log");
+    doc.font("Helvetica").fontSize(8).fillColor(C.muted);
+    const items = [
+      p.attempt.tabSwitches > 0 && `${p.attempt.tabSwitches} tab switch${p.attempt.tabSwitches !== 1 ? "es" : ""}`,
+      p.attempt.fullscreenViolations > 0 && `${p.attempt.fullscreenViolations} full-screen exit${p.attempt.fullscreenViolations !== 1 ? "s" : ""}`,
+      p.attempt.copyAttempts > 0 && `${p.attempt.copyAttempts} copy attempt${p.attempt.copyAttempts !== 1 ? "s" : ""}`,
+    ].filter(Boolean).join(" · ");
+    if (items) doc.text(items);
+    doc.moveDown(0.5);
+    doc.fillColor(C.ink);
+  }
+
+  footer(doc, "Generated by Vidyalaya · This document carries a tracking watermark and is intended only for the named student.");
   return streamToBuffer(doc);
 }
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import AdvancedToggle from "./AdvancedToggle";
 
 async function createExam(form: FormData) {
   "use server";
@@ -33,7 +34,10 @@ async function createExam(form: FormData) {
       blockRightClick: form.get("blockRightClick") === "on",
       watermarkContent: form.get("watermarkContent") !== "off",
       ipMonitor: form.get("ipMonitor") !== "off",
-      sectional: form.get("sectional") === "on",
+      // Adaptive vs sectional are mutually exclusive — adaptive picks the
+      // next question on the fly, so a student-defined section sequence is
+      // meaningless in that mode. Adaptive wins when both flags arrive.
+      sectional: form.get("adaptive") === "on" ? false : form.get("sectional") === "on",
       adaptive: form.get("adaptive") === "on",
       patternKey: String(form.get("patternKey") ?? "") || null,
       publishMode: String(form.get("publishMode") ?? "MANUAL"),
@@ -133,11 +137,12 @@ export default async function NewOnlineExamPage() {
           </div>
         </fieldset>
 
-        <fieldset className="border border-slate-200 rounded-lg p-3">
-          <legend className="text-xs font-medium text-slate-600 px-2">Advanced</legend>
+        <AdvancedToggle />
+        {/* legacy advanced rest (kept hidden so adaptive flag is gated by the toggle above) */}
+        <fieldset className="hidden">
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <label className="flex gap-1.5"><input type="checkbox" name="sectional" /> Sectional — submit each section separately</label>
-            <label className="flex gap-1.5"><input type="checkbox" name="adaptive" /> Adaptive testing (CAT)</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="legacy_sectional" /> Sectional — submit each section separately</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="legacy_adaptive" /> Adaptive testing (CAT)</label>
           </div>
         </fieldset>
         <div className="flex justify-end gap-2">

@@ -129,6 +129,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 
   const buf = await buildPayslipPdf({
+    watermarkLabel: slip.school.watermarkAll ? `${slip.staff.employeeId} · ${slip.staff.user.name}` : null,
     school: { name: slip.school.name, city: slip.school.city, state: slip.school.state },
     staff: {
       name: slip.staff.user.name,

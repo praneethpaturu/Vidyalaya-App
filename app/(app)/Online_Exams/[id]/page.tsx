@@ -167,6 +167,13 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
           <div className={attempt.scoreObtained >= exam.passMarks ? "text-emerald-700" : "text-rose-700"}>
             {attempt.scoreObtained >= exam.passMarks ? "Pass" : "Below pass mark (" + exam.passMarks + ")"}
           </div>
+          <a
+            href={`/api/online-exams/${exam.id}/result-pdf`}
+            target="_blank"
+            className="btn-outline text-xs mt-3 inline-flex"
+          >
+            Download watermarked PDF
+          </a>
         </div>
 
         {/* BRD §4.3 — predictive insights panel */}
