@@ -3,13 +3,28 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import AdvancedToggle from "./AdvancedToggle";
 
+// Bound a parsed number to a sensible range. Defaults out-of-band entries
+// to a safe value so a teacher can't accidentally create a 999,999-minute
+// exam or a -1000-mark question.
+function clampInt(raw: FormDataEntryValue | null, lo: number, hi: number, def: number): number {
+  const n = parseInt(String(raw ?? def));
+  if (!Number.isFinite(n)) return def;
+  return Math.max(lo, Math.min(hi, n));
+}
+function clampFloat(raw: FormDataEntryValue | null, lo: number, hi: number, def: number): number {
+  const n = parseFloat(String(raw ?? def));
+  if (!Number.isFinite(n)) return def;
+  return Math.max(lo, Math.min(hi, n));
+}
+
 async function createExam(form: FormData) {
   "use server";
   const session = await auth();
   if (!session?.user) throw new Error("unauthorized");
   const sId = (session.user as any).schoolId;
   const startAt = new Date(String(form.get("startAt")));
-  const durationMin = parseInt(String(form.get("durationMin") ?? "60"));
+  if (!Number.isFinite(+startAt)) throw new Error("Invalid start date");
+  const durationMin = clampInt(form.get("durationMin"), 1, 720, 60); // 12-hour cap
   const endAt = new Date(startAt.getTime() + durationMin * 60000);
 
   const exam = await prisma.onlineExam.create({
@@ -22,10 +37,10 @@ async function createExam(form: FormData) {
       startAt,
       endAt,
       durationMin,
-      totalMarks: parseInt(String(form.get("totalMarks") ?? "0")),
-      passMarks: parseInt(String(form.get("passMarks") ?? "0")),
-      negativeMark: parseFloat(String(form.get("negativeMark") ?? "0")),
-      attempts: parseInt(String(form.get("attempts") ?? "1")),
+      totalMarks: clampInt(form.get("totalMarks"), 1, 10000, 50),
+      passMarks: clampInt(form.get("passMarks"), 0, 10000, 20),
+      negativeMark: clampFloat(form.get("negativeMark"), 0, 10, 0),
+      attempts: clampInt(form.get("attempts"), 1, 10, 1),
       shuffle: form.get("shuffle") === "on",
       webcam: form.get("webcam") === "on",
       tabSwitchDetect: form.get("tabSwitchDetect") === "on",

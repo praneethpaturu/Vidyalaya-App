@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { generateExamFromBlueprint, type BlueprintSection } from "@/lib/ai/paper-blueprint";
 import { hasFeature } from "@/lib/entitlements";
+import { audit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -39,10 +40,18 @@ export async function POST(req: Request) {
     passMarks: Math.round(totalMarks * 0.35),
     negativeMark: Number(body?.negativeMark ?? 0),
     patternKey: body?.patternKey ?? null,
-    sectional: !!body?.sectional,
+    // Sectional and adaptive are mutually exclusive — adaptive serves
+    // questions on demand from the bank, so a static section sequence
+    // is meaningless. Adaptive wins when both are sent.
+    sectional: body?.adaptive ? false : !!body?.sectional,
     publishImmediately: !!body?.publishImmediately,
     aiSubject: body?.aiSubject,
     aiClassName: body?.aiClassName,
+  });
+  await audit("EXAM_FROM_BLUEPRINT", {
+    entity: "OnlineExam",
+    entityId: result.exam.id,
+    summary: `Generated "${result.exam.title}" from blueprint (${sections.length} sections, ${totalMarks} marks) in ${result.elapsedMs}ms`,
   });
   return NextResponse.json({ ok: true, examId: result.exam.id, elapsedMs: result.elapsedMs });
 }

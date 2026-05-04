@@ -868,13 +868,37 @@ export async function buildReportCardPdf(p: ReportCardPdfProps & { watermarkLabe
 }
 
 // One PDF that contains every student's report card (one student per page).
-export async function buildBulkReportCardPdf(cards: ReportCardPdfProps[]): Promise<Buffer> {
+// Each page is watermarked with that student's identifier, not just the
+// first card's — important for bulk distribution where pages may be split.
+export async function buildBulkReportCardPdf(cards: (ReportCardPdfProps & { watermarkLabel?: string | null })[]): Promise<Buffer> {
   const doc = newDoc();
   cards.forEach((p, idx) => {
     if (idx > 0) doc.addPage();
+    // Stamp THIS card's watermark right after the page is established.
+    const label = p.watermarkLabel ?? `${p.student.admissionNo} · ${p.student.name}`;
+    if (label) stampWatermarkOnce(doc, label);
     renderReportCardOnDoc(doc, p);
   });
   return streamToBuffer(doc);
+}
+
+// Internal helper: stamps a single page (no event hook). Used by bulk
+// renderers that want per-page labels.
+function stampWatermarkOnce(doc: PDFKit.PDFDocument, label: string) {
+  const page = doc.page;
+  if (!page) return;
+  const { width, height } = page;
+  doc.save();
+  doc.fillColor("#000000").fillOpacity(0.05);
+  doc.font("Helvetica-Bold").fontSize(36);
+  doc.rotate(-30, { origin: [width / 2, height / 2] });
+  for (let y = -height; y < height * 2; y += 140) {
+    for (let x = -width; x < width * 2; x += 240) {
+      doc.text(label, x, y, { lineBreak: false, width: 220, align: "left" });
+    }
+  }
+  doc.restore();
+  doc.fillOpacity(1);
 }
 
 // ============================================================

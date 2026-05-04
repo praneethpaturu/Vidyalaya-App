@@ -97,7 +97,9 @@ async function deleteSection(form: FormData) {
 async function publish(form: FormData) {
   "use server";
   const id = String(form.get("id"));
-  await prisma.onlineExam.update({ where: { id }, data: { status: "PUBLISHED" } });
+  const exam = await prisma.onlineExam.update({ where: { id }, data: { status: "PUBLISHED" } });
+  const { audit } = await import("@/lib/audit");
+  await audit("EXAM_PUBLISH", { entity: "OnlineExam", entityId: id, summary: `Published "${exam.title}"` });
   revalidatePath(`/Home/Online_Exams/${id}`);
 }
 

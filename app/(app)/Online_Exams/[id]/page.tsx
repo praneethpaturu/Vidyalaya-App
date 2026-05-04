@@ -69,49 +69,67 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
       select: { studentId: true },
     });
     const childIds = links.map((l) => l.studentId);
-    const childAttempt = await prisma.onlineExamAttempt.findFirst({
+    // Each ward gets its own card. Loads in parallel.
+    const wardAttempts = await prisma.onlineExamAttempt.findMany({
       where: { examId: exam.id, studentId: { in: childIds }, status: { in: ["SUBMITTED", "EVALUATED"] } },
       orderBy: { submittedAt: "desc" },
     });
-    if (!childAttempt) {
+    if (wardAttempts.length === 0) {
       return (
         <div className="p-5 max-w-2xl mx-auto">
           <Link href="/Online_Exams" className="text-xs text-brand-700 hover:underline">← Back</Link>
           <h1 className="h-page mt-1 mb-1">{exam.title}</h1>
           <p className="muted mb-3">{className}</p>
-          <div className="card card-pad text-sm text-slate-600">No completed attempt found for your ward.</div>
+          <div className="card card-pad text-sm text-slate-600">No completed attempt found for your ward(s).</div>
         </div>
       );
     }
-    const insight = await (await import("@/lib/ai/exam-insights")).ensureAttemptInsight(childAttempt.id);
+    const studentRows = await prisma.student.findMany({
+      where: { id: { in: wardAttempts.map((a) => a.studentId) } },
+      select: { id: true, admissionNo: true, user: { select: { name: true } } },
+    });
+    const sMap = new Map(studentRows.map((s) => [s.id, s]));
+    const { ensureAttemptInsight } = await import("@/lib/ai/exam-insights");
+    const cards = await Promise.all(wardAttempts.map(async (a) => ({ a, insight: await ensureAttemptInsight(a.id) })));
     return (
       <div className="p-5 max-w-2xl mx-auto">
         <Link href="/Online_Exams" className="text-xs text-brand-700 hover:underline">← Back</Link>
         <h1 className="h-page mt-1 mb-1">{exam.title}</h1>
-        <p className="muted mb-3">{className} · Parent view · question content withheld</p>
-        <div className="card card-pad mb-5 text-center">
-          <div className="text-xs text-slate-500">Your ward's score</div>
-          <div className="text-4xl font-medium tracking-tight my-1">{childAttempt.scoreObtained} / {exam.totalMarks}</div>
-          <div className={childAttempt.scoreObtained >= exam.passMarks ? "text-emerald-700" : "text-rose-700"}>
-            {childAttempt.scoreObtained >= exam.passMarks ? "Pass" : "Below pass mark (" + exam.passMarks + ")"}
-          </div>
-        </div>
-        {insight && insight.topicMastery.length > 0 && (
-          <div className="card card-pad">
-            <h2 className="h-section mb-2">Topic-wise performance</h2>
-            <div className="space-y-1.5">
-              {insight.topicMastery.map((t) => (
-                <div key={t.topic} className="flex items-center gap-3 text-sm">
-                  <div className="w-32 truncate text-slate-700">{t.topic}</div>
-                  <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={`h-full ${t.mastery >= 0.75 ? "bg-emerald-500" : t.mastery >= 0.5 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${Math.round(t.mastery * 100)}%` }} />
-                  </div>
-                  <div className="w-16 text-right text-xs text-slate-500 tabular-nums">{t.correct}/{t.attempted}</div>
+        <p className="muted mb-4">{className} · Parent view · question content withheld</p>
+        {cards.map(({ a, insight }) => {
+          const stu = sMap.get(a.studentId);
+          return (
+            <div key={a.id} className="card overflow-hidden mb-4">
+              <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/40">
+                <div className="text-sm font-medium">{stu?.user.name ?? "Ward"}</div>
+                <div className="text-xs text-slate-500">{stu?.admissionNo ?? "—"}{a.submittedAt && ` · submitted ${new Date(a.submittedAt).toLocaleString("en-IN")}`}</div>
+              </div>
+              <div className="p-5 text-center">
+                <div className="text-xs text-slate-500">Score</div>
+                <div className="text-3xl font-medium tracking-tight my-1">{a.scoreObtained} / {exam.totalMarks}</div>
+                <div className={a.scoreObtained >= exam.passMarks ? "text-emerald-700" : "text-rose-700"}>
+                  {a.scoreObtained >= exam.passMarks ? "Pass" : "Below pass mark (" + exam.passMarks + ")"}
                 </div>
-              ))}
+              </div>
+              {insight && insight.topicMastery.length > 0 && (
+                <div className="px-5 pb-4 border-t border-slate-100 pt-3">
+                  <div className="text-xs uppercase tracking-wider text-slate-500 mb-2">Topic-wise performance</div>
+                  <div className="space-y-1.5">
+                    {insight.topicMastery.map((t) => (
+                      <div key={t.topic} className="flex items-center gap-3 text-sm">
+                        <div className="w-32 truncate text-slate-700">{t.topic}</div>
+                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${t.mastery >= 0.75 ? "bg-emerald-500" : t.mastery >= 0.5 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${Math.round(t.mastery * 100)}%` }} />
+                        </div>
+                        <div className="w-16 text-right text-xs text-slate-500 tabular-nums">{t.correct}/{t.attempted}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })}
       </div>
     );
   }

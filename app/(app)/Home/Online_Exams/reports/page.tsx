@@ -62,6 +62,9 @@ async function ExamList({ schoolId }: { schoolId: string }) {
         </div>
       )}
 
+      {/* Cross-class comparison — for each class with ≥2 exams, plot pass% across recent exams. */}
+      {await classComparisonBlock(schoolId)}
+
       <div className="card overflow-x-auto">
         <table className="table">
           <thead><tr><th>Title</th><th>Q</th><th>Attempts</th><th>Avg score</th><th>Pass %</th><th>Flagged</th><th></th></tr></thead>
@@ -117,13 +120,26 @@ async function ExamDeepDive({ examId, schoolId }: { examId: string; schoolId: st
     where: { questionId: { in: exam.questions.map((q) => q.id) } },
     select: { questionId: true, marksAwarded: true, source: true },
   });
+  // Aggregate time-on-question across all attempts (BRD §4.3).
+  const timeAgg: Record<string, { total: number; n: number }> = {};
+  for (const a of exam.attemptsLog) {
+    let m: Record<string, number> = {};
+    try { m = JSON.parse(a.timeSpent || "{}"); } catch { /* */ }
+    for (const [qid, sec] of Object.entries(m)) {
+      if (!timeAgg[qid]) timeAgg[qid] = { total: 0, n: 0 };
+      timeAgg[qid].total += Number(sec) || 0;
+      timeAgg[qid].n++;
+    }
+  }
   const itemStats = exam.questions.map((q) => {
     const qLogs = logs.filter((l) => l.questionId === q.id);
     const attempted = qLogs.length;
     const correctish = qLogs.filter((l) => l.marksAwarded >= q.marks * 0.9).length;
     const aiGraded = qLogs.filter((l) => l.source === "AI").length;
     const acc = attempted > 0 ? correctish / attempted : 0;
-    return { q, attempted, correct: correctish, acc, aiGraded };
+    const t = timeAgg[q.id];
+    const avgSec = t && t.n > 0 ? Math.round(t.total / t.n) : 0;
+    return { q, attempted, correct: correctish, acc, aiGraded, avgSec };
   });
 
   // Topic heatmap.
@@ -218,7 +234,7 @@ async function ExamDeepDive({ examId, schoolId }: { examId: string; schoolId: st
       <p className="muted text-xs mb-2">Per-question correctness rate. &lt;40% = revise question; 40–60% = good discriminator; &gt;90% = too easy.</p>
       <div className="card overflow-x-auto mb-5">
         <table className="table">
-          <thead><tr><th>#</th><th>Question</th><th>Type</th><th>Topic</th><th>Diff</th><th>Bloom</th><th>Marks</th><th>Attempts</th><th>Correct %</th><th>AI graded</th></tr></thead>
+          <thead><tr><th>#</th><th>Question</th><th>Type</th><th>Topic</th><th>Diff</th><th>Bloom</th><th>Marks</th><th>Attempts</th><th>Correct %</th><th>Avg time</th><th>AI graded</th></tr></thead>
           <tbody>
             {itemStats.map((it, i) => (
               <tr key={it.q.id}>
@@ -233,6 +249,7 @@ async function ExamDeepDive({ examId, schoolId }: { examId: string; schoolId: st
                 <td className={`tabular-nums ${it.acc < 0.4 ? "text-rose-700" : it.acc > 0.9 ? "text-amber-700" : "text-emerald-700"}`}>
                   {it.attempted ? `${Math.round(it.acc * 100)}%` : "—"}
                 </td>
+                <td className="text-xs tabular-nums text-slate-600">{it.avgSec ? `${it.avgSec}s` : "—"}</td>
                 <td className="text-xs">{it.aiGraded > 0 ? <span className="badge-blue text-xs">{it.aiGraded}</span> : "—"}</td>
               </tr>
             ))}
@@ -273,6 +290,55 @@ function bump(m: Map<string, { attempted: number; correct: number }>, key: strin
   cur.attempted += it.attempted;
   cur.correct += it.correct;
   m.set(key, cur);
+}
+
+async function classComparisonBlock(schoolId: string) {
+  // For each class with at least 2 exams in the last 90 days, compute the
+  // pass% per exam in chronological order. Render a small bar chart per class.
+  const since = new Date(Date.now() - 90 * 86400000);
+  const exams = await prisma.onlineExam.findMany({
+    where: { schoolId, startAt: { gte: since } },
+    include: { attemptsLog: { select: { status: true, scoreObtained: true } } },
+    orderBy: { startAt: "asc" },
+  });
+  if (exams.length < 2) return null;
+  const byClass = new Map<string, typeof exams>();
+  for (const e of exams) {
+    if (!byClass.has(e.classId)) byClass.set(e.classId, [] as typeof exams);
+    byClass.get(e.classId)!.push(e);
+  }
+  // Resolve class names.
+  const classes = await prisma.class.findMany({
+    where: { id: { in: [...byClass.keys()] } },
+    select: { id: true, name: true },
+  });
+  const cMap = new Map(classes.map((c) => [c.id, c.name]));
+  const blocks = [...byClass.entries()]
+    .filter(([, list]) => list.length >= 2)
+    .map(([classId, list]) => {
+      const data = list.slice(-8).map((e) => {
+        const subs = e.attemptsLog.filter((a) => a.status === "SUBMITTED" || a.status === "EVALUATED");
+        const passing = subs.filter((a) => a.scoreObtained >= e.passMarks).length;
+        const pct = subs.length ? Math.round((passing / subs.length) * 100) : 0;
+        return { label: e.title.length > 16 ? e.title.slice(0, 15) + "…" : e.title, value: pct, max: 100 };
+      });
+      return { classId, className: cMap.get(classId) ?? "Class", data };
+    });
+  if (blocks.length === 0) return null;
+  return (
+    <div className="card card-pad mb-5">
+      <h3 className="text-sm font-medium mb-1">Cross-class comparison · pass-rate trend (last 90 days)</h3>
+      <p className="text-xs text-slate-500 mb-3">Each block shows the pass% across the most recent exams for that class — useful for seeing whether a cohort is improving.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {blocks.map((b) => (
+          <div key={b.classId}>
+            <div className="text-xs font-medium text-slate-700 mb-1">{b.className}</div>
+            <BarChart data={b.data} height={160} formatValue={(v) => `${v}%`} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function KPI({ label, value, positive, negative }: { label: string; value: string | number; positive?: boolean; negative?: boolean }) {

@@ -80,6 +80,11 @@ export default function TakeExamClient(props: Props) {
   const [activeSectionId, setActiveSectionId] = useState<string | null>(sectional && sections[0] ? sections[0].id : null);
   const [sectionsLocked, setSectionsLocked] = useState<Record<string, string>>(initialSectionsLocked ?? {});
   const [perQRemaining, setPerQRemaining] = useState<Record<string, number>>({});
+  // BRD §4.3 — time-on-question. We track wall-clock seconds spent on each
+  // question (the active one accumulates while the page is visible) and
+  // flush the map to /progress alongside other state.
+  const [timeSpent, setTimeSpent] = useState<Record<string, number>>({});
+  const activeStartRef = useRef<number>(Date.now());
   // Fullscreen requires a user gesture; we render a "Begin exam" overlay
   // until the student clicks it. After click we enter FS + dismiss overlay.
   const [armedFullscreen, setArmedFullscreen] = useState(!props.fullscreenLock);
@@ -275,6 +280,21 @@ export default function TakeExamClient(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blockCopyPaste, blockRightClick, examId, attemptId]);
 
+  // -- Time-on-question accumulator ------------------------------------
+  // When the active question changes, settle the elapsed seconds for the
+  // previous question into the running map and reset the start clock.
+  useEffect(() => {
+    const prevId = (cur as any)?.id as string | undefined;
+    activeStartRef.current = Date.now();
+    return () => {
+      if (!prevId) return;
+      const elapsed = Math.max(0, Math.round((Date.now() - activeStartRef.current) / 1000));
+      if (elapsed === 0) return;
+      setTimeSpent((m) => ({ ...m, [prevId]: (m[prevId] ?? 0) + elapsed }));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur?.id]);
+
   // -- Per-question time-limit ticking + auto-advance -----------------
   useEffect(() => {
     if (!cur?.timeLimitSec) return;
@@ -337,11 +357,16 @@ export default function TakeExamClient(props: Props) {
 
   async function saveProgress() {
     if (busy) return;
+    // Snapshot the active question's accrued seconds without disturbing the
+    // counter (we keep the start ref so it keeps accumulating).
+    const liveTime = (cur as any)?.id
+      ? { ...timeSpent, [cur!.id]: (timeSpent[cur!.id] ?? 0) + Math.max(0, Math.round((Date.now() - activeStartRef.current) / 1000)) }
+      : timeSpent;
     try {
       await fetch(`/api/online-exams/${examId}/progress`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ attemptId, responses }),
+        body: JSON.stringify({ attemptId, responses, timeSpent: liveTime }),
       });
       setSavedAt(new Date());
     } catch {}
@@ -597,7 +622,7 @@ export default function TakeExamClient(props: Props) {
                   if (!last) return;
                   await fetchAdaptive(last.id, responses[last.id]);
                 }}
-                disabled={adaptiveLoading || !cur || responses[cur.id] == null}
+                disabled={adaptiveLoading || !cur || isUnanswered(responses[cur.id])}
                 className="btn-tonal"
               >
                 {adaptiveLoading ? "Loading…" : "Next →"}
@@ -697,4 +722,12 @@ function Watermark({ label }: { label: string }) {
 function safeParse(s: any): any[] {
   if (Array.isArray(s)) return s;
   try { const v = JSON.parse(s); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+
+// True when the response is missing OR empty (covers MULTI's []) so Next/
+// progress counts only when the student actually committed an answer.
+function isUnanswered(v: any): boolean {
+  if (v == null || v === "") return true;
+  if (Array.isArray(v) && v.length === 0) return true;
+  return false;
 }

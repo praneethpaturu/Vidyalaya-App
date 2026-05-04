@@ -7,10 +7,11 @@ async function updateTenant(form: FormData) {
   "use server";
   await requirePageRole(["PLATFORM_ADMIN"]);
   const id = String(form.get("id"));
+  const planKey = String(form.get("planKey") ?? "FREE");
   await prisma.school.update({
     where: { id },
     data: {
-      planKey: String(form.get("planKey") ?? "FREE"),
+      planKey,
       planExpiresAt: form.get("planExpiresAt") ? new Date(String(form.get("planExpiresAt"))) : null,
       brandPrimary: String(form.get("brandPrimary") ?? "") || null,
       brandTagline: String(form.get("brandTagline") ?? "") || null,
@@ -18,6 +19,8 @@ async function updateTenant(form: FormData) {
       watermarkAll: form.get("watermarkAll") === "on",
     },
   });
+  const { audit } = await import("@/lib/audit");
+  await audit("TENANT_UPDATE", { entity: "School", entityId: id, summary: `Plan → ${planKey}; brand/domain updated by Platform Admin` });
   revalidatePath(`/Platform/tenants/${id}`);
   revalidatePath("/Platform");
 }

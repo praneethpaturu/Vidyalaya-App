@@ -1625,6 +1625,8 @@ model OnlineExamAttempt {
   shuffleSeed  Int      @default(0)
   // Adaptive testing trail — JSON: [{questionId, difficulty, correct}]
   adaptiveTrail String  @default("[]")
+  // BRD §4.3 — time-on-question metric. JSON map { questionId: secondsSpent }
+  timeSpent    String   @default("{}")
 
   exam         OnlineExam @relation(fields: [examId], references: [id], onDelete: Cascade)
   appeals      OnlineExamAppeal[]

@@ -36,6 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const fullscreenViolations = Number(body?.fullscreenViolations);
   const copyAttempts = Number(body?.copyAttempts);
   const sectionsLocked = body?.sectionsLocked && typeof body.sectionsLocked === "object" ? body.sectionsLocked : null;
+  const timeSpent = body?.timeSpent && typeof body.timeSpent === "object" ? body.timeSpent : null;
 
   // Capture IP if monitoring enabled.
   let ipUpdate: { ipAddress?: string; ipHistory?: string } = {};
@@ -66,6 +67,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       ...(Number.isFinite(fullscreenViolations) ? { fullscreenViolations: newFs } : {}),
       ...(Number.isFinite(copyAttempts) ? { copyAttempts: newCp } : {}),
       ...(sectionsLocked ? { sectionsLocked: JSON.stringify(sectionsLocked) } : {}),
+      ...(timeSpent ? { timeSpent: JSON.stringify(timeSpent) } : {}),
       flagged,
     },
   });
