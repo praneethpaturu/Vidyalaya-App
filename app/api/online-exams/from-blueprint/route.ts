@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { generateExamFromBlueprint, type BlueprintSection } from "@/lib/ai/paper-blueprint";
 import { hasFeature } from "@/lib/entitlements";
 import { audit } from "@/lib/audit";
+import { rateLimit, ipFromRequest, RATE_LIMITS } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -13,6 +14,9 @@ export const maxDuration = 60;
 // AI fallback runs only when the school's plan includes aiGeneration.
 export async function POST(req: Request) {
   const u = await requireRole(["ADMIN", "PRINCIPAL", "TEACHER"]);
+  // Throttle paper-builder so a runaway script can't spin up 50 exams/min.
+  const rl = await rateLimit(`paper:${u.id}:${ipFromRequest(req)}`, 6, 60);
+  if (!rl.ok) return NextResponse.json({ ok: false, error: "rate-limited", retryAfterMs: rl.resetAt - Date.now() }, { status: 429 });
   const body = await req.json().catch(() => ({}));
   const sections: BlueprintSection[] = Array.isArray(body?.blueprint?.sections) ? body.blueprint.sections : [];
   if (sections.length === 0) {

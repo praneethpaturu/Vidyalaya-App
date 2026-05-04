@@ -144,6 +144,11 @@ function parseFirstInt(v: any): number | null {
 // `q.rubric` is a JSON object: { criteria: [{name, weight, description}],
 //                                 modelAnswer: string (optional) }
 // Output: total marks awarded + per-criterion breakdown saved as rubricJson.
+//
+// `response` may be a plain string OR an object `{ text, attachments }`
+// where attachments are { url, mime } image/PDF refs. When attachments
+// include images we route through OpenAI's vision API (multi-modal input)
+// so the grader actually sees the student's diagram / handwriting.
 export async function gradeWithRubric(
   q: { id: string; text?: string; correct: string; marks: number; rubric?: string | null },
   response: any,
@@ -157,11 +162,17 @@ export async function gradeWithRubric(
     return { marksAwarded: 0, isCorrect: null, source: "AI", feedback: "Empty rubric" };
   }
 
+  // Normalise response shape.
+  const respText = typeof response === "string" ? response : (response?.text ?? "");
+  const attachments: { url: string; mime: string }[] = Array.isArray(response?.attachments) ? response.attachments : [];
+  const imageAttachments = attachments.filter((a) => (a.mime ?? "").startsWith("image/"));
+
   const totalWeight = rubric.criteria.reduce((s, c) => s + (c.weight ?? 0), 0) || 1;
-  const userMessage = [
+  const baseUserText = [
     `Question: ${q.text ?? "(text omitted)"}`,
     rubric.modelAnswer ? `Model answer: ${rubric.modelAnswer}` : "",
-    `Student answer: ${typeof response === "string" ? response : JSON.stringify(response)}`,
+    `Student typed answer: ${respText || "(none)"}`,
+    imageAttachments.length > 0 ? `Student attached ${imageAttachments.length} image(s) — examine each carefully.` : "",
     `Total weight: ${totalWeight}`,
     "Grade by each criterion. Score is integer 0..maxForCriterion.",
     "Return STRICT JSON only:",
@@ -172,10 +183,10 @@ export async function gradeWithRubric(
 
   let parsed: { perCriterion: { name: string; score: number; max: number; comment: string }[]; feedback: string } | null = null;
   try {
-    const r = await llm([{ role: "user", content: userMessage }], {
-      system, maxTokens: 500, temperature: 0.1, task: "rubric-score",
-    });
-    const cleaned = r.text.trim().replace(/^```json\s*/i, "").replace(/```\s*$/i, "");
+    const text = imageAttachments.length > 0
+      ? await callVisionGrader(system, baseUserText, imageAttachments)
+      : (await llm([{ role: "user", content: baseUserText }], { system, maxTokens: 500, temperature: 0.1, task: "rubric-score" })).text;
+    const cleaned = text.trim().replace(/^```json\s*/i, "").replace(/```\s*$/i, "");
     parsed = JSON.parse(cleaned);
   } catch {
     parsed = null;
@@ -193,4 +204,35 @@ export async function gradeWithRubric(
     feedback: parsed.feedback,
     rubricJson: JSON.stringify(parsed),
   };
+}
+
+// Direct OpenAI vision call — bypasses our llm() abstraction because we
+// need to send an image_url content part. Returns the raw assistant text.
+async function callVisionGrader(
+  system: string,
+  userText: string,
+  images: { url: string; mime: string }[],
+): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY not set");
+  const userContent: any[] = [{ type: "text", text: userText }];
+  for (const img of images) {
+    userContent.push({ type: "image_url", image_url: { url: img.url, detail: "high" } });
+  }
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: process.env.AI_VISION_MODEL ?? "gpt-4o-mini",
+      max_tokens: 600,
+      temperature: 0.1,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userContent },
+      ],
+    }),
+  });
+  if (!r.ok) throw new Error(`vision-grader ${r.status}`);
+  const json = await r.json();
+  return json?.choices?.[0]?.message?.content ?? "";
 }

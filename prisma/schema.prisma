@@ -1587,6 +1587,12 @@ model OnlineQuestion {
   difficulty      String  @default("MEDIUM") // EASY | MEDIUM | HARD
   // AI rubric for descriptive grading (BRD §4.3)
   rubric          String? // JSON: { criteria: [{name, weight, description}], modelAnswer }
+  // Question media — diagrams, equations, etc. Image is stored in Supabase
+  // and referenced via a long-lived signed URL. LaTeX content is allowed
+  // inline in `text` using $...$ / $$...$$ delimiters and rendered by
+  // components/MathText on the client.
+  imageUrl        String?
+  attachments     String  @default("[]")  // JSON: [{url, kind, caption}]
   // Adaptive testing — questions served on-demand are scoped to the
   // attempt that requested them, so they don't pollute the teacher's
   // exam-detail view or item analysis. NULL = part of the static paper.
@@ -3020,6 +3026,9 @@ model QuestionBankItem {
   numericRangeMax  Float?
   // AI rubric for descriptive grading (BRD §4.3)
   rubric           String?                     // JSON: criteria + modelAnswer
+  // Media — diagrams, equations. Stored as Supabase signed URLs.
+  imageUrl         String?
+  attachments      String   @default("[]")     // JSON: [{url, kind, caption}]
   // Approval workflow — BRD §4.1 collaborative content workflow
   status      String   @default("DRAFT")       // DRAFT | REVIEW | PUBLISHED | RETIRED
   reviewerId  String?                          // assigned reviewer (User.id)

@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { gradeAnswer } from "@/lib/exam-grading";
 import { hasFeature } from "@/lib/entitlements";
+import { rateLimit, ipFromRequest } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,9 @@ export const runtime = "nodejs";
 //   - cap the test at exam.totalMarks / averageMarksPerQ items.
 export async function POST(req: Request) {
   const u = await requireRole(["STUDENT"]);
+  // Throttle adaptive picks per student-IP (60/min cap; one Q ~5s burst is fine).
+  const rl = await rateLimit(`adaptive:${u.id}:${ipFromRequest(req)}`, 60, 60);
+  if (!rl.ok) return NextResponse.json({ ok: false, error: "rate-limited", retryAfterMs: rl.resetAt - Date.now() }, { status: 429 });
   const body = await req.json().catch(() => ({}));
   const attemptId = String(body?.attemptId ?? "");
   const lastQid = body?.lastQuestionId ? String(body.lastQuestionId) : null;

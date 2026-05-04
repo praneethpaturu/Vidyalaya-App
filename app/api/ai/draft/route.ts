@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { llm } from "@/lib/ai/provider";
+import { rateLimit, ipFromRequest, RATE_LIMITS } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -9,7 +10,9 @@ export const maxDuration = 30;
 // Body: { kind: "ANNOUNCEMENT" | "EMAIL" | "SMS" | "FREEFORM", topic: string,
 //          tone?: "WARM" | "FORMAL" | "URGENT", audience?: string }
 export async function POST(req: Request) {
-  await requireRole(["ADMIN", "PRINCIPAL", "TEACHER", "HR_MANAGER", "ACCOUNTANT"]);
+  const u = await requireRole(["ADMIN", "PRINCIPAL", "TEACHER", "HR_MANAGER", "ACCOUNTANT"]);
+  const rl = await rateLimit(`ai:${u.id}:${ipFromRequest(req)}`, RATE_LIMITS.AI_PER_USER.limit, RATE_LIMITS.AI_PER_USER.windowSec);
+  if (!rl.ok) return NextResponse.json({ ok: false, error: "rate-limited", retryAfterMs: rl.resetAt - Date.now() }, { status: 429 });
   const body = await req.json().catch(() => ({}));
   const kind = String(body?.kind ?? "ANNOUNCEMENT");
   const topic = String(body?.topic ?? "").trim();

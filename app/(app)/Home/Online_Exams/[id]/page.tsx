@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
+import RubricEditor from "@/components/RubricEditor";
+import { MathText } from "@/components/MathText";
 
 async function addQuestion(form: FormData) {
   "use server";
@@ -49,6 +51,7 @@ async function addQuestion(form: FormData) {
       bloomLevel: String(form.get("bloomLevel") ?? "") || null,
       difficulty: String(form.get("difficulty") ?? "MEDIUM"),
       rubric,
+      imageUrl: String(form.get("imageUrl") ?? "") || null,
       order: parseInt(String(form.get("order") ?? "1")),
     },
   });
@@ -223,7 +226,11 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
               <div className="flex items-start gap-3">
                 <div className="text-xs text-slate-400 mt-0.5">Q{i + 1}</div>
                 <div className="flex-1">
-                  <div className="text-sm">{q.text}</div>
+                  <div className="text-sm leading-relaxed"><MathText text={q.text} /></div>
+                  {q.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={q.imageUrl} alt="" className="my-1 max-h-32 rounded border border-slate-200" />
+                  )}
                   {(q.type === "MCQ" || q.type === "MULTI") ? (
                     <ul className="mt-1 text-xs text-slate-700 space-y-0.5">
                       {opts.map((o: string, idx: number) => (
@@ -345,19 +352,19 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
             <div><label className="label">Range max</label><input type="number" step="any" name="numericRangeMax" className="input" placeholder="optional" /></div>
           </fieldset>
 
-          {/* DESCRIPTIVE */}
-          <fieldset className="border border-slate-200 rounded-lg p-3 space-y-2">
-            <legend className="text-xs text-slate-500 px-2">DESCRIPTIVE</legend>
-            <div><label className="label">Model answer (reference)</label>
-              <textarea name="modelAnswer" rows={2} className="input" placeholder="3-5 sentence model answer"></textarea>
-            </div>
-            <div>
-              <label className="label">AI grading rubric (JSON, optional)</label>
-              <textarea name="rubric" rows={3} className="input font-mono text-xs"
-                placeholder={'{ "criteria": [{"name":"Concept","weight":3,"description":"Names the law"},{"name":"Example","weight":2,"description":"Gives a real-world example"}], "modelAnswer":"..." }'} />
-              <div className="text-xs text-slate-500 mt-1">When set, OpenAI grades automatically against the rubric on submit.</div>
-            </div>
-          </fieldset>
+          {/* DESCRIPTIVE — model answer is captured here; AI rubric handled by the
+              RubricEditor below which posts via a hidden `rubric` field. */}
+          <div>
+            <label className="label">Model answer (reference, DESCRIPTIVE only)</label>
+            <textarea name="modelAnswer" rows={2} className="input" placeholder="3-5 sentence model answer"></textarea>
+          </div>
+          <RubricEditor name="rubric" />
+
+          <div>
+            <label className="label">Question image (optional)</label>
+            <input name="imageUrl" type="url" className="input" placeholder="https://supabase.../diagram.png" />
+            <div className="text-xs text-slate-500 mt-1">Paste a Supabase storage URL or any HTTPS image. LaTeX inline in the question text is supported with $...$ / $$...$$ — e.g. "$E = mc^2$".</div>
+          </div>
 
           <button className="btn-primary">Add question</button>
         </form>

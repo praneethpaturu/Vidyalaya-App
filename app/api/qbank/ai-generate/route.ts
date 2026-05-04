@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { generateQuestionsAI } from "@/lib/ai/qbank";
 import { hasFeature } from "@/lib/entitlements";
+import { rateLimit, ipFromRequest, RATE_LIMITS } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,6 +15,14 @@ export async function POST(req: Request) {
   // BRD §4.4 — plan gate: aiGeneration is included in STARTER and above.
   if (u.schoolId && !(await hasFeature(u.schoolId, "aiGeneration"))) {
     return NextResponse.json({ ok: false, error: "plan-required", feature: "aiGeneration" }, { status: 402 });
+  }
+  // BRD §5 — per-user AI throttle (30/min by default).
+  const rl = await rateLimit(`ai:${u.id}:${ipFromRequest(req)}`, RATE_LIMITS.AI_PER_USER.limit, RATE_LIMITS.AI_PER_USER.windowSec);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "rate-limited", limit: rl.limit, retryAfterMs: rl.resetAt - Date.now() },
+      { status: 429, headers: { "retry-after": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+    );
   }
   const body = await req.json().catch(() => ({}));
   const topic = String(body?.topic ?? "").trim();

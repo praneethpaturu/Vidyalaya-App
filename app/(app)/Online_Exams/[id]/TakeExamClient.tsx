@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { shuffleExam, deriveSeed } from "@/lib/exam-shuffle";
+import { MathText } from "@/components/MathText";
 
 type Q = {
   id: string;
@@ -13,6 +14,7 @@ type Q = {
   sectionId?: string | null;
   sectionName?: string | null;
   timeLimitSec?: number | null;
+  imageUrl?: string | null;
 };
 
 type Props = {
@@ -536,7 +538,12 @@ export default function TakeExamClient(props: Props) {
             <span>{cur.marks} mark{cur.marks !== 1 ? "s" : ""}</span>
           </div>
         </div>
-        <div className="font-medium mb-3">{cur.text}</div>
+        <div className="font-medium mb-3 leading-relaxed"><MathText text={cur.text} /></div>
+        {cur.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cur.imageUrl} alt="Question diagram"
+               className="my-3 max-h-72 rounded-lg border border-slate-200 mx-auto" />
+        )}
 
         {(cur.type === "MCQ" || cur.type === "TRUE_FALSE") && (
           <ul className="space-y-2">
@@ -547,7 +554,7 @@ export default function TakeExamClient(props: Props) {
                   <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer ${checked ? "bg-brand-50 border-brand-300" : "bg-white hover:bg-slate-50 border-slate-200"}`}>
                     <input type="radio" name={cur.id} checked={checked} onChange={() => setAns(cur.id, j)} />
                     <span className="font-mono text-xs text-slate-500 w-4">{LETTERS[j]}</span>
-                    <span>{o}</span>
+                    <span><MathText text={o} /></span>
                   </label>
                 </li>
               );
@@ -568,7 +575,7 @@ export default function TakeExamClient(props: Props) {
                       setAns(cur.id, next);
                     }} />
                     <span className="font-mono text-xs text-slate-500 w-4">{LETTERS[j]}</span>
-                    <span>{o}</span>
+                    <span><MathText text={o} /></span>
                   </label>
                 </li>
               );
@@ -588,14 +595,24 @@ export default function TakeExamClient(props: Props) {
           />
         )}
 
-        {(cur.type === "FILL" || cur.type === "DESCRIPTIVE") && (
+        {cur.type === "FILL" && (
           <textarea
-            value={responses[cur.id] ?? ""}
+            value={typeof responses[cur.id] === "string" ? responses[cur.id] : ""}
             onChange={(e) => setAns(cur.id, e.target.value)}
-            rows={cur.type === "DESCRIPTIVE" ? 6 : 2}
+            rows={2}
             className="input"
-            placeholder={cur.type === "FILL" ? "Your answer" : "Type your answer here"}
+            placeholder="Your answer"
             style={{ userSelect: "text" }}
+          />
+        )}
+
+        {cur.type === "DESCRIPTIVE" && (
+          <DescriptiveAnswer
+            value={responses[cur.id]}
+            onChange={(v) => setAns(cur.id, v)}
+            attemptId={attemptId}
+            examId={examId}
+            questionId={cur.id}
           />
         )}
       </div>
@@ -715,6 +732,99 @@ function Watermark({ label }: { label: string }) {
           {label}
         </div>
       </div>
+    </div>
+  );
+}
+
+// DESCRIPTIVE answer — text + optional image attachments. Stored in
+// `responses[qid]` as either a plain string OR `{ text, attachments: [{url, mime}] }`.
+// Submit grading + AI rubric handle both shapes.
+function DescriptiveAnswer({
+  value, onChange, attemptId, examId, questionId,
+}: {
+  value: any;
+  onChange: (v: any) => void;
+  attemptId: string;
+  examId: string;
+  questionId: string;
+}) {
+  const initialText = typeof value === "string" ? value : (value?.text ?? "");
+  const initialAttachments: { url: string; mime: string; filename: string }[] =
+    typeof value === "object" && value && Array.isArray(value.attachments) ? value.attachments : [];
+  const [text, setText] = useState(initialText);
+  const [attachments, setAttachments] = useState(initialAttachments);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function commit(nextText: string, nextAttachments: typeof attachments) {
+    if (nextAttachments.length === 0) {
+      onChange(nextText);
+    } else {
+      onChange({ text: nextText, attachments: nextAttachments });
+    }
+  }
+
+  async function uploadFile(file: File) {
+    setBusy(true); setErr(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("attemptId", attemptId);
+      fd.append("questionId", questionId);
+      const r = await fetch(`/api/online-exams/${examId}/upload-answer`, { method: "POST", body: fd });
+      const data = await r.json();
+      if (!data?.ok) throw new Error(data?.error ?? "upload-failed");
+      const next = [...attachments, { url: data.file.url, mime: data.file.mime, filename: data.file.filename }];
+      setAttachments(next);
+      commit(text, next);
+    } catch (e: any) { setErr(e?.message ?? "Upload failed"); }
+    finally { setBusy(false); }
+  }
+
+  function removeAt(idx: number) {
+    const next = attachments.filter((_, i) => i !== idx);
+    setAttachments(next);
+    commit(text, next);
+  }
+
+  return (
+    <div className="space-y-2">
+      <textarea
+        value={text}
+        onChange={(e) => { setText(e.target.value); commit(e.target.value, attachments); }}
+        rows={6}
+        className="input"
+        placeholder="Type your answer here. You can attach a sketch / scan below."
+        style={{ userSelect: "text" }}
+      />
+      <div className="flex items-center gap-2 flex-wrap">
+        <label className="btn-outline text-xs cursor-pointer">
+          📎 Attach image / PDF
+          <input type="file" accept="image/*,application/pdf" className="hidden"
+            disabled={busy}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.currentTarget.value = ""; }}
+          />
+        </label>
+        {busy && <span className="text-xs text-slate-500">Uploading…</span>}
+        {err && <span className="text-xs text-rose-700">{err}</span>}
+      </div>
+      {attachments.length > 0 && (
+        <ul className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {attachments.map((a, i) => (
+            <li key={i} className="relative border border-slate-200 rounded-lg p-1 bg-slate-50">
+              {a.mime?.startsWith("image/") ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={a.url} alt={a.filename} className="w-full h-24 object-cover rounded" />
+              ) : (
+                <div className="h-24 grid place-items-center text-xs text-slate-600 font-mono">📄 {a.filename}</div>
+              )}
+              <div className="text-[10px] text-slate-500 truncate mt-1">{a.filename}</div>
+              <button type="button" onClick={() => removeAt(i)}
+                className="absolute top-1 right-1 bg-rose-600 text-white rounded-full w-5 h-5 text-xs leading-none">×</button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

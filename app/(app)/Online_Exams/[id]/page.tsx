@@ -306,6 +306,7 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
           sectionId: q.sectionId,
           sectionName: exam.sections.find((s) => s.id === q.sectionId)?.name ?? null,
           timeLimitSec: q.timeLimitSec,
+          imageUrl: q.imageUrl,
         }))}
         existingResponses={(() => { try { return JSON.parse(attempt.responses || "{}"); } catch { return {}; } })()}
         webcam={exam.webcam}
