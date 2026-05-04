@@ -114,6 +114,7 @@ export type Form24QRow = {
   totalTds: number;
   totalEpf: number;
   totalEsi: number;
+  totalPt: number;
 };
 
 export type Form24QSummary = {
@@ -150,6 +151,7 @@ export async function form24QFor(schoolId: string, fyStart: number, quarter: 1 |
         totalTds: 0,
         totalEpf: 0,
         totalEsi: 0,
+        totalPt: 0,
       });
     }
     const row = byStaff.get(k)!;
@@ -158,6 +160,7 @@ export async function form24QFor(schoolId: string, fyStart: number, quarter: 1 |
     row.totalTds += s.tds;
     row.totalEpf += s.pf;
     row.totalEsi += s.esi;
+    row.totalPt += s.pt;
   }
   const rows = Array.from(byStaff.values()).sort((a, b) => a.employeeId.localeCompare(b.employeeId));
   return {
@@ -282,15 +285,17 @@ export async function epfEcrText(schoolId: string, month: number, year: number):
   const lines = slips.map((s) => {
     const memberId = s.staff.employeeId;
     const name = s.staff.user.name.replace(/\|/g, " ");
-    // EPF wages capped at ₹15,000 per EPFO rules
-    const cappedBasic = Math.min(s.basic, 15_000_00);
-    const epfWages = Math.round(cappedBasic / 100);
-    const epfContrib = Math.round(s.pf / 100);
+    // EPF wages = (basic + DA) capped at ₹15,000/month per EPFO rules.
+    // Employer's 12% splits into EPS @ 8.33% (capped at ₹15k wages) and the
+    // EPF balance. Employee's full 12% goes into EPF (no EPS component).
+    const epfWages = Math.round(Math.min(s.basic + s.da, 15_000_00) / 100);
+    const epfContribEmployee = Math.round(s.pf / 100);
+    // Employer EPS = 8.33% of EPF wages, EPF balance = 3.67% of EPF wages.
     const epsWages = epfWages;
-    const epsContrib = Math.round(epfWages * 0.0833);
+    const epsContrib = Math.round(epfWages * 8.33 / 100);
+    const epfEpsDiff = Math.max(0, Math.round(epfWages * 3.67 / 100));
     const edliWages = epfWages;
-    const epfEpsDiff = Math.max(0, epfContrib - epsContrib);
-    return [memberId, name, epfWages, epsWages, edliWages, epfContrib, epsContrib, epfEpsDiff, 0, 0].join("#~#");
+    return [memberId, name, epfWages, epsWages, edliWages, epfContribEmployee, epsContrib, epfEpsDiff, 0, 0].join("#~#");
   });
   return lines.join("\n");
 }

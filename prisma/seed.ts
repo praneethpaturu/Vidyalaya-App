@@ -563,21 +563,30 @@ async function main() {
     });
     for (let m = 0; m < 3; m++) {
       const d = new Date(); d.setMonth(d.getMonth() - m);
+      const month = d.getMonth() + 1;
+      const year = d.getFullYear();
       const gross = basic + hra + da + special + transport;
-      const pf = Math.round(basic * 0.12);
-      const esi = gross < 2500000 ? Math.round(gross * 0.0075) : 0;
       const tds = isLeader ? Math.round(gross * 0.1) : isTeacher ? Math.round(gross * 0.05) : 0;
-      const totalDeductions = pf + esi + tds;
-      const net = gross - totalDeductions;
+      const { computePayslip, daysInMonth } = await import("../lib/payroll-calc");
+      const out = computePayslip({
+        basic, hra, da, special, transport,
+        daysInMonth: daysInMonth(year, month),
+        lopDays: 0,
+        state: school.state,
+        tdsMonthly: tds,
+      });
       await db.payslip.create({
         data: {
-          schoolId: sId, staffId: st.id,
-          month: d.getMonth() + 1, year: d.getFullYear(),
-          workedDays: 30, lopDays: 0,
-          basic, hra, da, special, transport, gross,
-          pf, esi, tds, totalDeductions, net,
+          schoolId: sId, staffId: st.id, month, year,
+          workedDays: out.workedDays, lopDays: out.lopDays,
+          basic: out.basic, hra: out.hra, da: out.da, special: out.special, transport: out.transport,
+          gross: out.gross,
+          pf: out.pf, esi: out.esi, pt: out.pt, tds: out.tds,
+          otherDeductions: out.otherDeductions,
+          totalDeductions: out.totalDeductions,
+          net: out.net,
           status: m === 0 ? "FINALISED" : "PAID",
-          paidAt: m === 0 ? null : new Date(d.getFullYear(), d.getMonth(), 28),
+          paidAt: m === 0 ? null : new Date(year, month - 1, 28),
         },
       });
     }

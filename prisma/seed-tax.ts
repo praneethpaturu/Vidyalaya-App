@@ -166,23 +166,33 @@ async function main() {
     // Synthesize a few payslips for prev FY so Form 16 has data
     const struct = await db.salaryStructure.findFirst({ where: { staffId: st.id }, orderBy: { effectiveFrom: "desc" } });
     if (!struct) continue;
+    const { computePayslip, daysInMonth } = await import("../lib/payroll-calc");
     for (let mIdx = 0; mIdx < 12; mIdx++) {
       const d = new Date(prevFy, 3 + mIdx, 1);
       const month = d.getMonth() + 1;
       const year = d.getFullYear();
-      const gross = struct.basic + struct.hra + struct.da + struct.special + struct.transport;
-      const pf = Math.round(struct.basic * 0.12);
-      const esi = gross < 25_000_00 ? Math.round(gross * 0.0075) : 0;
-      const tds = struct.tdsMonthly || Math.round(gross * 0.08);
-      const totalDed = pf + esi + tds;
+      const tdsBase = struct.tdsMonthly || Math.round((struct.basic + struct.hra + struct.da + struct.special + struct.transport) * 0.08);
+      const out = computePayslip({
+        basic: struct.basic, hra: struct.hra, da: struct.da,
+        special: struct.special, transport: struct.transport,
+        pfPct: struct.pfPct, esiPct: struct.esiPct,
+        daysInMonth: daysInMonth(year, month),
+        lopDays: 0,
+        state: school.state,
+        tdsMonthly: tdsBase,
+      });
       await db.payslip.upsert({
         where: { staffId_month_year: { staffId: st.id, month, year } },
         update: {},
         create: {
           schoolId: school.id, staffId: st.id, month, year,
-          workedDays: 30, lopDays: 0,
-          basic: struct.basic, hra: struct.hra, da: struct.da, special: struct.special, transport: struct.transport,
-          gross, pf, esi, tds, totalDeductions: totalDed, net: gross - totalDed,
+          workedDays: out.workedDays, lopDays: out.lopDays,
+          basic: out.basic, hra: out.hra, da: out.da, special: out.special, transport: out.transport,
+          gross: out.gross,
+          pf: out.pf, esi: out.esi, pt: out.pt, tds: out.tds,
+          otherDeductions: out.otherDeductions,
+          totalDeductions: out.totalDeductions,
+          net: out.net,
           status: "PAID",
           paidAt: new Date(year, month - 1, 28),
         },

@@ -1,28 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { computePayslip, daysInMonth, lopFromAttendance } from "@/lib/payroll-calc";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Bulk-generate payslips for the given month. For each staff with an active
-// SalaryStructure that doesn't already have a Payslip for (month, year), build
-// one and persist. Computation:
-//   gross = basic + hra + da + special + transport
-//   pf = pfPct% of basic
-//   esi = esiPct% of (gross) — capped at gross threshold by config (we just
-//         apply the rate for now; users can override per-row later)
-//   tds = tdsMonthly (manually configured per staff)
-//   totalDeductions = pf + esi + tds + other
-//   net = gross - totalDeductions
+// Bulk-generate payslips for the given month. Computation is delegated to
+// lib/payroll-calc.computePayslip — the shared helper that pro-rates by
+// attendance, caps EPF wages at ₹15,000, applies the ESI eligibility
+// threshold (gross ≤ ₹21k) and the state's Professional-Tax slab.
 //
-// LOP days reduce gross proportionally on a 30-day base. Worked days defaults
-// to 30 - lop.
-
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate();
-}
-
+// Existing payslips for (month, year) are skipped; re-run after delete to
+// regenerate.
 export async function POST(req: Request) {
   const u = await requireRole(["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"]);
   const body = await req.json().catch(() => ({}));
@@ -32,12 +22,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "bad-month" }, { status: 400 });
   }
 
+  const school = await prisma.school.findUnique({ where: { id: u.schoolId }, select: { state: true } });
   const staff = await prisma.staff.findMany({
     where: { schoolId: u.schoolId, deletedAt: null as any },
     include: { salaryStructures: { orderBy: { effectiveFrom: "desc" }, take: 1 } },
   });
 
-  // Pull staff attendance for the month to compute LOP days (ABSENT or LEAVE counted).
   const monthStart = new Date(year, month - 1, 1);
   const monthEnd = new Date(year, month, 0, 23, 59, 59);
   const attendance = await prisma.staffAttendance.findMany({
@@ -47,11 +37,8 @@ export async function POST(req: Request) {
     },
     select: { staffId: true, status: true },
   });
-  const lopByStaff: Record<string, number> = {};
-  for (const a of attendance) {
-    if (a.status === "ABSENT") lopByStaff[a.staffId] = (lopByStaff[a.staffId] ?? 0) + 1;
-    else if (a.status === "HALF_DAY") lopByStaff[a.staffId] = (lopByStaff[a.staffId] ?? 0) + 0.5;
-  }
+  const attByStaff: Record<string, { status: string }[]> = {};
+  for (const a of attendance) (attByStaff[a.staffId] ??= []).push(a);
 
   let count = 0;
   const errors: string[] = [];
@@ -63,31 +50,26 @@ export async function POST(req: Request) {
     const exists = await prisma.payslip.findFirst({ where: { staffId: s.id, year, month } });
     if (exists) continue;
 
-    const lopDays = Math.min(dim, lopByStaff[s.id] ?? 0);
-    const workedDays = Math.max(0, dim - lopDays);
-    const factor = workedDays / dim;
-
-    const basic     = Math.round(ss.basic * factor);
-    const hra       = Math.round(ss.hra * factor);
-    const da        = Math.round(ss.da * factor);
-    const special   = Math.round(ss.special * factor);
-    const transport = Math.round(ss.transport * factor);
-    const gross     = basic + hra + da + special + transport;
-
-    const pf  = Math.round(basic * (ss.pfPct ?? 12) / 100);
-    const esi = Math.round(gross * (ss.esiPct ?? 0.75) / 100);
-    const tds = ss.tdsMonthly ?? 0;
-    const totalDeductions = pf + esi + tds;
-    const net = gross - totalDeductions;
+    const lopDays = lopFromAttendance(attByStaff[s.id] ?? []);
+    const out = computePayslip({
+      basic: ss.basic, hra: ss.hra, da: ss.da, special: ss.special, transport: ss.transport,
+      pfPct: ss.pfPct, esiPct: ss.esiPct,
+      daysInMonth: dim, lopDays,
+      state: school?.state,
+      tdsMonthly: ss.tdsMonthly ?? 0,
+    });
 
     try {
       await prisma.payslip.create({
         data: {
           schoolId: u.schoolId, staffId: s.id, month, year,
-          workedDays, lopDays,
-          basic, hra, da, special, transport, gross,
-          pf, esi, tds, otherDeductions: 0, totalDeductions,
-          net,
+          workedDays: Math.round(out.workedDays), lopDays: Math.round(out.lopDays),
+          basic: out.basic, hra: out.hra, da: out.da, special: out.special, transport: out.transport,
+          gross: out.gross,
+          pf: out.pf, esi: out.esi, pt: out.pt, tds: out.tds,
+          otherDeductions: out.otherDeductions,
+          totalDeductions: out.totalDeductions,
+          net: out.net,
           status: "FINALISED",
         },
       });

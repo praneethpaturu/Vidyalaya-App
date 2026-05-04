@@ -616,6 +616,7 @@ model Payslip {
   pf              Int
   esi             Int
   tds             Int
+  pt              Int     @default(0)
   otherDeductions Int     @default(0)
   totalDeductions Int
 

@@ -908,6 +908,7 @@ const PAYSLIPS: EntityDef = {
     { key: "transport", label: "Transport (₹)", required: false, example: "1600", hints: [/transport/i] },
     { key: "pf", label: "PF (₹)", required: false, example: "3600", hints: [/^pf/i] },
     { key: "esi", label: "ESI (₹)", required: false, example: "0", hints: [/esi/i] },
+    { key: "pt", label: "PT (₹)", required: false, example: "200", hints: [/^pt|profess/i] },
     { key: "tds", label: "TDS (₹)", required: false, example: "0", hints: [/tds/i] },
     { key: "other", label: "Other deductions", required: false, example: "0", hints: [/other|misc/i] },
     { key: "paidAt", label: "Paid on", required: false, example: "2024-04-30", hints: [/paid|date/i] },
@@ -928,9 +929,10 @@ const PAYSLIPS: EntityDef = {
         const basic = parsePaise(r.basic), hra = parsePaise(r.hra), da = parsePaise(r.da);
         const special = parsePaise(r.special), transport = parsePaise(r.transport);
         const pf = parsePaise(r.pf), esi = parsePaise(r.esi), tds = parsePaise(r.tds);
+        const pt = parsePaise(r.pt);
         const other = parsePaise(r.other);
         const gross = basic + hra + da + special + transport;
-        const totalDeductions = pf + esi + tds + other;
+        const totalDeductions = pf + esi + pt + tds + other;
         const net = gross - totalDeductions;
         await prisma.payslip.create({
           data: {
@@ -938,7 +940,7 @@ const PAYSLIPS: EntityDef = {
             workedDays: parseInt0(r.workedDays) || 30,
             lopDays: parseInt0(r.lopDays),
             basic, hra, da, special, transport, gross,
-            pf, esi, tds, otherDeductions: other, totalDeductions,
+            pf, esi, pt, tds, otherDeductions: other, totalDeductions,
             net, status: "PAID",
             paidAt: parseDate(r.paidAt) ?? null,
           },

@@ -98,12 +98,17 @@ function applySlabs(taxable: number, slabs: typeof NEW_SLABS_FY2526) {
 }
 
 function surchargeFor(income: number, regime: Regime, baseTax: number) {
+  // Surcharge slabs (taxable income, ₹):
+  //   ≤ 50L          → 0
+  //   50L  - 1Cr     → 10%
+  //   1Cr  - 2Cr     → 15%
+  //   2Cr  - 5Cr     → 25%
+  //   > 5Cr (OLD)    → 37%   (NEW regime caps at 25%)
   if (income <= 5_000_000_00) return 0;
   let pct = 10;
-  if (income > 20_000_000_00) pct = regime === "NEW" ? 25 : 37;
-  else if (income > 10_000_000_00) pct = 15;
+  if (income > 50_000_000_00) pct = regime === "NEW" ? 25 : 37;
   else if (income > 20_000_000_00) pct = 25;
-  // New regime caps surcharge at 25%
+  else if (income > 10_000_000_00) pct = 15;
   if (regime === "NEW" && pct > 25) pct = 25;
   return Math.round(baseTax * pct / 100);
 }

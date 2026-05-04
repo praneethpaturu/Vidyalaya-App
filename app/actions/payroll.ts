@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { calculateTax, type Regime } from "@/lib/tax";
 import { audit } from "@/lib/audit";
+import { computePayslip, daysInMonth, lopFromAttendance, professionalTaxFor } from "@/lib/payroll-calc";
 
 // Recompute monthly TDS for a staff using the proper tax engine, then update
 // their current-month payslip.
@@ -52,7 +53,7 @@ export async function recomputeTaxFor(staffId: string) {
   const now = new Date();
   const slip = await prisma.payslip.findUnique({ where: { staffId_month_year: { staffId, month: now.getMonth() + 1, year: now.getFullYear() } } });
   if (slip) {
-    const newTotalDed = slip.pf + slip.esi + result.monthlyTDS + slip.otherDeductions;
+    const newTotalDed = slip.pf + slip.esi + slip.pt + result.monthlyTDS + slip.otherDeductions;
     await prisma.payslip.update({
       where: { id: slip.id },
       data: { tds: result.monthlyTDS, totalDeductions: newTotalDed, net: slip.gross - newTotalDed },
@@ -90,10 +91,15 @@ export async function updateTaxDeclaration(staffId: string, formData: FormData) 
   await recomputeTaxFor(staffId);
 }
 
-// Run payroll for all staff for current month — recomputes TDS via engine
+// Run payroll for all staff for the current month. Pro-rates by attendance,
+// caps EPF wages at the ₹15,000 statutory ceiling, applies the ESI eligibility
+// threshold (gross ≤ ₹21k), and deducts state-slab Professional Tax — all
+// via lib/payroll-calc.computePayslip so this stays in lockstep with the
+// /api/payroll/generate flow.
 export async function runMonthlyPayroll() {
   const session = await auth();
   const u = session!.user as any;
+  const school = await prisma.school.findUnique({ where: { id: u.schoolId }, select: { state: true } });
   const staffList = await prisma.staff.findMany({
     where: { schoolId: u.schoolId },
     include: { salaryStructures: { take: 1, orderBy: { effectiveFrom: "desc" } } },
@@ -102,6 +108,20 @@ export async function runMonthlyPayroll() {
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
   const fy = currentFY();
+  const dim = daysInMonth(year, month);
+
+  // Pull this month's attendance once and bucket by staff for LOP derivation.
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd = new Date(year, month, 0, 23, 59, 59);
+  const attendance = await prisma.staffAttendance.findMany({
+    where: {
+      staffId: { in: staffList.map((s) => s.id) },
+      date: { gte: monthStart, lte: monthEnd },
+    },
+    select: { staffId: true, status: true },
+  });
+  const attByStaff: Record<string, { status: string }[]> = {};
+  for (const a of attendance) (attByStaff[a.staffId] ??= []).push(a);
 
   let count = 0;
   for (const st of staffList) {
@@ -125,23 +145,32 @@ export async function runMonthlyPayroll() {
       homeLoanInterest: decl?.homeLoanInterest ?? 0,
     });
 
-    const gross = struct.basic + struct.hra + struct.da + struct.special + struct.transport;
-    const pf = Math.round(struct.basic * (struct.pfPct / 100));
-    const esi = gross < 25_000_00 ? Math.round(gross * struct.esiPct / 100) : 0;
-    const tds = tax.monthlyTDS;
-    const totalDed = pf + esi + tds;
+    const lopDays = lopFromAttendance(attByStaff[st.id] ?? []);
+    const out = computePayslip({
+      basic: struct.basic, hra: struct.hra, da: struct.da,
+      special: struct.special, transport: struct.transport,
+      pfPct: struct.pfPct, esiPct: struct.esiPct,
+      daysInMonth: dim, lopDays,
+      state: school?.state,
+      tdsMonthly: tax.monthlyTDS,
+    });
 
     await prisma.payslip.upsert({
       where: { staffId_month_year: { staffId: st.id, month, year } },
       update: {
-        basic: struct.basic, hra: struct.hra, da: struct.da, special: struct.special, transport: struct.transport,
-        gross, pf, esi, tds, totalDeductions: totalDed, net: gross - totalDed, status: "FINALISED",
+        workedDays: Math.round(out.workedDays), lopDays: Math.round(out.lopDays),
+        basic: out.basic, hra: out.hra, da: out.da, special: out.special, transport: out.transport,
+        gross: out.gross,
+        pf: out.pf, esi: out.esi, pt: out.pt, tds: out.tds, otherDeductions: out.otherDeductions,
+        totalDeductions: out.totalDeductions, net: out.net, status: "FINALISED",
       },
       create: {
         schoolId: u.schoolId, staffId: st.id, month, year,
-        workedDays: 30, lopDays: 0,
-        basic: struct.basic, hra: struct.hra, da: struct.da, special: struct.special, transport: struct.transport,
-        gross, pf, esi, tds, totalDeductions: totalDed, net: gross - totalDed, status: "FINALISED",
+        workedDays: Math.round(out.workedDays), lopDays: Math.round(out.lopDays),
+        basic: out.basic, hra: out.hra, da: out.da, special: out.special, transport: out.transport,
+        gross: out.gross,
+        pf: out.pf, esi: out.esi, pt: out.pt, tds: out.tds, otherDeductions: out.otherDeductions,
+        totalDeductions: out.totalDeductions, net: out.net, status: "FINALISED",
       },
     });
     count++;
@@ -149,6 +178,19 @@ export async function runMonthlyPayroll() {
   await audit("RUN_PAYROLL", { entity: "Payslip", summary: `Ran payroll for ${count} staff (${month}/${year})` });
   revalidatePath("/payroll");
   return count;
+}
+
+// Recompute Professional Tax on a single payslip after a settings change.
+export async function recomputePtFor(payslipId: string) {
+  const slip = await prisma.payslip.findUnique({ where: { id: payslipId } });
+  if (!slip) return;
+  const school = await prisma.school.findUnique({ where: { id: slip.schoolId }, select: { state: true } });
+  const pt = professionalTaxFor(slip.gross, school?.state);
+  const totalDed = slip.pf + slip.esi + pt + slip.tds + slip.otherDeductions;
+  await prisma.payslip.update({
+    where: { id: slip.id },
+    data: { pt, totalDeductions: totalDed, net: slip.gross - totalDed },
+  });
 }
 
 function rupeesToPaise(v: FormDataEntryValue | null): number {

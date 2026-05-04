@@ -133,59 +133,273 @@ function footer(doc: PDFKit.PDFDocument, text: string) {
 }
 
 // ============================================================
-// PAYSLIP
+// PAYSLIP — corporate-grade layout
+//
+// Inspired by the cleanest payslips in the wild (Razorpay X, Stripe,
+// Zoho Payroll). Single-page A4, type hierarchy carried by weight not
+// colour, structured grid for earnings/deductions, separate
+// employer-contribution table, amount in words, and an explicit YTD
+// column when prior payslips exist for the same FY.
 // ============================================================
 export type PayslipPdfProps = {
-  school: { name: string; city: string; state: string };
-  staff: { name: string; employeeId: string; designation: string; pan?: string | null };
+  school: { name: string; city: string; state: string; line2?: string };
+  staff: {
+    name: string;
+    employeeId: string;
+    designation: string;
+    pan?: string | null;
+    doj?: Date | null;
+    department?: string | null;
+    pfUan?: string | null;
+    bankAccount?: string | null;
+    location?: string | null;
+  };
   payslip: {
     month: number; year: number; workedDays: number; lopDays: number;
     basic: number; hra: number; da: number; special: number; transport: number; gross: number;
-    pf: number; esi: number; tds: number; otherDeductions: number; totalDeductions: number;
+    pf: number; esi: number; tds: number; pt?: number; otherDeductions: number; totalDeductions: number;
     net: number; status: string; paidAt?: Date | null;
+    // Optional YTD totals (FY-to-date) — when present, rendered as a 3rd column
+    ytd?: {
+      basic: number; hra: number; da: number; special: number; transport: number; gross: number;
+      pf: number; esi: number; tds: number; pt: number; otherDeductions: number; totalDeductions: number; net: number;
+    } | null;
+    // Optional employer contributions for transparency (not deducted from salary)
+    employer?: {
+      pf?: number;     // 12% of EPF wages
+      eps?: number;    // 8.33% of EPF wages
+      edli?: number;   // 0.5% of EPF wages
+      esi?: number;    // 3.25% of gross
+    } | null;
   };
+  // Optional bank stub for direct-deposit confirmation
+  bank?: { accountLast4?: string; ifsc?: string; mode?: string; utr?: string } | null;
 };
+
 export async function buildPayslipPdf(p: PayslipPdfProps): Promise<Buffer> {
   const doc = newDoc();
-  brandBar(doc, "Payslip", `${MONTHS[p.payslip.month - 1]} ${p.payslip.year}`, "STATUS", p.payslip.status);
-  school(doc, p.school.name, `${p.school.city}, ${p.school.state}`);
-
-  const left = [p.staff.name, `${p.staff.designation} · ${p.staff.employeeId}`];
-  if (p.staff.pan) left.push(`PAN: ${p.staff.pan}`);
-  const right = [`Worked: ${p.payslip.workedDays} days · LOP: ${p.payslip.lopDays} days`];
-  if (p.payslip.paidAt) right.push(`Paid: ${new Date(p.payslip.paidAt).toLocaleDateString("en-IN")}`);
-  twoCol(doc, "Employee", left, "Pay period", right);
-
-  // Earnings + deductions panels
   const x = doc.page.margins.left;
-  const w = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const startY = doc.y;
-  const colW = (w - 16) / 2;
+  const W = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
-  panel(doc, "Earnings", x, startY, colW, 150, () => {
-    kv(doc, "Basic", inr(p.payslip.basic), { width: colW - 24 });
-    kv(doc, "HRA", inr(p.payslip.hra), { width: colW - 24 });
-    kv(doc, "DA", inr(p.payslip.da), { width: colW - 24 });
-    kv(doc, "Special", inr(p.payslip.special), { width: colW - 24 });
-    kv(doc, "Transport", inr(p.payslip.transport), { width: colW - 24 });
-    doc.moveTo(doc.x, doc.y + 2).lineTo(doc.x + colW - 24, doc.y + 2).strokeColor(C.line).stroke();
-    doc.moveDown(0.5);
-    kv(doc, "Gross", inr(p.payslip.gross), { bold: true, width: colW - 24 });
-  });
-  panel(doc, "Deductions", x + colW + 16, startY, colW, 150, () => {
-    kv(doc, "EPF (12%)", inr(p.payslip.pf), { red: true, width: colW - 24 });
-    kv(doc, "ESI", inr(p.payslip.esi), { red: true, width: colW - 24 });
-    kv(doc, "TDS", inr(p.payslip.tds), { red: true, width: colW - 24 });
-    kv(doc, "Other", inr(p.payslip.otherDeductions), { red: true, width: colW - 24 });
-    doc.moveTo(doc.x, doc.y + 2).lineTo(doc.x + colW - 24, doc.y + 2).strokeColor(C.line).stroke();
-    doc.moveDown(0.5);
-    kv(doc, "Total deductions", inr(p.payslip.totalDeductions), { bold: true, red: true, width: colW - 24 });
-  });
-  doc.y = startY + 160;
+  // -- Hero header ---------------------------------------------------------
+  const headerH = 78;
+  const headerY = doc.y;
+  doc.save();
+  doc.roundedRect(x, headerY, W, headerH, 8).fill(C.brand);
+  // Accent vertical bar
+  doc.rect(x, headerY, 4, headerH).fill("#0f3a8a");
+  doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(20).text(p.school.name, x + 18, headerY + 12, { width: W - 36 });
+  const subline = [p.school.line2 ?? null, [p.school.city, p.school.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ");
+  doc.font("Helvetica").fontSize(9).fillColor("#ffffff").opacity(0.9).text(subline, x + 18, headerY + 38, { width: W - 220 });
+  doc.opacity(1);
+  doc.font("Helvetica").fontSize(8.5).fillColor("#ffffff").text("PAYSLIP FOR", x, headerY + 14, { width: W - 18, align: "right" });
+  doc.font("Helvetica-Bold").fontSize(15).fillColor("#ffffff").text(`${MONTHS[p.payslip.month - 1]} ${p.payslip.year}`, x, headerY + 28, { width: W - 18, align: "right" });
+  // Status pill
+  const pill = (p.payslip.status || "FINALISED").toUpperCase();
+  const pillW = doc.widthOfString(pill, { font: "Helvetica-Bold", size: 8 } as any) + 18;
+  const pillX = x + W - pillW - 14;
+  doc.roundedRect(pillX, headerY + 50, pillW, 16, 8).fillOpacity(0.18).fill("#ffffff").fillOpacity(1);
+  doc.font("Helvetica-Bold").fontSize(8).fillColor("#ffffff").text(pill, pillX, headerY + 54, { width: pillW, align: "center", characterSpacing: 0.6 });
+  doc.restore();
+  doc.fillColor(C.ink);
+  doc.y = headerY + headerH + 14;
 
-  netBox(doc, "NET PAY", inr(p.payslip.net));
-  footer(doc, "Computer-generated payslip · This document is valid without a signature");
+  // -- Employee details grid (4-column meta block) -------------------------
+  const metaY = doc.y;
+  const metaH = 76;
+  doc.save().roundedRect(x, metaY, W, metaH, 6).strokeColor(C.line).stroke().restore();
+
+  type Cell = { label: string; value: string };
+  const fyLabel = fyLabelFor(p.payslip.year, p.payslip.month);
+  const cells: Cell[] = [
+    { label: "Employee name", value: p.staff.name },
+    { label: "Employee ID", value: p.staff.employeeId },
+    { label: "Designation", value: p.staff.designation },
+    { label: "Department", value: p.staff.department ?? "—" },
+    { label: "Date of joining", value: p.staff.doj ? new Date(p.staff.doj).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—" },
+    { label: "PAN", value: p.staff.pan ?? "—" },
+    { label: "PF / UAN", value: p.staff.pfUan ?? "—" },
+    { label: "Bank a/c", value: p.staff.bankAccount ?? p.bank?.accountLast4 ? `••••${p.staff.bankAccount ?? p.bank?.accountLast4}` : "—" },
+    { label: "Location", value: p.staff.location ?? `${p.school.city}` },
+    { label: "Pay period", value: `${MONTHS[p.payslip.month - 1]} ${p.payslip.year}` },
+    { label: "Financial year", value: fyLabel },
+    { label: "Days paid", value: `${p.payslip.workedDays} of ${p.payslip.workedDays + p.payslip.lopDays} (LOP ${p.payslip.lopDays})` },
+  ];
+  const cols = 4;
+  const rows = Math.ceil(cells.length / cols);
+  const cellW = (W - 24) / cols;
+  const cellH = (metaH - 16) / rows;
+  cells.forEach((c, i) => {
+    const r = Math.floor(i / cols);
+    const cIdx = i % cols;
+    const cx = x + 12 + cIdx * cellW;
+    const cy = metaY + 8 + r * cellH;
+    doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text(c.label.toUpperCase(), cx, cy, { width: cellW - 8, characterSpacing: 0.4 });
+    doc.font("Helvetica-Bold").fontSize(9.5).fillColor(C.ink).text(c.value, cx, cy + 11, { width: cellW - 8, ellipsis: true });
+  });
+  doc.y = metaY + metaH + 14;
+
+  // -- Hero NET PAY band ---------------------------------------------------
+  const netY = doc.y;
+  const netH = 64;
+  doc.save().roundedRect(x, netY, W, netH, 8).fill(C.greenBg).restore();
+  doc.font("Helvetica").fontSize(8).fillColor(C.green).text("NET PAY FOR THIS MONTH", x + 18, netY + 14, { characterSpacing: 0.6 });
+  doc.font("Helvetica-Bold").fontSize(28).fillColor(C.green).text(inr(p.payslip.net), x + 18, netY + 26, { width: W * 0.6 });
+  doc.font("Helvetica").fontSize(8).fillColor(C.muted).text("PAID DAYS / LOP", x + W - 220, netY + 14, { width: 200, align: "right", characterSpacing: 0.6 });
+  doc.font("Helvetica-Bold").fontSize(13).fillColor(C.ink).text(`${p.payslip.workedDays} / ${p.payslip.lopDays}`, x + W - 220, netY + 26, { width: 200, align: "right" });
+  doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text(p.payslip.paidAt ? `Credited ${new Date(p.payslip.paidAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}` : "Pending payout", x + W - 220, netY + 46, { width: 200, align: "right" });
+  doc.y = netY + netH + 14;
+
+  // -- Earnings + Deductions table (paired columns, optional YTD) ---------
+  const hasYtd = !!p.payslip.ytd;
+  const tableY = doc.y;
+
+  // We render two stacked tables side-by-side, each occupying half the page.
+  // Each row has: label, current month, [YTD] amount.
+  const halfW = (W - 16) / 2;
+  drawAmountTable(doc, "EARNINGS", x, tableY, halfW, [
+    ["Basic", p.payslip.basic, p.payslip.ytd?.basic],
+    ["House Rent Allowance", p.payslip.hra, p.payslip.ytd?.hra],
+    ["Dearness Allowance", p.payslip.da, p.payslip.ytd?.da],
+    ["Special Allowance", p.payslip.special, p.payslip.ytd?.special],
+    ["Transport Allowance", p.payslip.transport, p.payslip.ytd?.transport],
+  ], { gross: p.payslip.gross, ytdGross: p.payslip.ytd?.gross, hasYtd, totalLabel: "Gross earnings", accent: C.brand });
+
+  drawAmountTable(doc, "DEDUCTIONS", x + halfW + 16, tableY, halfW, [
+    ["Provident Fund (EPF)", p.payslip.pf, p.payslip.ytd?.pf],
+    ["Employee State Insurance", p.payslip.esi, p.payslip.ytd?.esi],
+    ["Professional Tax", p.payslip.pt ?? 0, p.payslip.ytd?.pt],
+    ["Income Tax (TDS)", p.payslip.tds, p.payslip.ytd?.tds],
+    ["Other deductions", p.payslip.otherDeductions, p.payslip.ytd?.otherDeductions],
+  ], { gross: p.payslip.totalDeductions, ytdGross: p.payslip.ytd?.totalDeductions, hasYtd, totalLabel: "Total deductions", accent: C.red });
+
+  // Tables drew in two columns; advance to whichever ended lower.
+  doc.y = tableY + 188;
+
+  // -- Employer contributions (informational, not deducted) ---------------
+  if (p.payslip.employer) {
+    const e = p.payslip.employer;
+    const eY = doc.y;
+    const eH = 60;
+    doc.save().roundedRect(x, eY, W, eH, 6).strokeColor(C.line).dash(2, { space: 2 }).stroke().restore();
+    doc.undash();
+    doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text("EMPLOYER CONTRIBUTIONS  ·  not deducted from your salary", x + 14, eY + 8, { characterSpacing: 0.5 });
+    const items = [
+      ["EPF (3.67%)", e.pf ?? 0],
+      ["EPS (8.33%)", e.eps ?? 0],
+      ["EDLI (0.5%)", e.edli ?? 0],
+      ["ESI (3.25%)", e.esi ?? 0],
+    ];
+    const cw = (W - 28) / items.length;
+    items.forEach(([k, v], i) => {
+      const cx = x + 14 + i * cw;
+      doc.font("Helvetica").fontSize(8).fillColor(C.muted).text(k as string, cx, eY + 24);
+      doc.font("Helvetica-Bold").fontSize(11).fillColor(C.ink).text(inr(v as number), cx, eY + 36, { width: cw - 4 });
+    });
+    doc.y = eY + eH + 14;
+  }
+
+  // -- Amount in words + payout details -----------------------------------
+  const wordsY = doc.y;
+  const wordsH = 44;
+  doc.save().roundedRect(x, wordsY, W, wordsH, 6).fill("#f8f9fa").restore();
+  doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text("AMOUNT IN WORDS", x + 14, wordsY + 8, { characterSpacing: 0.5 });
+  doc.font("Helvetica-Bold").fontSize(10.5).fillColor(C.ink).text(inrInWords(p.payslip.net) + " only", x + 14, wordsY + 22, { width: W - 28 });
+  doc.y = wordsY + wordsH + 18;
+
+  // -- Footer — signature block + disclaimer ------------------------------
+  const fY = doc.y;
+  doc.save().moveTo(x, fY).lineTo(x + W, fY).strokeColor(C.line).stroke().restore();
+  doc.font("Helvetica").fontSize(8).fillColor(C.muted).text(
+    "This is a system-generated payslip and does not require a signature. " +
+    "Computed in accordance with the Income-tax Act 1961, EPF & MP Act 1952, ESI Act 1948, and applicable State Professional Tax Act.",
+    x, fY + 8, { width: W, align: "left" },
+  );
+  doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text(`Generated on ${new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })} · Vidyalaya Payroll`, x, fY + 36, { width: W, align: "left" });
+
   return streamToBuffer(doc);
+}
+
+// Stacked amount table used for both earnings and deductions. Renders
+// title strip → 5 rows → divider → bold total row, with optional YTD column.
+function drawAmountTable(
+  doc: PDFKit.PDFDocument,
+  title: string,
+  x: number,
+  y: number,
+  w: number,
+  rows: Array<[string, number, number | undefined]>,
+  opt: { gross: number; ytdGross?: number; hasYtd: boolean; totalLabel: string; accent: string },
+) {
+  const h = 188;
+  doc.save().roundedRect(x, y, w, h, 6).strokeColor(C.line).stroke().restore();
+  // Title strip
+  doc.save().roundedRect(x, y, w, 22, 6).fill("#f8f9fa").restore();
+  doc.rect(x, y + 11, w, 11).fill("#f8f9fa");
+  // accent dot
+  doc.save().circle(x + 12, y + 11, 3).fill(opt.accent).restore();
+  doc.font("Helvetica-Bold").fontSize(8.5).fillColor(C.ink).text(title, x + 22, y + 6, { characterSpacing: 0.7 });
+  if (opt.hasYtd) {
+    doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text("CURRENT", x, y + 8, { width: w - (w * 0.22 + 14), align: "right", characterSpacing: 0.4 });
+    doc.text("YEAR-TO-DATE", x, y + 8, { width: w - 14, align: "right", characterSpacing: 0.4 });
+  }
+  // Rows
+  let ry = y + 30;
+  doc.font("Helvetica").fontSize(9.5).fillColor(C.ink);
+  for (const [label, cur, ytd] of rows) {
+    doc.font("Helvetica").fontSize(9.5).fillColor(C.ink).text(label, x + 14, ry, { width: w * 0.5 });
+    if (opt.hasYtd) {
+      const curW = w * 0.25;
+      doc.font("Helvetica").fontSize(9.5).fillColor(C.ink).text(inr(cur), x + 14 + w * 0.5, ry, { width: curW - 14, align: "right" });
+      doc.font("Helvetica").fontSize(9.5).fillColor(C.muted).text(inr(ytd ?? 0), x + 14 + w * 0.75, ry, { width: w * 0.25 - 14, align: "right" });
+    } else {
+      doc.font("Helvetica").fontSize(9.5).fillColor(C.ink).text(inr(cur), x + 14 + w * 0.5, ry, { width: w * 0.5 - 28, align: "right" });
+    }
+    ry += 18;
+  }
+  // Total row
+  doc.save().moveTo(x + 14, ry + 2).lineTo(x + w - 14, ry + 2).strokeColor(C.line).stroke().restore();
+  ry += 8;
+  doc.font("Helvetica-Bold").fontSize(10).fillColor(C.ink).text(opt.totalLabel, x + 14, ry, { width: w * 0.5 });
+  if (opt.hasYtd) {
+    doc.font("Helvetica-Bold").fontSize(10).fillColor(C.ink).text(inr(opt.gross), x + 14 + w * 0.5, ry, { width: w * 0.25 - 14, align: "right" });
+    doc.font("Helvetica-Bold").fontSize(10).fillColor(C.muted).text(inr(opt.ytdGross ?? 0), x + 14 + w * 0.75, ry, { width: w * 0.25 - 14, align: "right" });
+  } else {
+    doc.font("Helvetica-Bold").fontSize(10).fillColor(C.ink).text(inr(opt.gross), x + 14 + w * 0.5, ry, { width: w * 0.5 - 28, align: "right" });
+  }
+}
+
+function fyLabelFor(year: number, month: number): string {
+  const fyStart = month >= 4 ? year : year - 1;
+  return `${fyStart}-${String((fyStart + 1) % 100).padStart(2, "0")}`;
+}
+
+// Indian English number-to-words (lakh / crore convention) for paise amounts.
+function inrInWords(paise: number): string {
+  const rupees = Math.floor(Math.abs(paise) / 100);
+  const paisePart = Math.round(Math.abs(paise) % 100);
+  const head = `INR ${numberToIndianWords(rupees)}`;
+  return paisePart > 0 ? `${head} and ${numberToIndianWords(paisePart)} Paise` : head;
+}
+function numberToIndianWords(n: number): string {
+  if (n === 0) return "Zero";
+  const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const inWords = (num: number): string => {
+    if (num < 20) return a[num];
+    if (num < 100) return b[Math.floor(num / 10)] + (num % 10 ? " " + a[num % 10] : "");
+    if (num < 1000) return a[Math.floor(num / 100)] + " Hundred" + (num % 100 ? " " + inWords(num % 100) : "");
+    return "";
+  };
+  let result = "";
+  const crore = Math.floor(n / 10000000);
+  if (crore) { result += inWords(crore) + " Crore "; n %= 10000000; }
+  const lakh = Math.floor(n / 100000);
+  if (lakh) { result += inWords(lakh) + " Lakh "; n %= 100000; }
+  const thousand = Math.floor(n / 1000);
+  if (thousand) { result += inWords(thousand) + " Thousand "; n %= 1000; }
+  if (n) result += inWords(n);
+  return result.trim();
 }
 
 // ============================================================
