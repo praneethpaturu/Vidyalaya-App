@@ -232,6 +232,87 @@ export async function recomputePtFor(payslipId: string) {
   });
 }
 
+// Rerun a single payslip through the full payroll engine. Used to fix old
+// rows generated before the EPF cap / ESI threshold / PT / cumulative-TDS
+// fixes landed. Pulls fresh attendance for LOP, applies the same calc that
+// /api/payroll/generate uses.
+export async function recomputePayslip(payslipId: string) {
+  const session = await auth();
+  const u = session!.user as any;
+  if (!["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"].includes(u.role)) return;
+
+  const slip = await prisma.payslip.findUnique({
+    where: { id: payslipId },
+    include: { staff: { include: { salaryStructures: { take: 1, orderBy: { effectiveFrom: "desc" } } } } },
+  });
+  if (!slip || slip.schoolId !== u.schoolId) return;
+  const struct = slip.staff.salaryStructures[0];
+  if (!struct) return;
+  const school = await prisma.school.findUnique({ where: { id: slip.schoolId }, select: { state: true } });
+
+  const dim = daysInMonth(slip.year, slip.month);
+  const monthStart = new Date(slip.year, slip.month - 1, 1);
+  const monthEnd = new Date(slip.year, slip.month, 0, 23, 59, 59);
+  const att = await prisma.staffAttendance.findMany({
+    where: { staffId: slip.staffId, date: { gte: monthStart, lte: monthEnd } },
+    select: { status: true },
+  });
+  const lopDays = lopFromAttendance(att);
+
+  const dryRun = computePayslip({
+    basic: struct.basic, hra: struct.hra, da: struct.da, special: struct.special, transport: struct.transport,
+    pfPct: struct.pfPct, esiPct: struct.esiPct,
+    daysInMonth: dim, lopDays, state: school?.state, tdsMonthly: 0,
+  });
+
+  const tdsResult = await computeMonthlyTds({
+    prisma,
+    schoolId: u.schoolId,
+    staffId: slip.staffId,
+    year: slip.year, month: slip.month,
+    structure: { basic: struct.basic, hra: struct.hra, da: struct.da, special: struct.special, transport: struct.transport },
+    currentMonthOverride: { basic: dryRun.basic, hra: dryRun.hra, da: dryRun.da, special: dryRun.special, transport: dryRun.transport },
+  });
+
+  const out = computePayslip({
+    basic: struct.basic, hra: struct.hra, da: struct.da, special: struct.special, transport: struct.transport,
+    pfPct: struct.pfPct, esiPct: struct.esiPct,
+    daysInMonth: dim, lopDays, state: school?.state, tdsMonthly: tdsResult.monthlyTds,
+  });
+
+  await prisma.payslip.update({
+    where: { id: slip.id },
+    data: {
+      workedDays: Math.round(out.workedDays), lopDays: Math.round(out.lopDays),
+      basic: out.basic, hra: out.hra, da: out.da, special: out.special, transport: out.transport,
+      gross: out.gross,
+      pf: out.pf, esi: out.esi, pt: out.pt, tds: out.tds,
+      otherDeductions: out.otherDeductions,
+      totalDeductions: out.totalDeductions,
+      net: out.net,
+    },
+  });
+  await audit("RECOMPUTE_PAYSLIP", { entity: "Payslip", entityId: slip.id, summary: `Recomputed ${slip.month}/${slip.year} — net ${inr(out.net)}` });
+  revalidatePath(`/payroll/${slip.id}`);
+  revalidatePath("/payroll");
+}
+
+// HR-wide recompute: rebuild every FINALISED payslip in a given (year, month)
+// through the engine. Useful one-shot after the calc fixes landed.
+export async function recomputeMonthPayslips(year: number, month: number) {
+  const session = await auth();
+  const u = session!.user as any;
+  if (!["ADMIN", "PRINCIPAL", "HR_MANAGER", "ACCOUNTANT"].includes(u.role)) return 0;
+  const slips = await prisma.payslip.findMany({
+    where: { schoolId: u.schoolId, year, month },
+    select: { id: true },
+  });
+  for (const s of slips) await recomputePayslip(s.id);
+  return slips.length;
+}
+
+function inr(paise: number) { return `₹${(paise / 100).toLocaleString("en-IN")}`; }
+
 function rupeesToPaise(v: FormDataEntryValue | null): number {
   if (!v) return 0;
   const n = Number(v);

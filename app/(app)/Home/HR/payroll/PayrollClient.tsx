@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { recomputeMonthPayslips } from "@/app/actions/payroll";
 
 export default function PayrollClient({
   year, month, months,
@@ -9,6 +10,7 @@ export default function PayrollClient({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState(false);
+  const [recomputing, setRecomputing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function setParam(k: string, v: string) {
@@ -38,6 +40,24 @@ export default function PayrollClient({
     });
   }
 
+  async function recomputeAll() {
+    if (!confirm(`Rebuild every payslip for ${months[month - 1]} ${year} through the engine? This will overwrite the EPF/ESI/TDS/PT amounts on existing rows using the current calculation rules.`)) return;
+    setRecomputing(true); setError(null);
+    try {
+      const count = await recomputeMonthPayslips(year, month);
+      start(() => {
+        const sp = new URLSearchParams(window.location.search);
+        sp.set("recomputed", String(count));
+        router.replace(`${window.location.pathname}?${sp.toString()}`);
+        router.refresh();
+      });
+    } catch (e: any) {
+      setError(e?.message ?? "Recompute failed.");
+    } finally {
+      setRecomputing(false);
+    }
+  }
+
   return (
     <div className="card card-pad mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
       <div>
@@ -51,8 +71,11 @@ export default function PayrollClient({
           {months.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
         </select>
       </div>
-      <div className="md:col-span-2 flex justify-end gap-2">
+      <div className="md:col-span-2 flex flex-wrap justify-end gap-2">
         {error && <div className="text-sm text-rose-700 self-center mr-auto">{error}</div>}
+        <button onClick={recomputeAll} disabled={recomputing || pending} className="btn-outline" title="Rerun every existing payslip for this month through the current engine">
+          {recomputing ? "Recomputing…" : "Recompute all"}
+        </button>
         <button onClick={generate} disabled={busy || pending} className="btn-primary">
           {busy ? "Generating…" : `Generate payslips for ${months[month - 1]} ${year}`}
         </button>
