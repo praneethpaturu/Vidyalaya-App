@@ -1,5 +1,6 @@
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
+import "katex/dist/katex.min.css";
 import type { Metadata } from "next";
 import { Inter, Inter_Tight, Noto_Sans_Devanagari } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";

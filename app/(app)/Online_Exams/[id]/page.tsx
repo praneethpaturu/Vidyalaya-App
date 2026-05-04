@@ -269,7 +269,38 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
                     ) : (
                       <>
                         <div className="text-xs text-slate-500">Your answer:</div>
-                        <div className="text-sm whitespace-pre-wrap">{yourAns ?? <em className="text-slate-400">— not answered —</em>}</div>
+                        {(() => {
+                          // DESCRIPTIVE answers can be `string` or `{text, attachments[]}`.
+                          if (yourAns == null || yourAns === "") {
+                            return <em className="text-slate-400 text-sm">— not answered —</em>;
+                          }
+                          if (typeof yourAns === "object" && !Array.isArray(yourAns)) {
+                            const text = String((yourAns as any).text ?? "");
+                            const atts: { url: string; mime: string; filename: string }[] =
+                              Array.isArray((yourAns as any).attachments) ? (yourAns as any).attachments : [];
+                            return (
+                              <div>
+                                {text && <div className="text-sm whitespace-pre-wrap mb-2">{text}</div>}
+                                {atts.length > 0 && (
+                                  <ul className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                    {atts.map((a, k) => (
+                                      <li key={k} className="border border-slate-200 rounded-lg p-1 bg-slate-50">
+                                        {a.mime?.startsWith("image/") ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img src={a.url} alt={a.filename} className="w-full h-24 object-cover rounded" />
+                                        ) : (
+                                          <a href={a.url} target="_blank" rel="noopener" className="block h-24 grid place-items-center text-xs font-mono">📄 {a.filename}</a>
+                                        )}
+                                        <div className="text-[10px] text-slate-500 truncate mt-1">{a.filename}</div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            );
+                          }
+                          return <div className="text-sm whitespace-pre-wrap">{String(yourAns)}</div>;
+                        })()}
                         {!Array.isArray(corr) && (
                           <div className="text-xs text-emerald-700 mt-2">Reference: {String(corr)}</div>
                         )}

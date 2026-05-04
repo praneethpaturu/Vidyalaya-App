@@ -208,6 +208,11 @@ export async function gradeWithRubric(
 
 // Direct OpenAI vision call — bypasses our llm() abstraction because we
 // need to send an image_url content part. Returns the raw assistant text.
+//
+// We pre-fetch each image and forward it as a base64 data URL. The signed
+// URL we hand to OpenAI would otherwise expire after ~1 minute (Supabase
+// signed URL default), making delayed re-grading return 403. Inlining the
+// bytes makes grading deterministic regardless of when it runs.
 async function callVisionGrader(
   system: string,
   userText: string,
@@ -217,7 +222,9 @@ async function callVisionGrader(
   if (!apiKey) throw new Error("OPENAI_API_KEY not set");
   const userContent: any[] = [{ type: "text", text: userText }];
   for (const img of images) {
-    userContent.push({ type: "image_url", image_url: { url: img.url, detail: "high" } });
+    const dataUrl = await fetchAsDataUrl(img.url, img.mime).catch(() => null);
+    if (!dataUrl) continue; // skip unfetchable; the text portion still grades
+    userContent.push({ type: "image_url", image_url: { url: dataUrl, detail: "high" } });
   }
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -235,4 +242,16 @@ async function callVisionGrader(
   if (!r.ok) throw new Error(`vision-grader ${r.status}`);
   const json = await r.json();
   return json?.choices?.[0]?.message?.content ?? "";
+}
+
+async function fetchAsDataUrl(url: string, mime: string): Promise<string | null> {
+  // 5 MB cap protects us from accidentally loading huge attachments into
+  // the API request body.
+  const r = await fetch(url, { redirect: "follow" });
+  if (!r.ok) return null;
+  const ab = await r.arrayBuffer();
+  if (ab.byteLength > 5 * 1024 * 1024) return null;
+  const b64 = Buffer.from(ab).toString("base64");
+  const safeMime = mime?.startsWith("image/") ? mime : "image/png";
+  return `data:${safeMime};base64,${b64}`;
 }

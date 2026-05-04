@@ -23,9 +23,12 @@ export default function RubricEditor({ name = "rubric", initial }: { name?: stri
   const [raw, setRaw] = useState<string>(() => JSON.stringify(rubric, null, 2));
   const [parseError, setParseError] = useState<string | null>(null);
 
-  // Output value submitted to the server — JSON-stringified rubric.
-  const submitted = useMemo(() => JSON.stringify(rubric), [rubric]);
+  // Output value submitted to the server. We treat an empty `criteria`
+  // array as "no rubric configured" and submit an empty string so the
+  // server defaults to manual grading instead of throwing "Empty rubric".
   const totalWeight = rubric.criteria.reduce((s, c) => s + (c.weight ?? 0), 0);
+  const isEmpty = rubric.criteria.length === 0;
+  const submitted = useMemo(() => (isEmpty ? "" : JSON.stringify(rubric)), [rubric, isEmpty]);
 
   function setCriteria(next: Criterion[]) {
     const r = { ...rubric, criteria: next };
@@ -97,8 +100,10 @@ export default function RubricEditor({ name = "rubric", initial }: { name?: stri
         <span className="text-xs text-slate-500">Total weight: <strong className="text-slate-800">{totalWeight}</strong></span>
         {parseError ? (
           <span className="text-xs text-rose-700 ml-auto">⚠ {parseError}</span>
+        ) : isEmpty ? (
+          <span className="text-xs text-amber-700 ml-auto">⚠ No criteria — descriptive will need manual grading</span>
         ) : (
-          <span className="text-xs text-emerald-700 ml-auto">✓ Valid rubric</span>
+          <span className="text-xs text-emerald-700 ml-auto">✓ Valid rubric · {rubric.criteria.length} criteria</span>
         )}
       </div>
 

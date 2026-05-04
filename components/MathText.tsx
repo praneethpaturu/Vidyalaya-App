@@ -10,7 +10,9 @@
 // validates its input).
 
 import katex from "katex";
-import "katex/dist/katex.min.css";
+// KaTeX stylesheet is imported at the root layout level (app/layout.tsx)
+// so it ships once with the app shell — Next.js App Router only allows
+// global CSS imports from the root layout.
 
 export function MathText({ text, className }: { text: string; className?: string }) {
   if (!text) return null;

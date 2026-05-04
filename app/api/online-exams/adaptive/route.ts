@@ -144,6 +144,7 @@ export async function POST(req: Request) {
       marks: oq.marks,
       difficulty: oq.difficulty,
       timeLimitSec: oq.timeLimitSec,
+      imageUrl: oq.imageUrl,
     },
   });
 }

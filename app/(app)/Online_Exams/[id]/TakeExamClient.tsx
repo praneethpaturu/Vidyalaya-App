@@ -765,6 +765,13 @@ function DescriptiveAnswer({
   }
 
   async function uploadFile(file: File) {
+    // Vercel serverless body limit is 4.5 MB and the server caps at 8 MB.
+    // Catch the smaller of the two before we waste a round trip.
+    const MAX = 4 * 1024 * 1024;
+    if (file.size > MAX) {
+      setErr(`File is too large (${Math.round(file.size / 1024 / 1024)} MB). Please upload under 4 MB.`);
+      return;
+    }
     setBusy(true); setErr(null);
     try {
       const fd = new FormData();
@@ -772,6 +779,13 @@ function DescriptiveAnswer({
       fd.append("attemptId", attemptId);
       fd.append("questionId", questionId);
       const r = await fetch(`/api/online-exams/${examId}/upload-answer`, { method: "POST", body: fd });
+      if (!r.ok) {
+        // Vercel returns a non-JSON 413 page when the body limit fires
+        // before our handler runs. Keep error reporting friendly.
+        if (r.status === 413) throw new Error("File too large for the server (4 MB limit).");
+        const txt = await r.text().catch(() => "");
+        throw new Error(`upload-failed (${r.status}) ${txt.slice(0, 80)}`);
+      }
       const data = await r.json();
       if (!data?.ok) throw new Error(data?.error ?? "upload-failed");
       const next = [...attachments, { url: data.file.url, mime: data.file.mime, filename: data.file.filename }];
