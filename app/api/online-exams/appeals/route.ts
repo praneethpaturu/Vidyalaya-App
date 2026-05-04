@@ -86,6 +86,9 @@ export async function PATCH(req: Request) {
           feedback: resolution,
         },
       });
+      // Invalidate the cached insights so topic-mastery + recommendations
+      // refresh next time the student / parent views the result.
+      await tx.onlineExamInsight.deleteMany({ where: { attemptId: appeal.attemptId } });
     }
   });
   await audit("APPEAL_RESOLVED", { entity: "OnlineExamAppeal", entityId: appealId, summary: `${status} (${scoreDelta} marks)` });

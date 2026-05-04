@@ -653,6 +653,20 @@ async function main() {
   console.log("   accounts@dpsbangalore.edu.in          (Accountant)");
   console.log("   transport@dpsbangalore.edu.in         (Transport Manager)");
   console.log("   hr@dpsbangalore.edu.in                (HR/Inventory)");
+
+  // BRD personas — Platform Admin (cross-tenant). Idempotent seed.
+  await db.user.upsert({
+    where: { email: "platform@vidyalaya.io" },
+    update: { role: "PLATFORM_ADMIN" },
+    create: {
+      schoolId: null,
+      email: "platform@vidyalaya.io",
+      password: HASH,
+      name: "Platform Admin",
+      role: "PLATFORM_ADMIN",
+    },
+  });
+  console.log("   platform@vidyalaya.io                 (Platform Admin · cross-tenant)");
 }
 
 main()

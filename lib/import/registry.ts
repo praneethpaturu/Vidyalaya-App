@@ -1240,6 +1240,14 @@ const QUESTION_BANK: EntityDef = {
     { key: "subjectCode",label: "Subject code",    required: false, example: "MATH",         hints: [/subj/i] },
     { key: "chapter",    label: "Chapter",         required: false, example: "Algebra",      hints: [/chapter/i] },
     { key: "topic",      label: "Topic",           required: false, example: "Linear eqns",  hints: [/topic/i] },
+    { key: "subtopic",   label: "Subtopic",        required: false, example: "Slope-intercept", hints: [/subtopic/i] },
+    { key: "syllabus",   label: "Syllabus",        required: false, example: "JEE-MAIN-2025", hints: [/syllabus|board/i] },
+    { key: "bloomLevel", label: "Bloom level",     required: false, example: "APPLY",        hints: [/bloom/i] },
+    { key: "numericTolerance", label: "Numeric tol", required: false, example: "0.01",       hints: [/tolerance/i] },
+    { key: "numericRangeMin",  label: "Numeric min", required: false, example: "5",          hints: [/range.*min|min.*range/i] },
+    { key: "numericRangeMax",  label: "Numeric max", required: false, example: "10",         hints: [/range.*max|max.*range/i] },
+    { key: "rubric",     label: "Rubric (JSON)",   required: false, example: '{"criteria":[]}', hints: [/rubric/i] },
+    { key: "status",     label: "Status",          required: false, example: "PUBLISHED",    hints: [/status/i] },
     { key: "tags",       label: "Tags (CSV)",      required: false, example: "ncert,easy",   hints: [/tags?/i] },
   ],
   async create(rows, { schoolId }) {
@@ -1249,7 +1257,7 @@ const QUESTION_BANK: EntityDef = {
       try {
         if (!r.text) throw new Error("text is required");
         const type = (r.type || "MCQ").toUpperCase();
-        if (!["MCQ", "MULTI", "TRUE_FALSE", "FILL", "DESCRIPTIVE"].includes(type)) {
+        if (!["MCQ", "MULTI", "TRUE_FALSE", "FILL", "NUMERIC", "DESCRIPTIVE"].includes(type)) {
           throw new Error(`bad type: ${type}`);
         }
 
@@ -1275,6 +1283,18 @@ const QUESTION_BANK: EntityDef = {
         const cls = r.className ? await classByName(schoolId, r.className) : null;
         const sub = r.subjectCode ? await prisma.subject.findFirst({ where: { schoolId, code: r.subjectCode } }) : null;
 
+        const status = ["DRAFT", "REVIEW", "PUBLISHED", "RETIRED"].includes((r.status || "").toUpperCase())
+          ? (r.status as string).toUpperCase()
+          : "PUBLISHED";  // Imported questions default to PUBLISHED so blueprint generator can use them
+        const bloom = ["REMEMBER", "UNDERSTAND", "APPLY", "ANALYZE", "EVALUATE", "CREATE"].includes((r.bloomLevel || "").toUpperCase())
+          ? (r.bloomLevel as string).toUpperCase()
+          : null;
+
+        let rubricJson: string | null = null;
+        if (r.rubric && r.rubric.trim()) {
+          try { rubricJson = JSON.stringify(JSON.parse(r.rubric)); } catch { rubricJson = null; }
+        }
+
         await prisma.questionBankItem.create({
           data: {
             schoolId,
@@ -1290,6 +1310,15 @@ const QUESTION_BANK: EntityDef = {
             subjectId: sub?.id ?? null,
             chapter: r.chapter || null,
             topic: r.topic || null,
+            subtopic: r.subtopic || null,
+            syllabus: r.syllabus || null,
+            bloomLevel: bloom,
+            numericTolerance: r.numericTolerance ? parseFloat(r.numericTolerance) : null,
+            numericRangeMin: r.numericRangeMin ? parseFloat(r.numericRangeMin) : null,
+            numericRangeMax: r.numericRangeMax ? parseFloat(r.numericRangeMax) : null,
+            rubric: rubricJson,
+            status,
+            source: "IMPORTED",
             tags: JSON.stringify((r.tags || "").split(",").map((s) => s.trim()).filter(Boolean)),
           },
         });

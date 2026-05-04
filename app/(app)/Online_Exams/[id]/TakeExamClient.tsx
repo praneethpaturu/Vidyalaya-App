@@ -80,6 +80,9 @@ export default function TakeExamClient(props: Props) {
   const [activeSectionId, setActiveSectionId] = useState<string | null>(sectional && sections[0] ? sections[0].id : null);
   const [sectionsLocked, setSectionsLocked] = useState<Record<string, string>>(initialSectionsLocked ?? {});
   const [perQRemaining, setPerQRemaining] = useState<Record<string, number>>({});
+  // Fullscreen requires a user gesture; we render a "Begin exam" overlay
+  // until the student clicks it. After click we enter FS + dismiss overlay.
+  const [armedFullscreen, setArmedFullscreen] = useState(!props.fullscreenLock);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -161,7 +164,8 @@ export default function TakeExamClient(props: Props) {
     if (!fullscreenLock) return;
     function onFsChange() {
       const isFs = !!document.fullscreenElement;
-      if (!isFs) {
+      if (!isFs && armedFullscreen) {
+        // Only count violations after the student armed FS via "Begin"
         setFullscreenViolations((n) => {
           const next = n + 1;
           fetch(`/api/online-exams/${examId}/progress`, {
@@ -174,10 +178,9 @@ export default function TakeExamClient(props: Props) {
       }
     }
     document.addEventListener("fullscreenchange", onFsChange);
-    enterFullscreen();
     return () => document.removeEventListener("fullscreenchange", onFsChange);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fullscreenLock, examId, attemptId]);
+  }, [fullscreenLock, examId, attemptId, armedFullscreen]);
 
   // -- Copy/paste/right-click blocking (BRD §4.2) ---------------------
   useEffect(() => {
@@ -336,6 +339,28 @@ export default function TakeExamClient(props: Props) {
     <div ref={containerRef} className="p-5 max-w-3xl mx-auto relative" style={{ userSelect: blockCopyPaste ? "none" : "auto" }}>
       {/* Watermark — diagonal repeating pattern, low opacity. BRD §4.4 */}
       {watermarkContent && <Watermark label={studentLabel} />}
+
+      {/* Fullscreen-lock requires a user gesture to enter — show a "Begin"
+          overlay so the click counts as the gesture (browsers reject FS in useEffect). */}
+      {fullscreenLock && !armedFullscreen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/85 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center shadow-xl">
+            <h3 className="text-lg font-semibold mb-2">Ready to start the exam?</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              This exam runs in <strong>full-screen lock</strong>. Exiting full-screen
+              will be flagged. {webcam && "Webcam proctoring is enabled. "}
+              {blockCopyPaste && "Copy / paste / printscreen are blocked. "}
+              Click below to enter full-screen and begin.
+            </p>
+            <button
+              onClick={() => { setArmedFullscreen(true); enterFullscreen(); }}
+              className="btn-primary w-full"
+            >
+              Enter full-screen & begin
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Header bar */}
       <div className="flex items-center justify-between gap-3 mb-3 relative z-10">

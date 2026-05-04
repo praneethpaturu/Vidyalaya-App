@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { generateQuestionsAI } from "@/lib/ai/qbank";
+import { hasFeature } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -9,7 +10,11 @@ export const maxDuration = 60;
 // Body: { topic, count, difficulty, type, subject?, className?, chapter?, context? }
 // Returns generated questions for preview — does NOT persist.
 export async function POST(req: Request) {
-  await requireRole(["ADMIN", "PRINCIPAL", "TEACHER"]);
+  const u = await requireRole(["ADMIN", "PRINCIPAL", "TEACHER"]);
+  // BRD §4.4 — plan gate: aiGeneration is included in STARTER and above.
+  if (u.schoolId && !(await hasFeature(u.schoolId, "aiGeneration"))) {
+    return NextResponse.json({ ok: false, error: "plan-required", feature: "aiGeneration" }, { status: 402 });
+  }
   const body = await req.json().catch(() => ({}));
   const topic = String(body?.topic ?? "").trim();
   const count = Math.min(20, Math.max(1, Number(body?.count ?? 5)));

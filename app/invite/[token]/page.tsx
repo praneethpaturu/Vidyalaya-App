@@ -40,7 +40,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   return (
     <main className="min-h-screen flex items-center justify-center p-6 bg-white">
       <div className="w-full max-w-md">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Welcome to {row.school.name}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Welcome to {row.school?.name ?? "Vidyalaya"}</h1>
         <p className="text-sm text-slate-500 mt-1.5">
           Hi <strong>{meta.name}</strong> — set a password to activate your <strong>{meta.role}</strong> account
           for <strong>{row.email}</strong>.

@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     const tokenHash = hashToken(raw);
     await prisma.authToken.create({
       data: {
-        schoolId: user.schoolId,
+        schoolId: user.schoolId ?? undefined,
         type: "PASSWORD_RESET",
         email,
         userId: user.id,

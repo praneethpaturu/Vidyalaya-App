@@ -28,7 +28,7 @@ export default async function ProfilePage() {
             <p className="muted">{user.email}</p>
             <div className="mt-1 flex items-center gap-2">
               <span className="badge-blue">{ROLE_LABEL[user.role] ?? user.role}</span>
-              <span className="badge-slate">{user.school.name}</span>
+              <span className="badge-slate">{user.school?.name ?? "Platform"}</span>
             </div>
           </div>
         </div>

@@ -7,7 +7,23 @@ export const dynamic = "force-dynamic";
 export default async function QbankReviewPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const u = await requirePageRole(["ADMIN", "PRINCIPAL", "TEACHER"]);
   const sp = await searchParams;
-  const status = sp.status ?? "REVIEW";
+
+  // Show counts per status so empty tabs are obvious; default to whichever
+  // bucket has items (so the page isn't blank by default).
+  const counts = await prisma.questionBankItem.groupBy({
+    by: ["status"],
+    where: { schoolId: u.schoolId },
+    _count: { _all: true },
+  });
+  const countMap: Record<string, number> = {};
+  counts.forEach((c) => { countMap[c.status] = c._count._all; });
+  const defaultStatus =
+    sp.status ??
+    (countMap.REVIEW ? "REVIEW" :
+     countMap.DRAFT ? "DRAFT" :
+     countMap.PUBLISHED ? "PUBLISHED" :
+     "DRAFT");
+  const status = defaultStatus;
 
   const [items, reviewers] = await Promise.all([
     prisma.questionBankItem.findMany({
@@ -25,13 +41,13 @@ export default async function QbankReviewPage({ searchParams }: { searchParams: 
   return (
     <div className="p-5 max-w-5xl mx-auto">
       <h1 className="h-page mb-1">Question bank review</h1>
-      <p className="muted mb-4">BRD §4.1 — Draft → Review → Published workflow with reviewer assignment.</p>
+      <p className="muted mb-4">BRD §4.1 — Draft → Review → Published workflow with reviewer assignment. Total bank: {Object.values(countMap).reduce((s, n) => s + n, 0)} items.</p>
 
-      <div className="flex gap-1 mb-3">
-        {["DRAFT", "REVIEW", "PUBLISHED", "RETIRED"].map((s) => (
+      <div className="flex flex-wrap gap-1 mb-3">
+        {(["DRAFT", "REVIEW", "PUBLISHED", "RETIRED"] as const).map((s) => (
           <a key={s} href={`/Home/Online_Exams/qbank/review?status=${s}`}
              className={`text-xs px-3 py-1 rounded-full ${status === s ? "bg-brand-700 text-white" : "bg-slate-100 hover:bg-slate-200"}`}>
-            {s} {items.length > 0 && status === s ? `(${items.length})` : ""}
+            {s} ({countMap[s] ?? 0})
           </a>
         ))}
       </div>

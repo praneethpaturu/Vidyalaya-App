@@ -74,7 +74,7 @@ model School {
 // ============================================================
 model User {
   id                  String    @id @default(cuid())
-  schoolId            String
+  schoolId            String?    // nullable so PLATFORM_ADMIN can exist cross-tenant
   email               String    @unique
   password            String
   name                String
@@ -88,7 +88,7 @@ model User {
   deletedAt           DateTime?
   createdAt           DateTime  @default(now())
 
-  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school    School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   staff     Staff?
   student   Student?
   guardian  Guardian?
@@ -107,7 +107,7 @@ model User {
 // ============================================================
 model AuthToken {
   id        String    @id @default(cuid())
-  schoolId  String
+  schoolId  String?   // nullable for PLATFORM_ADMIN tokens
   type      String    // INVITE | VERIFY_EMAIL | PASSWORD_RESET
   email     String    // target email (invitee or user)
   userId    String?   // null for INVITE before acceptance
@@ -117,7 +117,7 @@ model AuthToken {
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 
-  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school    School?   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([type, expiresAt])
