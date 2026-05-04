@@ -47,7 +47,10 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
 
   const exam = await prisma.onlineExam.findFirst({
     where: { id, schoolId: u.schoolId },
-    include: { questions: { orderBy: { order: "asc" } } },
+    include: {
+      questions: { orderBy: { order: "asc" } },
+      sections:  { orderBy: { order: "asc" } },
+    },
   });
   if (!exam) notFound();
   const cls = await prisma.class.findUnique({ where: { id: exam.classId } });
@@ -149,6 +152,7 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
 
   // Active attempt — render the take-exam client
   if (attempt && attempt.status === "IN_PROGRESS") {
+    const sectionsLocked = (() => { try { return JSON.parse(attempt.sectionsLocked || "{}"); } catch { return {}; } })();
     return (
       <TakeExamClient
         attemptId={attempt.id}
@@ -164,10 +168,23 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
           type: q.type,
           options: (() => { try { return JSON.parse(q.options) as string[]; } catch { return []; } })(),
           marks: q.marks,
+          sectionId: q.sectionId,
+          sectionName: exam.sections.find((s) => s.id === q.sectionId)?.name ?? null,
+          timeLimitSec: q.timeLimitSec,
         }))}
         existingResponses={(() => { try { return JSON.parse(attempt.responses || "{}"); } catch { return {}; } })()}
         webcam={exam.webcam}
         tabSwitchDetect={exam.tabSwitchDetect}
+        shuffleEnabled={exam.shuffle}
+        fullscreenLock={exam.fullscreenLock}
+        blockCopyPaste={exam.blockCopyPaste}
+        blockRightClick={exam.blockRightClick}
+        watermarkContent={exam.watermarkContent}
+        adaptive={exam.adaptive}
+        sectional={exam.sectional}
+        sections={exam.sections.map((s) => ({ id: s.id, name: s.name, durationMin: s.durationMin, lockOnSubmit: s.lockOnSubmit }))}
+        sectionsLocked={sectionsLocked}
+        studentLabel={`${me.admissionNo} · ${u.name}`}
       />
     );
   }

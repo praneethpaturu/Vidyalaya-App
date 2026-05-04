@@ -28,7 +28,16 @@ async function createExam(form: FormData) {
       shuffle: form.get("shuffle") === "on",
       webcam: form.get("webcam") === "on",
       tabSwitchDetect: form.get("tabSwitchDetect") === "on",
+      fullscreenLock: form.get("fullscreenLock") === "on",
+      blockCopyPaste: form.get("blockCopyPaste") === "on",
+      blockRightClick: form.get("blockRightClick") === "on",
+      watermarkContent: form.get("watermarkContent") !== "off",
+      ipMonitor: form.get("ipMonitor") !== "off",
+      sectional: form.get("sectional") === "on",
+      adaptive: form.get("adaptive") === "on",
+      patternKey: String(form.get("patternKey") ?? "") || null,
       publishMode: String(form.get("publishMode") ?? "MANUAL"),
+      publishResultMode: String(form.get("publishResultMode") ?? "AFTER_GRADING"),
       status: "DRAFT",
     },
   });
@@ -42,6 +51,10 @@ export default async function NewOnlineExamPage() {
     where: { schoolId: sId },
     include: { subjects: true },
     orderBy: [{ grade: "asc" }, { section: "asc" }],
+  });
+  const patterns = await prisma.examPattern.findMany({
+    where: { OR: [{ schoolId: null }, { schoolId: sId }], active: true },
+    orderBy: { name: "asc" },
   });
   return (
     <div className="p-5 max-w-3xl mx-auto">
@@ -81,18 +94,52 @@ export default async function NewOnlineExamPage() {
           <div><label className="label">Pass marks</label><input type="number" className="input" name="passMarks" defaultValue={20} /></div>
           <div><label className="label">Negative mark</label><input type="number" step="0.25" className="input" name="negativeMark" defaultValue={0} /></div>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Result publish</label>
+            <select name="publishMode" className="input">
+              <option value="MANUAL">Manual</option>
+              <option value="IMMEDIATE">Immediate</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Parent visibility</label>
+            <select name="publishResultMode" className="input">
+              <option value="AFTER_GRADING">After grading is complete</option>
+              <option value="IMMEDIATE">Immediately on submit</option>
+            </select>
+          </div>
+        </div>
+
         <div>
-          <label className="label">Result publish</label>
-          <select name="publishMode" className="input">
-            <option value="MANUAL">Manual</option>
-            <option value="IMMEDIATE">Immediate</option>
+          <label className="label">Pattern preset (optional)</label>
+          <select name="patternKey" className="input">
+            <option value="">None — custom paper</option>
+            {patterns.map((p) => <option key={p.key} value={p.key}>{p.name} — {p.description}</option>)}
           </select>
         </div>
-        <div className="flex flex-wrap gap-4 text-sm">
-          <label className="flex gap-1.5"><input type="checkbox" name="shuffle" defaultChecked /> Shuffle questions/options</label>
-          <label className="flex gap-1.5"><input type="checkbox" name="webcam" /> Webcam proctoring</label>
-          <label className="flex gap-1.5"><input type="checkbox" name="tabSwitchDetect" /> Tab-switch detection</label>
-        </div>
+
+        <fieldset className="border border-slate-200 rounded-lg p-3">
+          <legend className="text-xs font-medium text-slate-600 px-2">Integrity & proctoring</legend>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <label className="flex gap-1.5"><input type="checkbox" name="shuffle" defaultChecked /> Shuffle questions & options (per student)</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="webcam" /> Webcam proctoring</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="tabSwitchDetect" defaultChecked /> Tab-switch detection</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="fullscreenLock" /> Force full-screen mode</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="blockCopyPaste" /> Block copy / paste / printscreen</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="blockRightClick" /> Block right-click menu</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="watermarkContent" defaultChecked /> Watermark content with student ID</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="ipMonitor" defaultChecked /> Capture client IP per save</label>
+          </div>
+        </fieldset>
+
+        <fieldset className="border border-slate-200 rounded-lg p-3">
+          <legend className="text-xs font-medium text-slate-600 px-2">Advanced</legend>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <label className="flex gap-1.5"><input type="checkbox" name="sectional" /> Sectional — submit each section separately</label>
+            <label className="flex gap-1.5"><input type="checkbox" name="adaptive" /> Adaptive testing (CAT)</label>
+          </div>
+        </fieldset>
         <div className="flex justify-end gap-2">
           <a href="/Home/Online_Exams" className="btn-outline">Cancel</a>
           <button className="btn-primary">Save Draft</button>

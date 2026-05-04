@@ -33,6 +33,15 @@ model School {
   currency     String   @default("INR")
   zoneId       String?  // soft FK to Zone (multi-school chain rollup)
   groupId      String?  // soft FK to OrgGroup
+  // BRD §4.4 — Subscription tier the tenant is on (FREE | STARTER | PRO | ENTERPRISE)
+  planKey       String   @default("FREE")
+  planExpiresAt DateTime?
+  // BRD §4.4 — White-label config (also see lib/branding.ts for runtime use)
+  brandPrimary  String?  // hex color override, e.g. "#1a73e8"
+  brandTagline  String?
+  customDomain  String?
+  // BRD §4.4 — IP protection: stamp watermarks across PDFs and exam screens
+  watermarkAll  Boolean  @default(true)
   createdAt    DateTime @default(now())
 
   users           User[]
@@ -1500,7 +1509,7 @@ model OnlineExam {
   classId       String
   subjectId     String?
   title         String
-  flavor        String   @default("OBJECTIVE") // OBJECTIVE | DESCRIPTIVE | WORKSHEET
+  flavor        String   @default("OBJECTIVE") // OBJECTIVE | DESCRIPTIVE | WORKSHEET | CAT (adaptive)
   startAt       DateTime
   endAt         DateTime
   durationMin   Int
@@ -1511,30 +1520,80 @@ model OnlineExam {
   shuffle       Boolean  @default(true)
   webcam        Boolean  @default(false)
   tabSwitchDetect Boolean @default(false)
-  publishMode   String   @default("MANUAL") // IMMEDIATE | MANUAL
+  // Browser lockdown (BRD §4.2)
+  fullscreenLock     Boolean @default(false)
+  blockCopyPaste     Boolean @default(false)
+  blockRightClick    Boolean @default(false)
+  watermarkContent   Boolean @default(true)   // overlay student ID/IP across the screen
+  ipMonitor          Boolean @default(true)   // capture client IP on each progress save
+  // Section model (BRD §4.2 — JEE/NEET patterns)
+  sectional          Boolean @default(false)  // if true, sections must be submitted in order
+  patternKey         String?                  // optional pattern preset key (e.g. JEE_MAIN, NEET_UG)
+  // Adaptive testing (BRD §4.1)
+  adaptive           Boolean @default(false)
+  publishMode        String  @default("MANUAL") // IMMEDIATE | MANUAL
+  publishResultMode  String  @default("AFTER_GRADING") // IMMEDIATE | AFTER_GRADING — used by parent portal
   status        String   @default("DRAFT") // DRAFT | PUBLISHED | LIVE | COMPLETED
   createdAt     DateTime @default(now())
 
   questions     OnlineQuestion[]
+  sections      OnlineExamSection[]
   attemptsLog   OnlineExamAttempt[]
+  appeals       OnlineExamAppeal[]
 
   @@index([schoolId, startAt])
 }
 
-// type: MCQ | MULTI | TF | FILL | DESCRIPTIVE | MATCH
-model OnlineQuestion {
-  id         String  @id @default(cuid())
-  examId     String
-  text       String
-  type       String  @default("MCQ")
-  options    String  @default("[]")  // JSON array
-  correct    String  @default("[]")  // JSON: indexes for MCQ/MULTI; "true"/"false"; text for FILL
-  marks      Int     @default(1)
-  order      Int     @default(0)
+// Sections inside an exam — JEE-style "Physics / Chemistry / Math" or
+// NEET-style "Physics / Chemistry / Bio". Section can be locked once
+// submitted (no nav back) to enforce timed-section assessments.
+model OnlineExamSection {
+  id            String   @id @default(cuid())
+  examId        String
+  name          String   // "Physics", "Chemistry"...
+  order         Int      @default(0)
+  durationMin   Int?     // optional per-section timer; null = total exam time
+  lockOnSubmit  Boolean  @default(true)
+  negativeMark  Float?   // optional override; null = exam-level
+  marksPerQ     Int?     // hint for paper-gen / display
 
-  exam       OnlineExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  exam          OnlineExam       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questions     OnlineQuestion[]
+
+  @@index([examId, order])
+}
+
+// type: MCQ | MULTI | TF | FILL | NUMERIC | DESCRIPTIVE | MATCH
+model OnlineQuestion {
+  id              String  @id @default(cuid())
+  examId          String
+  sectionId       String?
+  text            String
+  type            String  @default("MCQ")
+  options         String  @default("[]")  // JSON array
+  correct         String  @default("[]")  // JSON: indexes / "true"/"false" / text / numeric value
+  marks           Int     @default(1)
+  // Per-question overrides (BRD §4.1 — difficulty control granular per Q)
+  negativeMark    Float?  // overrides exam-level when present
+  timeLimitSec    Int?    // optional per-question time cap (auto-advance when null/0)
+  // Numerical answer matching (BRD §4.3 — instant grading numerical questions)
+  numericTolerance Float? // ± tolerance accepted around `correct`
+  numericRangeMin Float?  // alternative: accept any value in range
+  numericRangeMax Float?
+  // Topic/skill mapping for analytics (BRD §4.3 — performance mapping)
+  topic           String?
+  subtopic        String?
+  bloomLevel      String? // REMEMBER | UNDERSTAND | APPLY | ANALYZE | EVALUATE | CREATE
+  difficulty      String  @default("MEDIUM") // EASY | MEDIUM | HARD
+  // AI rubric for descriptive grading (BRD §4.3)
+  rubric          String? // JSON: { criteria: [{name, weight, description}], modelAnswer }
+  order           Int     @default(0)
+
+  exam            OnlineExam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  section         OnlineExamSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
 
   @@index([examId])
+  @@index([sectionId])
 }
 
 // status: NOT_STARTED | IN_PROGRESS | SUBMITTED | EVALUATED
@@ -1549,11 +1608,45 @@ model OnlineExamAttempt {
   scoreObtained Int     @default(0)
   tabSwitches  Int      @default(0)
   responses    String   @default("{}")  // JSON: questionId -> response
+  // Proctoring & integrity (BRD §4.2)
+  ipAddress    String?  // captured on each progress save (latest)
+  ipHistory    String   @default("[]")   // JSON array of distinct IPs seen
+  fullscreenViolations Int @default(0)
+  copyAttempts Int      @default(0)
   flagged      Boolean  @default(false)
+  // Sectional locks — JSON map of sectionId -> submittedAt timestamp
+  sectionsLocked String  @default("{}")
+  // Deterministic shuffle seed (BRD §4.2 — jumbling logic)
+  shuffleSeed  Int      @default(0)
+  // Adaptive testing trail — JSON: [{questionId, difficulty, correct}]
+  adaptiveTrail String  @default("[]")
 
   exam         OnlineExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  appeals      OnlineExamAppeal[]
 
   @@unique([examId, studentId, attemptNo])
+  @@index([studentId])
+}
+
+// BRD §4.3 — re-grading / appeal flow
+model OnlineExamAppeal {
+  id          String   @id @default(cuid())
+  examId      String
+  attemptId   String
+  questionId  String
+  studentId   String
+  reason      String
+  status      String   @default("OPEN") // OPEN | UPHELD | REJECTED
+  resolvedById String?
+  resolution  String?
+  scoreDelta  Int      @default(0)      // marks added/removed if upheld
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+
+  exam        OnlineExam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  attempt     OnlineExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([examId, status])
   @@index([studentId])
 }
 
@@ -2900,24 +2993,96 @@ model SchoolSetting {
 // ============================================================
 model QuestionBankItem {
   id          String   @id @default(cuid())
-  schoolId    String
+  schoolId    String?  // null = global (Platform-Admin owned). Tenant queries see own + global.
   classId     String?
   subjectId   String?
   chapter     String?
   topic       String?
+  subtopic    String?                          // BRD §4.3 — finer-grained topic mapping
+  syllabus    String?                          // e.g. "CBSE-X-2024", "JEE-MAIN-2025", "NEET-2025"
+  bloomLevel  String?                          // REMEMBER | UNDERSTAND | APPLY | ANALYZE | EVALUATE | CREATE
   text        String
-  type        String   @default("MCQ")        // MCQ | MULTI | TRUE_FALSE | FILL | DESCRIPTIVE
-  options     String   @default("[]")         // JSON array
-  correct     String   @default("[]")         // JSON: indexes / "true"-"false" / text
+  type        String   @default("MCQ")         // MCQ | MULTI | TRUE_FALSE | FILL | NUMERIC | DESCRIPTIVE
+  options     String   @default("[]")          // JSON array
+  correct     String   @default("[]")          // JSON: indexes / "true"-"false" / text / numeric value
   marks       Int      @default(1)
-  difficulty  String   @default("MEDIUM")     // EASY | MEDIUM | HARD
+  difficulty  String   @default("MEDIUM")      // EASY (L1) | MEDIUM (L2) | HARD (L3)
+  // Numerical answer matching (BRD §4.3)
+  numericTolerance Float?
+  numericRangeMin  Float?
+  numericRangeMax  Float?
+  // AI rubric for descriptive grading (BRD §4.3)
+  rubric           String?                     // JSON: criteria + modelAnswer
+  // Approval workflow — BRD §4.1 collaborative content workflow
+  status      String   @default("DRAFT")       // DRAFT | REVIEW | PUBLISHED | RETIRED
+  reviewerId  String?                          // assigned reviewer (User.id)
+  reviewedAt  DateTime?
+  reviewNotes String?
+  // IRT-like calibration fields used by adaptive testing & analytics
+  attemptCount Int     @default(0)
+  correctCount Int     @default(0)
+  // Source — internal | imported | ai-generated
+  source      String   @default("INTERNAL")    // INTERNAL | IMPORTED | AI
   tags        String   @default("[]")
   active      Boolean  @default(true)
   createdById String?
   createdAt   DateTime @default(now())
 
+  reviews     QuestionReview[]
+
   @@index([schoolId, classId, subjectId])
   @@index([schoolId, active])
+  @@index([schoolId, status])
+  @@index([syllabus, difficulty])
+}
+
+// Multi-tier approval audit log for the BRD's Draft → Review → Published flow.
+model QuestionReview {
+  id          String   @id @default(cuid())
+  itemId      String
+  reviewerId  String
+  decision    String   // APPROVED | REJECTED | NEEDS_CHANGES
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  item        QuestionBankItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+// BRD §4.1 — pattern templates (JEE Main / NEET UG / CBSE Board / custom).
+model ExamPattern {
+  id            String   @id @default(cuid())
+  schoolId      String?  // null = global preset
+  key           String   @unique
+  name          String
+  description   String?
+  durationMin   Int
+  totalMarks    Int
+  negativeMark  Float    @default(0)
+  // JSON blueprint: [{section, topic?, difficulty, count, marksPerQ, negativeMark?}]
+  blueprint     String
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([schoolId, active])
+}
+
+// BRD §4.1 — per-tenant blueprint linked to an exam (when not using a preset).
+// Saved blueprints can be reused across multiple exams.
+model ExamBlueprint {
+  id          String   @id @default(cuid())
+  schoolId    String
+  examId      String?  @unique          // optional 1:1 link to a specific exam
+  name        String
+  totalMarks  Int
+  durationMin Int
+  // JSON: [{name, topic?, difficulty, count, marksPerQ, negativeMark?, sectional}]
+  sections    String
+  patternKey  String?                    // optional reference to a pattern preset
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId])
 }
 
 // ============================================================
@@ -3615,4 +3780,81 @@ model StudentGroupMember {
   group      StudentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, studentId])
+}
+
+// ============================================================
+// BRD §4.4 — Subscription Management
+// SubscriptionPlan defines feature entitlements & limits per tier.
+// School.planKey points to a plan key. Defaults: FREE / STARTER / PRO / ENTERPRISE.
+// ============================================================
+model SubscriptionPlan {
+  id            String   @id @default(cuid())
+  key           String   @unique           // FREE | STARTER | PRO | ENTERPRISE
+  name          String
+  pricePerMonth Int      @default(0)        // INR paise
+  // JSON: { aiGeneration: bool, adaptiveTesting: bool, parentPortal: bool,
+  //         analyticsDepth: "basic"|"deep"|"predictive", whiteLabelPdf: bool,
+  //         offlineMode: bool, attemptsPerMonth: int, qbankSize: int, ... }
+  features      String   @default("{}")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+}
+
+// ============================================================
+// BRD §4.2 / §4.3 — Per-question response audit trail.
+// Persists each grading event (auto, manual, AI rubric, appeal-adjusted)
+// so we can show "why did I get this score?" transparently.
+// ============================================================
+model OnlineAnswerLog {
+  id          String   @id @default(cuid())
+  attemptId   String
+  questionId  String
+  source      String   // AUTO | MANUAL | AI | APPEAL
+  marksAwarded Int
+  feedback    String?
+  rubricJson  String?  // when source=AI: { criteria: [{name, score, max, comment}] }
+  createdAt   DateTime @default(now())
+
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+// ============================================================
+// BRD §4.3 — Predictive Insights (AI recommendations per attempt).
+// Generated after submission; cached so we don't spam LLM calls.
+// ============================================================
+model OnlineExamInsight {
+  id           String   @id @default(cuid())
+  attemptId    String   @unique
+  studentId    String
+  examId       String
+  topicMastery String   @default("[]")    // JSON: [{topic, attempted, correct, mastery 0..1}]
+  weakTopics   String   @default("[]")    // JSON: [{topic, deficit, severity}]
+  recommendations String @default("[]")   // JSON: [{topic, action, resourceUrl?}]
+  predictedScore Int    @default(0)       // forecasted next-attempt score in marks
+  createdAt    DateTime @default(now())
+
+  @@index([studentId])
+  @@index([examId])
+}
+
+// ============================================================
+// BRD §5 — Offline mode sync queue (mobile / Capacitor / service worker).
+// When a student attempts offline, the device caches answers locally and
+// flushes them through this server-side queue when reconnected. Each
+// row is idempotent on (attemptId, questionId, clientTs).
+// ============================================================
+model OfflineSyncEntry {
+  id          String   @id @default(cuid())
+  schoolId    String
+  studentId   String
+  attemptId   String
+  questionId  String
+  response    String                       // JSON
+  clientTs    DateTime                     // device timestamp
+  receivedAt  DateTime @default(now())
+  applied     Boolean  @default(false)
+
+  @@unique([attemptId, questionId, clientTs])
+  @@index([schoolId, applied])
 }

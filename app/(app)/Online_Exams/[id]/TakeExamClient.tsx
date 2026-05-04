@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { shuffleExam, deriveSeed } from "@/lib/exam-shuffle";
 
 type Q = {
   id: string;
   text: string;
-  type: "MCQ" | "MULTI" | "TRUE_FALSE" | "FILL" | "DESCRIPTIVE" | string;
+  type: "MCQ" | "MULTI" | "TRUE_FALSE" | "FILL" | "NUMERIC" | "DESCRIPTIVE" | string;
   options: string[];
   marks: number;
+  sectionId?: string | null;
+  sectionName?: string | null;
+  timeLimitSec?: number | null;
 };
 
 type Props = {
@@ -17,34 +21,82 @@ type Props = {
   title: string;
   durationMin: number;
   startedAt: string;
-  endAt: string;       // exam window close — overall deadline
+  endAt: string;
   totalMarks: number;
   questions: Q[];
   existingResponses: Record<string, any>;
+  // Integrity flags
   webcam: boolean;
   tabSwitchDetect: boolean;
+  shuffleEnabled: boolean;
+  fullscreenLock: boolean;
+  blockCopyPaste: boolean;
+  blockRightClick: boolean;
+  watermarkContent: boolean;
+  // Adaptive
+  adaptive: boolean;
+  // Sections
+  sectional: boolean;
+  sections: { id: string; name: string; durationMin?: number | null; lockOnSubmit: boolean }[];
+  sectionsLocked: Record<string, string>; // sectionId -> ISO submitted-at
+  // Identity for watermark
+  studentLabel: string;       // "EMP1234 · 12.34.56.78"
 };
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
-export default function TakeExamClient({
-  attemptId, examId, title, durationMin, startedAt, endAt, totalMarks, questions, existingResponses,
-  webcam, tabSwitchDetect,
-}: Props) {
+export default function TakeExamClient(props: Props) {
+  const {
+    attemptId, examId, title, durationMin, startedAt, endAt, totalMarks,
+    questions: rawQuestions, existingResponses,
+    webcam, tabSwitchDetect, shuffleEnabled, fullscreenLock, blockCopyPaste, blockRightClick, watermarkContent,
+    adaptive, sectional, sections, sectionsLocked: initialSectionsLocked, studentLabel,
+  } = props;
   const router = useRouter();
+
+  // Deterministic shuffle keyed off attemptId so refresh keeps the order.
+  const questions = useMemo(() => {
+    if (!shuffleEnabled) return rawQuestions;
+    const seed = deriveSeed(attemptId + ":" + examId);
+    // shuffleExam expects ShufflableQuestion shape — we have plain Qs; map options→JSON, then back.
+    const wrapped = rawQuestions.map((q) => ({
+      ...q,
+      options: JSON.stringify(q.options ?? []),
+      correct: "[]",  // never used client-side
+    }));
+    const out = shuffleExam(wrapped, seed);
+    return out.map((q) => ({ ...q, options: safeParse(q.options) }));
+  }, [rawQuestions, shuffleEnabled, attemptId, examId]);
+
   const [responses, setResponses] = useState<Record<string, any>>(existingResponses ?? {});
   const [idx, setIdx] = useState(0);
   const [busy, setBusy] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showFinish, setShowFinish] = useState(false);
   const [tabSwitches, setTabSwitches] = useState(0);
+  const [fullscreenViolations, setFullscreenViolations] = useState(0);
+  const [copyAttempts, setCopyAttempts] = useState(0);
   const [proctorState, setProctorState] = useState<"idle" | "requesting" | "live" | "denied">("idle");
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(sectional && sections[0] ? sections[0].id : null);
+  const [sectionsLocked, setSectionsLocked] = useState<Record<string, string>>(initialSectionsLocked ?? {});
+  const [perQRemaining, setPerQRemaining] = useState<Record<string, number>>({});
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Webcam proctoring — request camera once on mount, attach to a small
-  // bottom-right preview. We don't record or upload frames; the presence of
-  // an active camera + the proctorState badge is what enforces it.
+  // Filter visible questions to active section + drop locked sections.
+  const visibleQuestions = useMemo(() => {
+    if (!sectional) return questions;
+    return questions.filter((q) => {
+      if (sectionsLocked[q.sectionId ?? ""]) return false;
+      if (activeSectionId && q.sectionId !== activeSectionId) return false;
+      return true;
+    });
+  }, [questions, sectional, sectionsLocked, activeSectionId]);
+
+  const cur = visibleQuestions[idx] ?? questions[0];
+
+  // -- Webcam ----------------------------------------------------------
   useEffect(() => {
     if (!webcam) return;
     let cancelled = false;
@@ -67,8 +119,7 @@ export default function TakeExamClient({
     };
   }, [webcam]);
 
-  // Tab-switch detection — every time the user hides this tab, increment
-  // the local counter and post to /progress so it persists.
+  // -- Tab-switch detection -------------------------------------------
   useEffect(() => {
     if (!tabSwitchDetect) return;
     function onVis() {
@@ -89,6 +140,96 @@ export default function TakeExamClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabSwitchDetect, examId, attemptId]);
 
+  // -- Fullscreen lock (BRD §4.2) -------------------------------------
+  const enterFullscreen = useCallback(async () => {
+    try {
+      const el = containerRef.current ?? document.documentElement;
+      // @ts-ignore — webkit fallback
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req) await req.call(el);
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    if (!fullscreenLock) return;
+    function onFsChange() {
+      const isFs = !!document.fullscreenElement;
+      if (!isFs) {
+        setFullscreenViolations((n) => {
+          const next = n + 1;
+          fetch(`/api/online-exams/${examId}/progress`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ attemptId, responses, fullscreenViolations: next }),
+          }).catch(() => {});
+          return next;
+        });
+      }
+    }
+    document.addEventListener("fullscreenchange", onFsChange);
+    enterFullscreen();
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullscreenLock, examId, attemptId]);
+
+  // -- Copy/paste/right-click blocking (BRD §4.2) ---------------------
+  useEffect(() => {
+    if (!blockCopyPaste && !blockRightClick) return;
+    function bumpCopy() {
+      setCopyAttempts((n) => {
+        const next = n + 1;
+        fetch(`/api/online-exams/${examId}/progress`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ attemptId, responses, copyAttempts: next }),
+        }).catch(() => {});
+        return next;
+      });
+    }
+    function onCopy(e: Event) { if (blockCopyPaste) { e.preventDefault(); bumpCopy(); } }
+    function onContext(e: Event) { if (blockRightClick) { e.preventDefault(); } }
+    function onKey(e: KeyboardEvent) {
+      if (!blockCopyPaste) return;
+      // Block PrintScreen, Ctrl+P, Ctrl+S, Ctrl+C, Ctrl+X, Ctrl+A
+      const k = e.key.toLowerCase();
+      if (e.key === "PrintScreen" || (e.ctrlKey && ["p", "s", "c", "x", "a"].includes(k)) || (e.metaKey && ["p", "s", "c", "x", "a"].includes(k))) {
+        e.preventDefault();
+        if (e.ctrlKey || e.metaKey) bumpCopy();
+      }
+    }
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCopy);
+    document.addEventListener("paste", onCopy);
+    document.addEventListener("contextmenu", onContext);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCopy);
+      document.removeEventListener("paste", onCopy);
+      document.removeEventListener("contextmenu", onContext);
+      document.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockCopyPaste, blockRightClick, examId, attemptId]);
+
+  // -- Per-question time-limit ticking + auto-advance -----------------
+  useEffect(() => {
+    if (!cur?.timeLimitSec) return;
+    setPerQRemaining((m) => ({ ...m, [cur.id]: m[cur.id] ?? cur.timeLimitSec! }));
+    const t = setInterval(() => {
+      setPerQRemaining((m) => {
+        const left = (m[cur.id] ?? 0) - 1;
+        if (left <= 0) {
+          // auto-advance, clear timer
+          setIdx((i) => Math.min(visibleQuestions.length - 1, i + 1));
+          return { ...m, [cur.id]: 0 };
+        }
+        return { ...m, [cur.id]: left };
+      });
+    }, 1000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur?.id]);
+
   const deadlineMs = useMemo(() => {
     const startedAtMs = new Date(startedAt).getTime();
     const examEnd = new Date(endAt).getTime();
@@ -105,10 +246,16 @@ export default function TakeExamClient({
   const mm = Math.floor(remainingSec / 60);
   const ss = remainingSec % 60;
 
-  const cur = questions[idx];
-
   function setAns(qid: string, value: any) {
     setResponses((r) => ({ ...r, [qid]: value }));
+    // Adaptive testing: surface answer immediately so backend can pick next Q
+    if (adaptive) {
+      fetch(`/api/online-exams/${examId}/progress`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ attemptId, responses: { ...responses, [qid]: value }, adaptiveAnswered: { qid, value } }),
+      }).catch(() => {});
+    }
   }
 
   // Auto-save every 15 seconds when there are unsaved changes.
@@ -120,9 +267,7 @@ export default function TakeExamClient({
 
   // Auto-submit when time runs out.
   useEffect(() => {
-    if (remainingMs <= 0) {
-      submit().catch(() => {});
-    }
+    if (remainingMs <= 0) submit().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remainingMs <= 0]);
 
@@ -138,6 +283,19 @@ export default function TakeExamClient({
     } catch {}
   }
 
+  async function submitSection(sectionId: string) {
+    await saveProgress();
+    setSectionsLocked((m) => ({ ...m, [sectionId]: new Date().toISOString() }));
+    await fetch(`/api/online-exams/${examId}/progress`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ attemptId, responses, sectionsLocked: { ...sectionsLocked, [sectionId]: new Date().toISOString() } }),
+    }).catch(() => {});
+    // Move to next available section
+    const nextSec = sections.find((s) => s.id !== sectionId && !sectionsLocked[s.id]);
+    if (nextSec) { setActiveSectionId(nextSec.id); setIdx(0); }
+  }
+
   async function submit() {
     if (busy) return;
     setBusy(true);
@@ -149,6 +307,7 @@ export default function TakeExamClient({
       });
       const data = await r.json().catch(() => ({}));
       if (data?.ok) {
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         router.refresh();
       }
     } finally {
@@ -163,29 +322,67 @@ export default function TakeExamClient({
     return true;
   }).length;
 
+  const perQLeft = cur?.timeLimitSec ? perQRemaining[cur.id] ?? cur.timeLimitSec : null;
+
   return (
-    <div className="p-5 max-w-3xl mx-auto">
+    <div ref={containerRef} className="p-5 max-w-3xl mx-auto relative" style={{ userSelect: blockCopyPaste ? "none" : "auto" }}>
+      {/* Watermark — diagonal repeating pattern, low opacity. BRD §4.4 */}
+      {watermarkContent && <Watermark label={studentLabel} />}
+
       {/* Header bar */}
-      <div className="flex items-center justify-between gap-3 mb-3">
+      <div className="flex items-center justify-between gap-3 mb-3 relative z-10">
         <div>
           <div className="font-medium">{title}</div>
-          <div className="text-xs text-slate-500">{questions.length} questions · {totalMarks} marks</div>
+          <div className="text-xs text-slate-500">{questions.length} questions · {totalMarks} marks{adaptive && " · adaptive"}</div>
         </div>
         <div className={`px-3 py-1.5 rounded-lg font-mono text-sm tabular-nums ${
           remainingMs < 5 * 60_000 ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-700"
-        }`}>
-          {mm}:{String(ss).padStart(2, "0")}
-        </div>
+        }`}>{mm}:{String(ss).padStart(2, "0")}</div>
       </div>
 
+      {/* Section pills (when sectional) */}
+      {sectional && sections.length > 0 && (
+        <div className="card card-pad mb-3 relative z-10">
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-slate-500">Section:</span>
+            {sections.map((s) => {
+              const isActive = activeSectionId === s.id;
+              const isLocked = !!sectionsLocked[s.id];
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => !isLocked && setActiveSectionId(s.id)}
+                  disabled={isLocked}
+                  className={`px-3 py-1 text-xs rounded-full ${
+                    isLocked ? "bg-slate-200 text-slate-400 cursor-not-allowed" :
+                    isActive ? "bg-brand-700 text-white" :
+                    "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  {s.name}{isLocked && " ✓"}
+                </button>
+              );
+            })}
+            {activeSectionId && !sectionsLocked[activeSectionId] && (
+              <button
+                onClick={() => activeSectionId && submitSection(activeSectionId)}
+                className="ml-auto text-xs text-rose-700 hover:underline"
+              >
+                Submit this section →
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Question navigator */}
-      <div className="card card-pad mb-3">
+      <div className="card card-pad mb-3 relative z-10">
         <div className="text-xs text-slate-500 mb-2">
-          Answered {answered} / {questions.length}
+          Answered {answered} / {visibleQuestions.length}
           {savedAt && <span className="ml-2 text-emerald-600">· saved {savedAt.toLocaleTimeString("en-IN")}</span>}
         </div>
         <div className="flex flex-wrap gap-1">
-          {questions.map((q, i) => {
+          {visibleQuestions.map((q, i) => {
             const has = responses[q.id] != null && responses[q.id] !== "" && (!Array.isArray(responses[q.id]) || responses[q.id].length > 0);
             return (
               <button
@@ -202,10 +399,14 @@ export default function TakeExamClient({
       </div>
 
       {/* Active question */}
-      <div className="card card-pad mb-3">
+      {cur && (
+      <div className="card card-pad mb-3 relative z-10">
         <div className="flex items-center justify-between mb-3">
-          <div className="font-mono text-xs text-slate-500">Q{idx + 1} of {questions.length}</div>
-          <div className="text-xs text-slate-500">{cur.marks} mark{cur.marks !== 1 ? "s" : ""}</div>
+          <div className="font-mono text-xs text-slate-500">Q{idx + 1} of {visibleQuestions.length}</div>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            {perQLeft != null && <span className={`font-mono ${perQLeft < 10 ? "text-rose-700 font-semibold" : ""}`}>⏱ {perQLeft}s</span>}
+            <span>{cur.marks} mark{cur.marks !== 1 ? "s" : ""}</span>
+          </div>
         </div>
         <div className="font-medium mb-3">{cur.text}</div>
 
@@ -247,6 +448,18 @@ export default function TakeExamClient({
           </ul>
         )}
 
+        {cur.type === "NUMERIC" && (
+          <input
+            type="number"
+            inputMode="decimal"
+            step="any"
+            value={responses[cur.id] ?? ""}
+            onChange={(e) => setAns(cur.id, e.target.value)}
+            className="input"
+            placeholder="Enter a number"
+          />
+        )}
+
         {(cur.type === "FILL" || cur.type === "DESCRIPTIVE") && (
           <textarea
             value={responses[cur.id] ?? ""}
@@ -254,17 +467,19 @@ export default function TakeExamClient({
             rows={cur.type === "DESCRIPTIVE" ? 6 : 2}
             className="input"
             placeholder={cur.type === "FILL" ? "Your answer" : "Type your answer here"}
+            style={{ userSelect: "text" }}
           />
         )}
       </div>
+      )}
 
       {/* Footer controls */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between relative z-10">
         <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} className="btn-outline">← Prev</button>
         <div className="flex gap-2">
           <button onClick={saveProgress} className="btn-outline">Save progress</button>
-          {idx < questions.length - 1 ? (
-            <button onClick={() => setIdx((i) => Math.min(questions.length - 1, i + 1))} className="btn-tonal">Next →</button>
+          {idx < visibleQuestions.length - 1 ? (
+            <button onClick={() => setIdx((i) => Math.min(visibleQuestions.length - 1, i + 1))} className="btn-tonal">Next →</button>
           ) : (
             <button onClick={() => setShowFinish(true)} className="btn-primary">Submit exam</button>
           )}
@@ -272,13 +487,22 @@ export default function TakeExamClient({
       </div>
 
       {/* Proctoring overlay */}
-      {(webcam || tabSwitchDetect) && (
+      {(webcam || tabSwitchDetect || fullscreenLock || blockCopyPaste) && (
         <div className="fixed bottom-4 right-4 z-30 flex flex-col items-end gap-2">
-          {tabSwitchDetect && tabSwitches > 0 && (
+          {tabSwitches > 0 && (
             <div className={`px-3 py-1.5 rounded-lg text-xs font-medium shadow ${
               tabSwitches > 3 ? "bg-rose-700 text-white" : "bg-amber-100 text-amber-800"
-            }`}>
-              ⚠ {tabSwitches} tab switch{tabSwitches !== 1 ? "es" : ""} detected
+            }`}>⚠ {tabSwitches} tab switch{tabSwitches !== 1 ? "es" : ""}</div>
+          )}
+          {fullscreenViolations > 0 && (
+            <div className="px-3 py-1.5 rounded-lg text-xs font-medium shadow bg-rose-100 text-rose-800">
+              ⚠ {fullscreenViolations} fullscreen exit{fullscreenViolations !== 1 ? "s" : ""}
+              <button className="ml-2 underline" onClick={enterFullscreen}>Re-enter</button>
+            </div>
+          )}
+          {copyAttempts > 0 && (
+            <div className="px-3 py-1.5 rounded-lg text-xs font-medium shadow bg-amber-100 text-amber-800">
+              ⚠ {copyAttempts} copy/paste attempt{copyAttempts !== 1 ? "s" : ""} blocked
             </div>
           )}
           {webcam && proctorState === "live" && (
@@ -289,13 +513,11 @@ export default function TakeExamClient({
           )}
           {webcam && proctorState === "denied" && (
             <div className="px-3 py-2 rounded-lg bg-rose-50 text-rose-800 text-xs shadow max-w-xs">
-              ⚠ Camera permission denied. This exam requires webcam proctoring — submission may be flagged for review.
+              ⚠ Camera permission denied — submission may be flagged.
             </div>
           )}
           {webcam && proctorState === "requesting" && (
-            <div className="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs shadow">
-              Requesting camera access…
-            </div>
+            <div className="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs shadow">Requesting camera…</div>
           )}
         </div>
       )}
@@ -319,4 +541,33 @@ export default function TakeExamClient({
       )}
     </div>
   );
+}
+
+function Watermark({ label }: { label: string }) {
+  // Tiled diagonal watermark covering the viewport. pointer-events:none so
+  // it never intercepts clicks; user-select:none so it can't be copied.
+  return (
+    <div
+      aria-hidden
+      className="fixed inset-0 z-0 pointer-events-none select-none"
+      style={{
+        backgroundImage:
+          `repeating-linear-gradient(-30deg, transparent 0 60px, rgba(0,0,0,0.03) 60px 61px)`,
+      }}
+    >
+      <div
+        className="absolute inset-0 grid place-items-center"
+        style={{ transform: "rotate(-25deg)", opacity: 0.06 }}
+      >
+        <div className="text-[18vw] font-semibold leading-none whitespace-pre-line text-slate-900 text-center">
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function safeParse(s: any): any[] {
+  if (Array.isArray(s)) return s;
+  try { const v = JSON.parse(s); return Array.isArray(v) ? v : []; } catch { return []; }
 }

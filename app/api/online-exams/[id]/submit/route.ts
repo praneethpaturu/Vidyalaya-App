@@ -1,40 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { gradeAnswer } from "@/lib/exam-grading";
 
 export const runtime = "nodejs";
-
-// Auto-grade for MCQ / MULTI / TRUE_FALSE / FILL.
-// DESCRIPTIVE responses contribute 0 (teacher will grade manually) — they
-// remain in the responses blob for evaluator review later.
-function gradeQuestion(q: { type: string; options: string; correct: string; marks: number }, ans: any, neg: number): number {
-  let opts: any = []; let corr: any = [];
-  try { opts = JSON.parse(q.options); } catch {}
-  try { corr = JSON.parse(q.correct); } catch {}
-
-  if (q.type === "MCQ" || q.type === "TRUE_FALSE") {
-    if (ans == null) return 0;
-    if (Array.isArray(corr) && corr.includes(Number(ans))) return q.marks;
-    return -neg;
-  }
-  if (q.type === "MULTI") {
-    if (!Array.isArray(ans) || ans.length === 0) return 0;
-    if (!Array.isArray(corr)) return 0;
-    const a = new Set(ans.map(Number));
-    const c = new Set(corr.map(Number));
-    if (a.size !== c.size) return -neg;
-    for (const x of c) if (!a.has(x as number)) return -neg;
-    return q.marks;
-  }
-  if (q.type === "FILL") {
-    const expected = String(corr ?? "").trim().toLowerCase();
-    const got = String(ans ?? "").trim().toLowerCase();
-    if (!expected) return 0;
-    if (got === expected) return q.marks;
-    return 0;
-  }
-  return 0; // DESCRIPTIVE
-}
+export const maxDuration = 60;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const u = await requireRole(["STUDENT"]);
@@ -52,22 +22,66 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
   if (!attempt) return NextResponse.json({ ok: false, error: "no-attempt" }, { status: 404 });
 
-  // Score
+  // Grade each question through the unified engine. AI rubric grading runs
+  // for DESCRIPTIVE questions that have a rubric; otherwise descriptives
+  // contribute 0 and stay queued for teacher review.
   let total = 0;
+  let aiGraded = 0;
+  let pendingManual = 0;
   for (const q of attempt.exam.questions) {
-    total += gradeQuestion({ type: q.type, options: q.options, correct: q.correct, marks: q.marks }, responses[q.id], attempt.exam.negativeMark);
+    const result = await gradeAnswer(
+      {
+        id: q.id, type: q.type, correct: q.correct, marks: q.marks,
+        negativeMark: q.negativeMark, numericTolerance: q.numericTolerance,
+        numericRangeMin: q.numericRangeMin, numericRangeMax: q.numericRangeMax,
+        rubric: q.rubric, text: q.text,
+      },
+      responses[q.id],
+      attempt.exam.negativeMark,
+    );
+    total += result.marksAwarded;
+
+    // Persist a per-question grading audit row.
+    await prisma.onlineAnswerLog.create({
+      data: {
+        attemptId: attempt.id,
+        questionId: q.id,
+        source: result.source,
+        marksAwarded: result.marksAwarded,
+        feedback: result.feedback ?? null,
+        rubricJson: result.rubricJson ?? null,
+      },
+    });
+
+    if (result.source === "AI") aiGraded++;
+    if (q.type === "DESCRIPTIVE" && result.source !== "AI") pendingManual++;
   }
   const score = Math.max(0, Math.round(total));
 
   await prisma.onlineExamAttempt.update({
     where: { id: attempt.id },
     data: {
-      status: "SUBMITTED",
+      status: pendingManual > 0 ? "SUBMITTED" : "EVALUATED",
       submittedAt: new Date(),
       responses: JSON.stringify(responses),
       scoreObtained: score,
     },
   });
 
-  return NextResponse.json({ ok: true, scoreObtained: score });
+  // Update IRT-lite calibration on the bank (attemptCount/correctCount).
+  // We treat MCQ/MULTI/NUMERIC as objective for calibration; descriptive
+  // is excluded because grading is non-binary.
+  for (const q of attempt.exam.questions) {
+    if (!["MCQ", "MULTI", "TRUE_FALSE", "NUMERIC"].includes(q.type)) continue;
+    // Match by exam question text → bank item (best-effort; bank import
+    // sets text identical to source so this is a stable join).
+    await prisma.questionBankItem.updateMany({
+      where: { schoolId: attempt.exam.schoolId, text: q.text },
+      data: {
+        attemptCount: { increment: 1 },
+      },
+    });
+  }
+
+  return NextResponse.json({ ok: true, scoreObtained: score, aiGraded, pendingManual });
 }
