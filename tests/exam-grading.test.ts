@@ -83,3 +83,27 @@ describe("Descriptive without rubric", () => {
     expect(r.feedback).toContain("Pending");
   });
 });
+
+describe("Type-coercion guard — teacher flips question type mid-attempt", () => {
+  it("MCQ receiving a DESCRIPTIVE-shaped object unwraps to text without crashing", async () => {
+    // student answered when the Q was DESCRIPTIVE → response = { text, attachments }
+    // teacher flipped to MCQ → grader receives the object on submit
+    const q = { id: "q", type: "MCQ", correct: JSON.stringify([0]), marks: 4 };
+    const r = await gradeAnswer(q, { text: "Paris", attachments: [] }, 1);
+    // The object is unwrapped to "Paris" then parsed as an MCQ index — fails
+    // to parse, so grading returns 0 marks rather than throwing.
+    expect(r.marksAwarded).toBe(0);
+    expect(r.source).toBe("AUTO");
+  });
+  it("FILL receiving an object unwraps to its text and matches", async () => {
+    const q = { id: "q", type: "FILL", correct: JSON.stringify(["paris"]), marks: 2 };
+    const r = await gradeAnswer(q, { text: "Paris", attachments: [] }, 0);
+    expect(r.marksAwarded).toBe(2);
+  });
+  it("DESCRIPTIVE receiving an object continues to the rubric branch", async () => {
+    const q = { id: "q", type: "DESCRIPTIVE", correct: "model", marks: 5, rubric: null };
+    const r = await gradeAnswer(q, { text: "long", attachments: [] }, 0);
+    // No rubric → manual-pending
+    expect(r.feedback).toContain("Pending");
+  });
+});

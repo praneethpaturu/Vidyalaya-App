@@ -68,7 +68,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
-          schoolId: user.schoolId ?? null,
+          // schoolId is empty string for PLATFORM_ADMIN; tenant-scoped
+          // server actions filter on `where: { schoolId: u.schoolId }`
+          // — an empty string matches no rows (it's a valid TEXT, not
+          // NULL), so no cross-tenant leak even if such a route is
+          // accidentally hit.
+          schoolId: user.schoolId ?? "",
           schoolName: user.school?.name ?? "Platform",
         } as any;
       },
@@ -99,6 +104,11 @@ export type SessionUser = {
   email: string;
   name: string;
   role: string;
+  // schoolId is the empty string ONLY when role === PLATFORM_ADMIN.
+  // Tenant-scoped server actions / page guards never list PLATFORM_ADMIN
+  // in their allowed roles, so by construction `schoolId` is always a
+  // valid tenant id when those handlers receive `u`. Use requireTenantRole
+  // when you want a compile-time guarantee.
   schoolId: string;
   schoolName: string;
 };
@@ -129,5 +139,17 @@ export async function requirePageRole(roles: string[]): Promise<SessionUser> {
   // dynamically-imported never-returning helpers — use ! to assert.
   const u = session!.user as any as SessionUser;
   if (!roles.includes(u.role)) redirect("/");
+  return u;
+}
+
+// Tenant-scoped variant of requireRole. Refuses sessions without a
+// schoolId (e.g. PLATFORM_ADMIN) so a server action that does
+// `where: { schoolId: u.schoolId }` cannot accidentally use the empty
+// string and match only schoolId-IS-NULL global rows. Use this in any
+// handler that reads or mutates a tenant's data when PLATFORM_ADMIN is
+// in the allowed roles list.
+export async function requireTenantRole(roles: string[]): Promise<SessionUser> {
+  const u = await requireRole(roles);
+  if (!u.schoolId) throw new Error("FORBIDDEN_NO_TENANT");
   return u;
 }

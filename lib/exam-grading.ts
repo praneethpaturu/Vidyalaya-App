@@ -35,6 +35,14 @@ export async function gradeAnswer(
   if (response == null || response === "" || (Array.isArray(response) && response.length === 0)) {
     return { marksAwarded: 0, isCorrect: null, source: "AUTO" };
   }
+  // DESCRIPTIVE answers are stored as either string OR { text, attachments }.
+  // Other types expect primitive shapes; if a non-DESCRIPTIVE question got
+  // an object payload (e.g. teacher flipped the type mid-attempt) we
+  // unwrap to the text body so grading doesn't crash on type confusion.
+  if (q.type !== "DESCRIPTIVE" && typeof response === "object" && !Array.isArray(response)) {
+    response = (response as any)?.text ?? "";
+    if (response === "") return { marksAwarded: 0, isCorrect: null, source: "AUTO" };
+  }
   switch (q.type) {
     case "MCQ":      return gradeMcq(q, response, negative);
     case "MULTI":    return gradeMulti(q, response, negative);

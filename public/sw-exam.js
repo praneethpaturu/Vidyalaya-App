@@ -29,11 +29,13 @@ self.addEventListener("sync", (event) => {
 
 // Whitelist of idempotent endpoints safe to queue + replay when offline.
 // Anything that creates resources (e.g. /from-blueprint) MUST stay off
-// this list to avoid duplicate creation on reconnect.
+// this list to avoid duplicate creation on reconnect. /offline-sync is
+// intentionally NOT here — that endpoint is for batch flushes initiated
+// by the client; the per-request /progress and /submit interceptions
+// give us full coverage already.
 const QUEUEABLE = [
   /\/api\/online-exams\/[^/]+\/progress$/,
   /\/api\/online-exams\/[^/]+\/submit$/,
-  /\/api\/offline-sync$/,
 ];
 function isQueueable(pathname) {
   return QUEUEABLE.some((re) => re.test(pathname));

@@ -16,6 +16,7 @@ const JOBS: Array<{ name: string; path: string }> = [
   { name: "late-fee",         path: "/api/finance/late-fee/accrue"       },
   { name: "drip-fire",        path: "/api/connect/drip/fire"             },
   { name: "report-subs-fire", path: "/api/reports/subscriptions/fire"    },
+  { name: "prune",            path: "/api/maintenance/prune"             },
 ];
 
 async function authorize(req: Request): Promise<boolean> {

@@ -391,6 +391,10 @@ export default function TakeExamClient(props: Props) {
     if (busy) return;
     setBusy(true);
     try {
+      // Flush the latest responses + accumulated time-on-question before
+      // grading, so the audit log captures every second the student
+      // actually spent on the final question.
+      await saveProgress();
       const r = await fetch(`/api/online-exams/${examId}/submit`, {
         method: "POST",
         headers: { "content-type": "application/json" },
