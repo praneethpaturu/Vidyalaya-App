@@ -60,7 +60,61 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
   const isOpen = +now >= +exam.startAt && +now <= +exam.endAt;
   const isPublished = exam.status === "PUBLISHED" || exam.status === "LIVE";
 
-  // Only STUDENT can attempt; others see a preview.
+  // BRD §4.3 — Parent portal: restricted, no question content
+  if (u.role === "PARENT") {
+    const links = await prisma.guardianStudent.findMany({
+      where: { guardian: { userId: u.id } },
+      select: { studentId: true },
+    });
+    const childIds = links.map((l) => l.studentId);
+    const childAttempt = await prisma.onlineExamAttempt.findFirst({
+      where: { examId: exam.id, studentId: { in: childIds }, status: { in: ["SUBMITTED", "EVALUATED"] } },
+      orderBy: { submittedAt: "desc" },
+    });
+    if (!childAttempt) {
+      return (
+        <div className="p-5 max-w-2xl mx-auto">
+          <Link href="/Online_Exams" className="text-xs text-brand-700 hover:underline">← Back</Link>
+          <h1 className="h-page mt-1 mb-1">{exam.title}</h1>
+          <p className="muted mb-3">{className}</p>
+          <div className="card card-pad text-sm text-slate-600">No completed attempt found for your ward.</div>
+        </div>
+      );
+    }
+    const insight = await (await import("@/lib/ai/exam-insights")).ensureAttemptInsight(childAttempt.id);
+    return (
+      <div className="p-5 max-w-2xl mx-auto">
+        <Link href="/Online_Exams" className="text-xs text-brand-700 hover:underline">← Back</Link>
+        <h1 className="h-page mt-1 mb-1">{exam.title}</h1>
+        <p className="muted mb-3">{className} · Parent view · question content withheld</p>
+        <div className="card card-pad mb-5 text-center">
+          <div className="text-xs text-slate-500">Your ward's score</div>
+          <div className="text-4xl font-medium tracking-tight my-1">{childAttempt.scoreObtained} / {exam.totalMarks}</div>
+          <div className={childAttempt.scoreObtained >= exam.passMarks ? "text-emerald-700" : "text-rose-700"}>
+            {childAttempt.scoreObtained >= exam.passMarks ? "Pass" : "Below pass mark (" + exam.passMarks + ")"}
+          </div>
+        </div>
+        {insight && insight.topicMastery.length > 0 && (
+          <div className="card card-pad">
+            <h2 className="h-section mb-2">Topic-wise performance</h2>
+            <div className="space-y-1.5">
+              {insight.topicMastery.map((t) => (
+                <div key={t.topic} className="flex items-center gap-3 text-sm">
+                  <div className="w-32 truncate text-slate-700">{t.topic}</div>
+                  <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${t.mastery >= 0.75 ? "bg-emerald-500" : t.mastery >= 0.5 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${Math.round(t.mastery * 100)}%` }} />
+                  </div>
+                  <div className="w-16 text-right text-xs text-slate-500 tabular-nums">{t.correct}/{t.attempted}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Only STUDENT can attempt; staff see the preview.
   if (u.role !== "STUDENT") {
     return (
       <div className="p-5 max-w-3xl mx-auto">
@@ -97,6 +151,9 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
   // Result view
   if (attempt && (attempt.status === "SUBMITTED" || attempt.status === "EVALUATED")) {
     const responses: Record<string, any> = (() => { try { return JSON.parse(attempt.responses || "{}"); } catch { return {}; } })();
+    const { ensureAttemptInsight } = await import("@/lib/ai/exam-insights");
+    const insight = await ensureAttemptInsight(attempt.id);
+    const showQuestions = exam.publishResultMode === "IMMEDIATE" || attempt.status === "EVALUATED";
     return (
       <div className="p-5 max-w-3xl mx-auto">
         <Link href="/Online_Exams" className="text-xs text-brand-700 hover:underline">← Back</Link>
@@ -111,41 +168,92 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
             {attempt.scoreObtained >= exam.passMarks ? "Pass" : "Below pass mark (" + exam.passMarks + ")"}
           </div>
         </div>
-        <h2 className="h-section mb-2">Question review</h2>
-        <ol className="space-y-3">
-          {exam.questions.map((q, i) => {
-            const opts: string[] = (() => { try { return JSON.parse(q.options); } catch { return []; } })();
-            const corr = (() => { try { return JSON.parse(q.correct); } catch { return []; } })();
-            const yourAns = responses[q.id];
-            return (
-              <li key={q.id} className="card card-pad">
-                <div className="font-medium mb-2">{i + 1}. {q.text}</div>
-                {opts.length > 0 ? (
-                  <ul className="space-y-1">
-                    {opts.map((o, j) => {
-                      const isCorrect = Array.isArray(corr) && corr.includes(j);
-                      const youPicked = Array.isArray(yourAns) ? yourAns.includes(j) : yourAns === j;
-                      return (
-                        <li key={j} className={`text-sm flex items-center gap-2 ${isCorrect ? "text-emerald-700" : youPicked ? "text-rose-700" : "text-slate-700"}`}>
-                          <span className="w-4">{isCorrect ? "✓" : youPicked ? "✗" : ""}</span>
-                          <span>{o}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <>
-                    <div className="text-xs text-slate-500">Your answer:</div>
-                    <div className="text-sm whitespace-pre-wrap">{yourAns ?? <em className="text-slate-400">— not answered —</em>}</div>
-                    {!Array.isArray(corr) && (
-                      <div className="text-xs text-emerald-700 mt-2">Reference: {String(corr)}</div>
+
+        {/* BRD §4.3 — predictive insights panel */}
+        {insight && insight.topicMastery.length > 0 && (
+          <div className="card card-pad mb-5">
+            <h2 className="h-section mb-2">📊 Topic-wise performance</h2>
+            <div className="space-y-1.5">
+              {insight.topicMastery.map((t) => (
+                <div key={t.topic} className="flex items-center gap-3 text-sm">
+                  <div className="w-32 truncate text-slate-700">{t.topic}</div>
+                  <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${t.mastery >= 0.75 ? "bg-emerald-500" : t.mastery >= 0.5 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${Math.round(t.mastery * 100)}%` }} />
+                  </div>
+                  <div className="w-16 text-right text-xs text-slate-500 tabular-nums">{t.correct}/{t.attempted}</div>
+                </div>
+              ))}
+            </div>
+            {insight.weakTopics.length > 0 && (
+              <div className="mt-4 border-t pt-3">
+                <h3 className="text-xs uppercase tracking-wider text-slate-500 mb-2">✨ Practice recommendations</h3>
+                <ul className="space-y-2 text-sm">
+                  {insight.recommendations.map((r, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="badge-amber text-xs">{r.topic}</span>
+                      <span className="text-slate-700">{r.action}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="mt-3 text-xs text-slate-500">
+              Forecasted next attempt with focused practice: <strong className="text-emerald-700">{insight.predictedScore}/{exam.totalMarks}</strong>
+            </div>
+          </div>
+        )}
+
+        {!showQuestions ? (
+          <div className="card card-pad text-sm text-slate-600">
+            Detailed question review will be available once the teacher publishes
+            the evaluated paper.
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="h-section">Question review</h2>
+              <span className="text-xs text-slate-500">Disagree with a mark? Click "Appeal" beside any question.</span>
+            </div>
+            <ol className="space-y-3">
+              {exam.questions.map((q, i) => {
+                const opts: string[] = (() => { try { return JSON.parse(q.options); } catch { return []; } })();
+                const corr = (() => { try { return JSON.parse(q.correct); } catch { return []; } })();
+                const yourAns = responses[q.id];
+                return (
+                  <li key={q.id} className="card card-pad">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="font-medium">{i + 1}. {q.text}</div>
+                      <a href={`/Online_Exams/${exam.id}/appeal?qid=${q.id}&attemptId=${attempt.id}`}
+                         className="text-xs text-brand-700 hover:underline whitespace-nowrap">Appeal →</a>
+                    </div>
+                    {opts.length > 0 ? (
+                      <ul className="space-y-1">
+                        {opts.map((o, j) => {
+                          const isCorrect = Array.isArray(corr) && corr.includes(j);
+                          const youPicked = Array.isArray(yourAns) ? yourAns.includes(j) : yourAns === j;
+                          return (
+                            <li key={j} className={`text-sm flex items-center gap-2 ${isCorrect ? "text-emerald-700" : youPicked ? "text-rose-700" : "text-slate-700"}`}>
+                              <span className="w-4">{isCorrect ? "✓" : youPicked ? "✗" : ""}</span>
+                              <span>{o}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <>
+                        <div className="text-xs text-slate-500">Your answer:</div>
+                        <div className="text-sm whitespace-pre-wrap">{yourAns ?? <em className="text-slate-400">— not answered —</em>}</div>
+                        {!Array.isArray(corr) && (
+                          <div className="text-xs text-emerald-700 mt-2">Reference: {String(corr)}</div>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-              </li>
-            );
-          })}
-        </ol>
+                  </li>
+                );
+              })}
+            </ol>
+          </>
+        )}
       </div>
     );
   }

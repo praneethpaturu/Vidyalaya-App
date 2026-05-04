@@ -96,6 +96,14 @@ export default function TakeExamClient(props: Props) {
 
   const cur = visibleQuestions[idx] ?? questions[0];
 
+  // -- Register the offline service worker once on mount.
+  // BRD §4.2 — when device goes offline, /progress and /submit fall back
+  // to IndexedDB; sw-exam.js retries them with Background Sync.
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw-exam.js").catch(() => {});
+  }, []);
+
   // -- Webcam ----------------------------------------------------------
   useEffect(() => {
     if (!webcam) return;

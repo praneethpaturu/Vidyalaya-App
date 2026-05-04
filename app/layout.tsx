@@ -35,6 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${interTight.variable} ${noto.variable}`}>
       <body className="min-h-screen antialiased text-slate-900">
+        {/* WCAG 2.1 §2.4.1 Bypass blocks — keyboard skip-link */}
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:bg-brand-700 focus:text-white focus:rounded">
+          Skip to main content
+        </a>
         <I18nClient>
           <Providers>{children}</Providers>
         </I18nClient>

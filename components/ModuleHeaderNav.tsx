@@ -166,9 +166,12 @@ const GLOBAL_MODULES: Module[] = [
     activePrefixes: ["/Home/Online_Exams"],
     roles: ["ADMIN", "PRINCIPAL", "TEACHER"],
     pages: [
-      { href: "/Home/Online_Exams",          label: "Online Exams" },
-      { href: "/Home/Online_Exams/questions", label: "Question Bank" },
-      { href: "/Home/Online_Exams/reports",  label: "Reports" },
+      { href: "/Home/Online_Exams",                  label: "Online Exams" },
+      { href: "/Home/Online_Exams/blueprint",        label: "Blueprint generator" },
+      { href: "/Home/Online_Exams/questions",        label: "Question Bank" },
+      { href: "/Home/Online_Exams/qbank/review",     label: "QBank Review" },
+      { href: "/Home/Online_Exams/appeals",          label: "Appeals" },
+      { href: "/Home/Online_Exams/reports",          label: "Reports" },
     ],
   },
   {
@@ -250,6 +253,16 @@ const GLOBAL_MODULES: Module[] = [
       { href: "/Home/Compliance/rte",      label: "RTE quota" },
       { href: "/Home/Compliance/posh",     label: "PoSH register" },
       { href: "/Home/Compliance/udise",    label: "UDISE+" },
+    ],
+  },
+  // BRD personas — Platform Admin (cross-tenant). Only visible to that role.
+  {
+    key: "Platform", label: "Platform", rootHref: "/Platform",
+    activePrefixes: ["/Platform"],
+    roles: ["PLATFORM_ADMIN"],
+    pages: [
+      { href: "/Platform",         label: "Tenants overview" },
+      { href: "/Platform/qbank",   label: "Global qbank" },
     ],
   },
 ];
