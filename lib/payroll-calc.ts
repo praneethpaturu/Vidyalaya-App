@@ -147,3 +147,169 @@ export function lopFromAttendance(rows: { status: string }[]): number {
   }
   return lop;
 }
+
+// ---------- TDS — cumulative-averaging engine -------------------------------
+// India's prescribed monthly-TDS method (CBDT circular re. s.192) is:
+//   monthly TDS = (projected annual tax) - (TDS already deducted YTD)
+//                 ────────────────────────────────────────────────────
+//                                remaining months in FY
+// This means a mid-year declaration change (e.g. December 80C disclosure)
+// is automatically absorbed by the remaining months without leaving a refund
+// stub at year-end. Mid-year joiners are projected only over months from
+// joining → March. LOP months that already happened reduce annual gross
+// (because their actual lower payslip totals are summed into the projection).
+//
+// The function is `prisma`-injected so it can run inside server actions or
+// API routes without a circular import. Returns paise.
+
+export type TdsContext = {
+  prisma: any;          // PrismaClient
+  schoolId: string;
+  staffId: string;
+  // The pay period we're computing TDS for
+  year: number;
+  month: number;        // 1-12
+  // The structure to project remaining months at (full monthly, pre-LOP)
+  structure: { basic: number; hra: number; da: number; special: number; transport: number };
+  // Optional override for the *current* month's actual gross (post pro-ration);
+  // if omitted we use the full structure for the current month too.
+  currentMonthOverride?: { basic: number; hra: number; da: number; special: number; transport: number } | null;
+};
+
+import type { Regime } from "./tax";
+
+export async function computeMonthlyTds(ctx: TdsContext): Promise<{
+  monthlyTds: number;
+  annualTax: number;
+  annualGross: number;
+  monthsInFy: number;
+  monthsRemaining: number;
+  priorTdsDeducted: number;
+  regime: Regime;
+}> {
+  const { prisma, schoolId, staffId, year, month, structure } = ctx;
+  const fyStart = month >= 4 ? year : year - 1;
+  const fyLabel = `${fyStart}-${String((fyStart + 1) % 100).padStart(2, "0")}`;
+
+  // Lazy-load the tax engine so this module stays cheap to import.
+  const { calculateTax } = await import("./tax");
+
+  // 1) Declaration & regime
+  const decl = await prisma.taxDeclaration.findUnique({
+    where: { staffId_financialYear: { staffId, financialYear: fyLabel } },
+  });
+  const regime: Regime = (decl?.regime ?? "NEW") as Regime;
+
+  // 2) Mid-year joiner — count only months in FY when employed.
+  const staff = await prisma.staff.findUnique({
+    where: { id: staffId },
+    select: { joiningDate: true },
+  });
+  const fyMonths = expandFyMonths(fyStart);          // 12 entries: Apr..Mar
+  const dojIdx = staff?.joiningDate
+    ? Math.max(0, fyMonthIndex(staff.joiningDate.getMonth() + 1, staff.joiningDate.getFullYear(), fyStart))
+    : 0;
+  const employedMonths = fyMonths.slice(dojIdx);
+  const employedCount = employedMonths.length;       // 1..12
+
+  // Current month index inside FY (0..11). If we're called for a month
+  // outside the FY, treat as full-year.
+  const curIdx = fyMonthIndex(month, year, fyStart);
+  if (curIdx < 0 || curIdx < dojIdx) {
+    return zeroTdsResult(regime, employedCount);
+  }
+
+  // 3) Prior payslips for this FY (strictly before current month/year)
+  const priorSlips: Array<{ month: number; year: number; basic: number; hra: number; da: number; special: number; transport: number; tds: number }> =
+    await prisma.payslip.findMany({
+      where: {
+        schoolId, staffId,
+        OR: [
+          { year: fyStart, month: { in: [4, 5, 6, 7, 8, 9, 10, 11, 12] } },
+          { year: fyStart + 1, month: { in: [1, 2, 3] } },
+        ],
+      },
+      select: { month: true, year: true, basic: true, hra: true, da: true, special: true, transport: true, tds: true },
+    });
+  const priors = priorSlips.filter((p) => fyMonthIndex(p.month, p.year, fyStart) < curIdx);
+
+  const priorBasic = sum(priors, (p) => p.basic);
+  const priorHra = sum(priors, (p) => p.hra);
+  const priorDa = sum(priors, (p) => p.da);
+  const priorSpecial = sum(priors, (p) => p.special);
+  const priorTransport = sum(priors, (p) => p.transport);
+  const priorTdsDeducted = sum(priors, (p) => p.tds);
+
+  // 4) Months remaining (including current) in employed window.
+  const monthsRemaining = employedCount - (curIdx - dojIdx);
+
+  // 5) Project annual amounts. Current + future months use either the
+  // override (if provided — typically the actual current-month gross post
+  // pro-ration) or the full structure. Future months always use the
+  // structure.
+  const cur = ctx.currentMonthOverride ?? structure;
+  const futureCount = Math.max(0, monthsRemaining - 1);
+
+  const annualBasic = priorBasic + cur.basic + structure.basic * futureCount;
+  const annualHra   = priorHra + cur.hra + structure.hra * futureCount;
+  const annualDa    = priorDa + cur.da + structure.da * futureCount;
+  const annualSpec  = priorSpecial + cur.special + structure.special * futureCount;
+  const annualTrans = priorTransport + cur.transport + structure.transport * futureCount;
+  const annualGross = annualBasic + annualHra + annualDa + annualSpec + annualTrans;
+
+  // 6) Run the tax engine on the projected FY income.
+  const tax = calculateTax({
+    basicAnnual: annualBasic,
+    hraAnnual: annualHra,
+    daAnnual: annualDa,
+    specialAnnual: annualSpec,
+    transportAnnual: annualTrans,
+    bonusAnnual: decl?.bonusAnnual ?? 0,
+    perquisitesAnnual: decl?.perquisitesAnnual ?? 0,
+    otherIncome: decl?.otherIncome ?? 0,
+    regime,
+    ageBand: (decl?.ageBand ?? "NORMAL") as any,
+    s80C: decl?.s80C ?? 0,
+    s80D: decl?.s80D ?? 0,
+    s80CCD1B: decl?.s80CCD1B ?? 0,
+    s80CCD2: decl?.s80CCD2 ?? 0,
+    s80E: decl?.s80E ?? 0,
+    s80TTA: decl?.s80TTA ?? 0,
+    hraRentPaid: decl?.hraRentPaid ?? 0,
+    hraMetro: decl?.hraMetro ?? true,
+    homeLoanInterest: decl?.homeLoanInterest ?? 0,
+  });
+
+  // 7) Cumulative true-up: split the outstanding tax across remaining months.
+  const outstanding = Math.max(0, tax.totalTax - priorTdsDeducted);
+  const monthlyTds = Math.round(outstanding / Math.max(1, monthsRemaining));
+
+  return {
+    monthlyTds,
+    annualTax: tax.totalTax,
+    annualGross,
+    monthsInFy: employedCount,
+    monthsRemaining,
+    priorTdsDeducted,
+    regime,
+  };
+}
+
+function zeroTdsResult(regime: Regime, monthsInFy: number) {
+  return { monthlyTds: 0, annualTax: 0, annualGross: 0, monthsInFy, monthsRemaining: 0, priorTdsDeducted: 0, regime };
+}
+
+function fyMonthIndex(month1to12: number, year: number, fyStart: number): number {
+  if (year === fyStart && month1to12 >= 4) return month1to12 - 4;
+  if (year === fyStart + 1 && month1to12 <= 3) return month1to12 + 8;
+  return -1;
+}
+function expandFyMonths(fyStart: number) {
+  const out: { month: number; year: number }[] = [];
+  for (let m = 4; m <= 12; m++) out.push({ month: m, year: fyStart });
+  for (let m = 1; m <= 3; m++) out.push({ month: m, year: fyStart + 1 });
+  return out;
+}
+function sum<T>(xs: T[], f: (x: T) => number): number {
+  let s = 0; for (const x of xs) s += f(x); return s;
+}

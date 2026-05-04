@@ -112,4 +112,115 @@ describe("Indian tax engine — FY 2026-27", () => {
       expect(r.saving).toBeGreaterThan(0);
     });
   });
+
+  // -- Marginal relief at the 87A cliff (new regime) ----------------------
+  // Without marginal relief, ₹12,01,000 taxable would jump to ~₹62,500 tax.
+  // With relief, tax must not exceed the excess over ₹12L.
+  describe("Marginal relief — 87A cliff (new regime)", () => {
+    it("₹12,01,000 taxable: tax capped at the excess over ₹12L", () => {
+      const basic = L(12_76_000); // 12,76,000 - 75,000 std ded = 12,01,000 taxable
+      const r = calculateTax({ basicAnnual: basic, regime: "NEW" });
+      expect(r.taxableIncome).toBe(L(12_01_000));
+      // Excess = ₹1,000. Tax (incl. cess) cannot exceed ~₹1,040.
+      expect(r.totalTax).toBeLessThanOrEqual(L(1_100));
+      expect(r.marginalReliefRebate).toBeGreaterThan(0);
+    });
+    it("at ₹13L taxable, marginal relief no longer applies (excess ≥ baseTax)", () => {
+      const basic = L(13_75_000); // 13L taxable
+      const r = calculateTax({ basicAnnual: basic, regime: "NEW" });
+      // base 75,000 < excess 1,00,000 → no rebate
+      expect(r.marginalReliefRebate).toBe(0);
+      expect(r.rebate87A).toBe(0);
+    });
+  });
+
+  // -- Marginal relief at surcharge boundaries ----------------------------
+  describe("Marginal relief — surcharge bands", () => {
+    it("₹50L threshold: just over should not trigger full 10% surcharge", () => {
+      const basic = L(50_75_000); // 50L taxable after std ded
+      const r = calculateTax({ basicAnnual: basic, regime: "NEW" });
+      // No surcharge at exactly 50L
+      expect(r.surcharge).toBe(0);
+    });
+    it("₹50L + ₹10,000 taxable: surcharge marginal relief caps the extra cost at ₹10k", () => {
+      const basic = L(50_85_000); // 50,10,000 taxable
+      const r = calculateTax({ basicAnnual: basic, regime: "NEW" });
+      // Tax at 50L taxable ≈ ₹10,80,000 base + 0 surcharge + 4% cess
+      // At 50L+10k, marginal relief should waive most of the surcharge.
+      expect(r.marginalReliefSurcharge).toBeGreaterThan(0);
+      // Surcharge after relief should be far below the raw 10% × baseTax
+      const rawSurcharge = Math.round(r.baseTax * 0.10);
+      expect(r.surcharge).toBeLessThan(rawSurcharge);
+    });
+  });
+
+  // -- 80CCD(2) employer NPS — allowed in BOTH regimes --------------------
+  describe("80CCD(2) — employer NPS", () => {
+    it("reduces taxable income in NEW regime", () => {
+      const without = calculateTax({ basicAnnual: L(15_00_000), regime: "NEW" });
+      const withNps = calculateTax({ basicAnnual: L(15_00_000), regime: "NEW", s80CCD2: L(1_50_000) });
+      expect(withNps.s80CCD2).toBe(L(1_50_000));
+      expect(withNps.taxableIncome).toBe(without.taxableIncome - L(1_50_000));
+      expect(withNps.totalTax).toBeLessThan(without.totalTax);
+    });
+    it("caps at 10% of basic + DA", () => {
+      const r = calculateTax({
+        basicAnnual: L(10_00_000), daAnnual: L(2_00_000),
+        regime: "NEW", s80CCD2: L(5_00_000), // declared way more than 10%
+      });
+      // Cap = 10% × (10L + 2L) = 1.2L
+      expect(r.s80CCD2).toBe(L(1_20_000));
+    });
+  });
+
+  // -- 80E education loan + 80TTA savings interest (old regime) -----------
+  describe("80E / 80TTA / 80TTB", () => {
+    it("80E reduces old-regime taxable income (uncapped)", () => {
+      const without = calculateTax({ basicAnnual: L(15_00_000), regime: "OLD" });
+      const withE = calculateTax({ basicAnnual: L(15_00_000), regime: "OLD", s80E: L(80_000) });
+      expect(withE.taxableIncome).toBe(without.taxableIncome - L(80_000));
+    });
+    it("80TTA caps at ₹10k for non-senior", () => {
+      const r = calculateTax({ basicAnnual: L(15_00_000), regime: "OLD", s80TTA: L(20_000) });
+      const baseline = calculateTax({ basicAnnual: L(15_00_000), regime: "OLD" });
+      expect(baseline.taxableIncome - r.taxableIncome).toBe(L(10_000));
+    });
+    it("80TTB (senior) cap is ₹50k", () => {
+      const r = calculateTax({ basicAnnual: L(15_00_000), regime: "OLD", ageBand: "SENIOR", s80TTA: L(70_000) });
+      const baseline = calculateTax({ basicAnnual: L(15_00_000), regime: "OLD", ageBand: "SENIOR" });
+      expect(baseline.taxableIncome - r.taxableIncome).toBe(L(50_000));
+    });
+  });
+
+  // -- Senior / super-senior old-regime slabs ------------------------------
+  describe("Old regime — senior age slabs", () => {
+    it("senior gets ₹3L threshold (no tax up to ₹3,50,000 after std ded)", () => {
+      const r = calculateTax({ basicAnnual: L(4_00_000), regime: "OLD", ageBand: "SENIOR" });
+      // 4L - 50k std = 3.5L taxable. Senior slab: 0-3L=0, 3L-3.5L=2.5k @5% = ₹2,500.
+      expect(r.taxableIncome).toBe(L(3_50_000));
+      expect(r.baseTax).toBe(L(2_500));
+      // Within ₹5L → 87A rebate kicks in fully
+      expect(r.totalTax).toBe(0);
+    });
+    it("super-senior pays no tax up to ₹5L taxable", () => {
+      const r = calculateTax({ basicAnnual: L(5_50_000), regime: "OLD", ageBand: "SUPER_SENIOR" });
+      expect(r.taxableIncome).toBe(L(5_00_000));
+      expect(r.baseTax).toBe(0);
+    });
+  });
+
+  // -- Bonus / perquisites add to gross ------------------------------------
+  describe("Bonus + perquisites", () => {
+    it("bonus is added to taxable gross (new regime, above rebate cliff)", () => {
+      // Use ₹20L base so we're well above the ₹12L 87A cliff and bonus actually moves tax.
+      const without = calculateTax({ basicAnnual: L(20_00_000), regime: "NEW" });
+      const withBonus = calculateTax({ basicAnnual: L(20_00_000), bonusAnnual: L(2_00_000), regime: "NEW" });
+      expect(withBonus.grossSalary).toBe(without.grossSalary + L(2_00_000));
+      expect(withBonus.totalTax).toBeGreaterThan(without.totalTax);
+    });
+    it("perquisites add to gross", () => {
+      const r = calculateTax({ basicAnnual: L(10_00_000), perquisitesAnnual: L(80_000), regime: "NEW" });
+      expect(r.grossSalary).toBe(L(10_80_000));
+    });
+  });
 });

@@ -793,10 +793,16 @@ model TaxDeclaration {
   s80C            Int     @default(0)   // PF, ELSS, LIC, etc — capped 1.5L by engine
   s80D            Int     @default(0)   // medical insurance — capped 25k/50k by engine
   s80CCD1B        Int     @default(0)   // NPS extra — capped 50k by engine
+  s80CCD2         Int     @default(0)   // employer NPS contribution — allowed in BOTH regimes (capped 10% basic+DA)
+  s80E            Int     @default(0)   // education loan interest — uncapped
+  s80TTA          Int     @default(0)   // savings interest — capped 10k (50k for senior via 80TTB)
   hraRentPaid     Int     @default(0)   // annual rent paid for HRA exemption
   hraMetro        Boolean @default(true)
   homeLoanInterest Int    @default(0)   // s24(b) — capped 2L
+  bonusAnnual     Int     @default(0)   // declared annual bonus / arrears for FY projection
+  perquisitesAnnual Int   @default(0)   // s.17(2) perquisites
   otherIncome     Int     @default(0)
+  ageBand         String  @default("NORMAL") // NORMAL | SENIOR | SUPER_SENIOR
   // Computed snapshot (last computed)
   computedTaxAnnual Int   @default(0)
   computedTaxMonthly Int  @default(0)

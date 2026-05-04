@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { computePayslip, daysInMonth, lopFromAttendance } from "@/lib/payroll-calc";
+import { computeMonthlyTds, computePayslip, daysInMonth, lopFromAttendance } from "@/lib/payroll-calc";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Bulk-generate payslips for the given month. Computation is delegated to
-// lib/payroll-calc.computePayslip — the shared helper that pro-rates by
-// attendance, caps EPF wages at ₹15,000, applies the ESI eligibility
-// threshold (gross ≤ ₹21k) and the state's Professional-Tax slab.
+// lib/payroll-calc — the shared helper that pro-rates by attendance, caps
+// EPF wages at ₹15,000, applies the ESI eligibility threshold (gross ≤ ₹21k),
+// the state's Professional-Tax slab, and the cumulative-averaging TDS engine
+// (annual tax projected from declarations + structure, minus YTD already
+// deducted, spread across remaining FY months).
 //
 // Existing payslips for (month, year) are skipped; re-run after delete to
 // regenerate.
@@ -51,12 +53,37 @@ export async function POST(req: Request) {
     if (exists) continue;
 
     const lopDays = lopFromAttendance(attByStaff[s.id] ?? []);
+
+    // Pre-compute pay components (LOP-adjusted) so the TDS engine can use
+    // this month's *actual* gross when projecting the FY.
+    const dryRun = computePayslip({
+      basic: ss.basic, hra: ss.hra, da: ss.da, special: ss.special, transport: ss.transport,
+      pfPct: ss.pfPct, esiPct: ss.esiPct,
+      daysInMonth: dim, lopDays,
+      state: school?.state,
+      tdsMonthly: 0,
+    });
+
+    // Cumulative-averaging TDS — single source of truth, honours regime,
+    // prior YTD payslips, mid-year joining, and current LOP impact.
+    const tdsResult = await computeMonthlyTds({
+      prisma,
+      schoolId: u.schoolId,
+      staffId: s.id,
+      year, month,
+      structure: { basic: ss.basic, hra: ss.hra, da: ss.da, special: ss.special, transport: ss.transport },
+      currentMonthOverride: {
+        basic: dryRun.basic, hra: dryRun.hra, da: dryRun.da,
+        special: dryRun.special, transport: dryRun.transport,
+      },
+    });
+
     const out = computePayslip({
       basic: ss.basic, hra: ss.hra, da: ss.da, special: ss.special, transport: ss.transport,
       pfPct: ss.pfPct, esiPct: ss.esiPct,
       daysInMonth: dim, lopDays,
       state: school?.state,
-      tdsMonthly: ss.tdsMonthly ?? 0,
+      tdsMonthly: tdsResult.monthlyTds,
     });
 
     try {
