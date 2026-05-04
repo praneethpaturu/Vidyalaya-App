@@ -166,12 +166,23 @@ async function main() {
     // Synthesize a few payslips for prev FY so Form 16 has data
     const struct = await db.salaryStructure.findFirst({ where: { staffId: st.id }, orderBy: { effectiveFrom: "desc" } });
     if (!struct) continue;
-    const { computePayslip, daysInMonth } = await import("../lib/payroll-calc");
+    const { computePayslip, computeMonthlyTds, daysInMonth } = await import("../lib/payroll-calc");
+    // Iterate chronologically (Apr → Mar) so the cumulative-averaging TDS
+    // engine can read prior-month payslips during projection.
     for (let mIdx = 0; mIdx < 12; mIdx++) {
       const d = new Date(prevFy, 3 + mIdx, 1);
       const month = d.getMonth() + 1;
       const year = d.getFullYear();
-      const tdsBase = struct.tdsMonthly || Math.round((struct.basic + struct.hra + struct.da + struct.special + struct.transport) * 0.08);
+      // Cumulative TDS via the engine — picks up the staff's TaxDeclaration
+      // (regime, 80C, HRA rent, etc.) and adjusts each month's TDS using
+      // the prior payslips already inserted in this loop.
+      const tdsResult = await computeMonthlyTds({
+        prisma: db,
+        schoolId: school.id,
+        staffId: st.id,
+        year, month,
+        structure: { basic: struct.basic, hra: struct.hra, da: struct.da, special: struct.special, transport: struct.transport },
+      });
       const out = computePayslip({
         basic: struct.basic, hra: struct.hra, da: struct.da,
         special: struct.special, transport: struct.transport,
@@ -179,7 +190,7 @@ async function main() {
         daysInMonth: daysInMonth(year, month),
         lopDays: 0,
         state: school.state,
-        tdsMonthly: tdsBase,
+        tdsMonthly: tdsResult.monthlyTds,
       });
       await db.payslip.upsert({
         where: { staffId_month_year: { staffId: st.id, month, year } },

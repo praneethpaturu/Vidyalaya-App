@@ -171,6 +171,24 @@ export type PayslipPdfProps = {
       edli?: number;   // 0.5% of EPF wages
       esi?: number;    // 3.25% of gross
     } | null;
+    // Optional FY-level tax projection (so the staff can see WHY this much
+    // TDS was deducted). Mirrors lib/tax.ts TaxBreakdown for display.
+    taxProjection?: {
+      regime: string;
+      ageBand: string;
+      annualGross: number;
+      annualTax: number;
+      baseTax: number;
+      rebate87A: number;
+      surcharge: number;
+      cess: number;
+      standardDeduction: number;
+      chapter6A: number;
+      s80CCD2: number;
+      hraExemption: number;
+      monthlyTdsBasis: number;
+      notes: string[];
+    } | null;
   };
   // Optional bank stub for direct-deposit confirmation
   bank?: { accountLast4?: string; ifsc?: string; mode?: string; utr?: string } | null;
@@ -297,6 +315,46 @@ export async function buildPayslipPdf(p: PayslipPdfProps): Promise<Buffer> {
       doc.font("Helvetica-Bold").fontSize(11).fillColor(C.ink).text(inr(v as number), cx, eY + 36, { width: cw - 4 });
     });
     doc.y = eY + eH + 14;
+  }
+
+  // -- Tax projection panel (FY-level breakdown) --------------------------
+  if (p.payslip.taxProjection) {
+    const t = p.payslip.taxProjection;
+    const tY = doc.y;
+    const tH = 96;
+    // Panel frame + title
+    doc.save().roundedRect(x, tY, W, tH, 6).strokeColor(C.line).stroke().restore();
+    doc.save().roundedRect(x, tY, W, 22, 6).fill("#f8f9fa").restore();
+    doc.rect(x, tY + 11, W, 11).fill("#f8f9fa");
+    doc.save().circle(x + 12, tY + 11, 3).fill(C.brand).restore();
+    doc.font("Helvetica-Bold").fontSize(8.5).fillColor(C.ink).text("INCOME TAX PROJECTION (FY)", x + 22, tY + 6, { characterSpacing: 0.7 });
+    // Regime + age pill on right
+    const pillTxt = `${t.regime} regime · ${t.ageBand === "NORMAL" ? "Below 60" : t.ageBand === "SENIOR" ? "Senior" : "Super-senior"}`;
+    doc.font("Helvetica").fontSize(7.5).fillColor(C.muted).text(pillTxt, x, tY + 8, { width: W - 14, align: "right", characterSpacing: 0.4 });
+
+    // Two-column projection: left = projection inputs, right = annual tax
+    const leftX = x + 14;
+    const midX = x + W / 2 + 8;
+    let ly = tY + 30;
+    const fLine = (lx: number, ly: number, k: string, v: string, opts?: { faint?: boolean; bold?: boolean }) => {
+      doc.font("Helvetica").fontSize(8.5).fillColor(opts?.faint ? C.muted : C.ink).text(k, lx, ly);
+      doc.font(opts?.bold ? "Helvetica-Bold" : "Helvetica").fontSize(8.5).fillColor(opts?.bold ? C.ink : C.ink).text(v, lx, ly, { width: W / 2 - 22, align: "right" });
+    };
+    fLine(leftX, ly, "Projected annual gross", inr(t.annualGross));
+    fLine(leftX, ly + 14, "Standard deduction", `− ${inr(t.standardDeduction)}`);
+    if (t.hraExemption > 0) fLine(leftX, ly + 28, "HRA exemption", `− ${inr(t.hraExemption)}`);
+    if (t.chapter6A > 0)    fLine(leftX, ly + (t.hraExemption > 0 ? 42 : 28), "Chapter VI-A", `− ${inr(t.chapter6A)}`);
+    if (t.s80CCD2 > 0)      fLine(leftX, ly + (t.hraExemption > 0 ? 56 : 42), "80CCD(2) employer NPS", `− ${inr(t.s80CCD2)}`);
+
+    let ry = tY + 30;
+    fLine(midX, ry, "Base tax", inr(t.baseTax));
+    if (t.rebate87A > 0) { fLine(midX, ry + 14, "87A rebate", `− ${inr(t.rebate87A)}`); ry += 14; }
+    if (t.surcharge > 0) { fLine(midX, ry + 14, "Surcharge", inr(t.surcharge)); ry += 14; }
+    fLine(midX, ry + 14, "Health & Education Cess", inr(t.cess));
+    fLine(midX, ry + 32, "Annual tax (FY)", inr(t.annualTax), { bold: true });
+    fLine(midX, ry + 46, "Monthly TDS basis", inr(t.monthlyTdsBasis), { bold: true });
+
+    doc.y = tY + tH + 14;
   }
 
   // -- Amount in words + payout details -----------------------------------

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { buildPayslipPdf } from "@/lib/pdf";
+import { calculateTax, type Regime } from "@/lib/tax";
 
 export const runtime = "nodejs";
 
@@ -68,6 +69,65 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     esi:  slip.gross <= ESI_GROSS_CEILING ? Math.round(slip.gross * 3.25 / 100) : 0,
   };
 
+  // ----- Tax projection panel (so the staff can see how their TDS was set)
+  // Pull declaration + active structure, run the full FY through calculateTax
+  // to surface: regime, projected annual gross/tax, monthly TDS basis.
+  const fyLabel = `${fyStart}-${String((fyStart + 1) % 100).padStart(2, "0")}`;
+  const decl = await prisma.taxDeclaration.findUnique({
+    where: { staffId_financialYear: { staffId: slip.staffId, financialYear: fyLabel } },
+  });
+  const struct = await prisma.salaryStructure.findFirst({
+    where: { staffId: slip.staffId },
+    orderBy: { effectiveFrom: "desc" },
+  });
+  let taxProjection: {
+    regime: string; ageBand: string;
+    annualGross: number; annualTax: number; baseTax: number;
+    rebate87A: number; surcharge: number; cess: number;
+    standardDeduction: number; chapter6A: number; s80CCD2: number; hraExemption: number;
+    monthlyTdsBasis: number;
+    notes: string[];
+  } | null = null;
+  if (struct) {
+    const t = calculateTax({
+      basicAnnual: struct.basic * 12,
+      hraAnnual: struct.hra * 12,
+      daAnnual: struct.da * 12,
+      specialAnnual: struct.special * 12,
+      transportAnnual: struct.transport * 12,
+      bonusAnnual: decl?.bonusAnnual ?? 0,
+      perquisitesAnnual: decl?.perquisitesAnnual ?? 0,
+      otherIncome: decl?.otherIncome ?? 0,
+      regime: ((decl?.regime ?? "NEW") as Regime),
+      ageBand: ((decl?.ageBand ?? "NORMAL") as any),
+      s80C: decl?.s80C ?? 0,
+      s80D: decl?.s80D ?? 0,
+      s80CCD1B: decl?.s80CCD1B ?? 0,
+      s80CCD2: decl?.s80CCD2 ?? 0,
+      s80E: decl?.s80E ?? 0,
+      s80TTA: decl?.s80TTA ?? 0,
+      hraRentPaid: decl?.hraRentPaid ?? 0,
+      hraMetro: decl?.hraMetro ?? true,
+      homeLoanInterest: decl?.homeLoanInterest ?? 0,
+    });
+    taxProjection = {
+      regime: t.regime,
+      ageBand: t.ageBand,
+      annualGross: t.grossSalary,
+      annualTax: t.totalTax,
+      baseTax: t.baseTax,
+      rebate87A: t.rebate87A,
+      surcharge: t.surcharge,
+      cess: t.cess,
+      standardDeduction: t.standardDeduction,
+      chapter6A: t.chapter6A,
+      s80CCD2: t.s80CCD2,
+      hraExemption: t.hraExemption,
+      monthlyTdsBasis: t.monthlyTDS,
+      notes: t.notes,
+    };
+  }
+
   const buf = await buildPayslipPdf({
     school: { name: slip.school.name, city: slip.school.city, state: slip.school.state },
     staff: {
@@ -87,6 +147,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       net: slip.net, status: slip.status, paidAt: slip.paidAt,
       ytd,
       employer,
+      taxProjection,
     },
   });
   return new NextResponse(new Uint8Array(buf), {

@@ -561,19 +561,30 @@ async function main() {
     await db.salaryStructure.create({
       data: { schoolId: sId, staffId: st.id, basic, hra, da, special, transport },
     });
-    for (let m = 0; m < 3; m++) {
+    // Generate last 3 months of payslips in chronological order so the
+    // cumulative-averaging TDS engine can read prior payslips it just
+    // inserted in this same loop.
+    const { computePayslip, computeMonthlyTds, daysInMonth } = await import("../lib/payroll-calc");
+    for (let m = 2; m >= 0; m--) {
       const d = new Date(); d.setMonth(d.getMonth() - m);
       const month = d.getMonth() + 1;
       const year = d.getFullYear();
-      const gross = basic + hra + da + special + transport;
-      const tds = isLeader ? Math.round(gross * 0.1) : isTeacher ? Math.round(gross * 0.05) : 0;
-      const { computePayslip, daysInMonth } = await import("../lib/payroll-calc");
+      // TDS comes from the tax engine — cumulative averaging over the FY
+      // pulls in the active TaxDeclaration (regime, 80C, HRA, etc.) if
+      // present; otherwise defaults to NEW regime with no deductions.
+      const tdsResult = await computeMonthlyTds({
+        prisma: db,
+        schoolId: sId,
+        staffId: st.id,
+        year, month,
+        structure: { basic, hra, da, special, transport },
+      });
       const out = computePayslip({
         basic, hra, da, special, transport,
         daysInMonth: daysInMonth(year, month),
         lopDays: 0,
         state: school.state,
-        tdsMonthly: tds,
+        tdsMonthly: tdsResult.monthlyTds,
       });
       await db.payslip.create({
         data: {
