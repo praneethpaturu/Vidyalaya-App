@@ -106,7 +106,9 @@ export default async function ExamDetailPage({ params }: { params: Promise<{ id:
   const exam = await prisma.onlineExam.findUnique({
     where: { id },
     include: {
-      questions: { orderBy: { order: "asc" } },
+      // Exclude per-attempt adaptive questions — those belong to a single
+      // student session, not the exam paper teachers author/review.
+      questions: { where: { attemptScope: null }, orderBy: { order: "asc" } },
       sections: { orderBy: { order: "asc" } },
       attemptsLog: true,
     },

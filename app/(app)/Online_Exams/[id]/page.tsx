@@ -48,7 +48,9 @@ export default async function TakeExamPage({ params }: { params: Promise<{ id: s
   const exam = await prisma.onlineExam.findFirst({
     where: { id, schoolId: u.schoolId },
     include: {
-      questions: { orderBy: { order: "asc" } },
+      // Static paper questions only — adaptive ones are scoped per attempt
+      // and fetched on-demand from /api/online-exams/adaptive.
+      questions: { where: { attemptScope: null }, orderBy: { order: "asc" } },
       sections:  { orderBy: { order: "asc" } },
     },
   });

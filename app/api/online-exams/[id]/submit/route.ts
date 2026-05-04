@@ -22,13 +22,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
   if (!attempt) return NextResponse.json({ ok: false, error: "no-attempt" }, { status: 404 });
 
+  // Determine which questions to grade. In adaptive mode we ONLY grade the
+  // questions that were actually served to this student (via attemptScope
+  // = attemptId) — otherwise lazy-inserted phantom questions from prior
+  // attempts would drag this score to 0. In static mode we grade the paper
+  // questions (attemptScope is null).
+  const gradeable = attempt.exam.adaptive
+    ? attempt.exam.questions.filter((q) => q.attemptScope === attempt.id)
+    : attempt.exam.questions.filter((q) => q.attemptScope === null);
+
   // Grade each question through the unified engine. AI rubric grading runs
   // for DESCRIPTIVE questions that have a rubric; otherwise descriptives
   // contribute 0 and stay queued for teacher review.
   let total = 0;
   let aiGraded = 0;
   let pendingManual = 0;
-  for (const q of attempt.exam.questions) {
+  for (const q of gradeable) {
     const result = await gradeAnswer(
       {
         id: q.id, type: q.type, correct: q.correct, marks: q.marks,
@@ -70,8 +79,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   // Update IRT-lite calibration on the bank (attemptCount/correctCount).
   // We treat MCQ/MULTI/NUMERIC as objective for calibration; descriptive
-  // is excluded because grading is non-binary.
-  for (const q of attempt.exam.questions) {
+  // is excluded because grading is non-binary. Same scope rule as above.
+  for (const q of gradeable) {
     if (!["MCQ", "MULTI", "TRUE_FALSE", "NUMERIC"].includes(q.type)) continue;
     // Match by exam question text → bank item (best-effort; bank import
     // sets text identical to source so this is a stable join).

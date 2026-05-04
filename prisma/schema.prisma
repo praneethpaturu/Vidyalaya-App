@@ -1587,6 +1587,10 @@ model OnlineQuestion {
   difficulty      String  @default("MEDIUM") // EASY | MEDIUM | HARD
   // AI rubric for descriptive grading (BRD §4.3)
   rubric          String? // JSON: { criteria: [{name, weight, description}], modelAnswer }
+  // Adaptive testing — questions served on-demand are scoped to the
+  // attempt that requested them, so they don't pollute the teacher's
+  // exam-detail view or item analysis. NULL = part of the static paper.
+  attemptScope    String?
   order           Int     @default(0)
 
   exam            OnlineExam         @relation(fields: [examId], references: [id], onDelete: Cascade)
@@ -1594,6 +1598,7 @@ model OnlineQuestion {
 
   @@index([examId])
   @@index([sectionId])
+  @@index([attemptScope])
 }
 
 // status: NOT_STARTED | IN_PROGRESS | SUBMITTED | EVALUATED

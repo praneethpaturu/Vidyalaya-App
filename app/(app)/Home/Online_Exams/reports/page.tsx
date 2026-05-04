@@ -1,6 +1,9 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { BarChart, StackedBarChart } from "@/components/charts/BarChart";
+import { DonutChart } from "@/components/charts/PieChart";
+import { Histogram } from "@/components/charts/Histogram";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +31,36 @@ async function ExamList({ schoolId }: { schoolId: string }) {
     take: 100,
   });
 
+  // Cohort-level numbers
+  const totalAttempts = exams.reduce((s, e) => s + e.attemptsLog.length, 0);
+  const totalSubmitted = exams.reduce((s, e) => s + e.attemptsLog.filter((a) => a.status === "SUBMITTED" || a.status === "EVALUATED").length, 0);
+  const totalFlagged = exams.reduce((s, e) => s + e.attemptsLog.filter((a) => a.flagged || a.tabSwitches > 2 || a.fullscreenViolations > 0 || a.copyAttempts > 5).length, 0);
+  // Top 8 exams by attempts for a quick bar chart.
+  const top = [...exams].sort((a, b) => b._count.attemptsLog - a._count.attemptsLog).slice(0, 8);
+  const examBars = top.map((e) => {
+    const subs = e.attemptsLog.filter((a) => a.status === "SUBMITTED" || a.status === "EVALUATED");
+    const avg = subs.length ? Math.round(subs.reduce((s, a) => s + a.scoreObtained, 0) / subs.length) : 0;
+    return { label: e.title, value: avg, max: e.totalMarks };
+  });
+
   return (
     <div className="p-5 max-w-7xl mx-auto">
       <h1 className="h-page mb-1">Online exam reports</h1>
       <p className="muted mb-4">Click an exam for deep dive — per-question accuracy, topic heatmap, Bloom distribution, integrity log.</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+        <KPI label="Exams" value={exams.length} />
+        <KPI label="Total attempts" value={totalAttempts} />
+        <KPI label="Submitted" value={totalSubmitted} positive />
+        <KPI label="Integrity-flagged" value={totalFlagged} negative={totalFlagged > 0} />
+      </div>
+
+      {examBars.length > 0 && (
+        <div className="card card-pad mb-5">
+          <h3 className="text-sm font-medium mb-2">Top {examBars.length} exams · avg score</h3>
+          <BarChart data={examBars} formatValue={(v) => String(v)} />
+        </div>
+      )}
 
       <div className="card overflow-x-auto">
         <table className="table">
@@ -69,7 +98,9 @@ async function ExamDeepDive({ examId, schoolId }: { examId: string; schoolId: st
   const exam = await prisma.onlineExam.findFirst({
     where: { id: examId, schoolId },
     include: {
-      questions: { orderBy: { order: "asc" } },
+      // Exclude adaptive lazy-creates — those bloat item analysis with
+      // single-student rows.
+      questions: { where: { attemptScope: null }, orderBy: { order: "asc" } },
       attemptsLog: true,
     },
   });
@@ -119,10 +150,68 @@ async function ExamDeepDive({ examId, schoolId }: { examId: string; schoolId: st
       <h1 className="h-page mt-1 mb-1">{exam.title}</h1>
       <p className="muted mb-4">{totalAttempts} submitted attempts · avg {avg}/{exam.totalMarks} · {pass}% pass · {flaggedCount} flagged</p>
 
+      {/* Top-row at-a-glance cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+        <KPI label="Submitted" value={totalAttempts} />
+        <KPI label="Average score" value={`${avg}/${exam.totalMarks}`} />
+        <KPI label="Pass rate" value={`${pass}%`} positive={pass >= 60} />
+        <KPI label="Flagged" value={flaggedCount} negative={flaggedCount > 0} />
+      </div>
+
+      {/* Score histogram + status donut */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-        <Heatmap title="Topic-wise accuracy" data={[...topicAgg.entries()]} />
-        <Heatmap title="Bloom-level accuracy" data={[...bloomAgg.entries()]} />
-        <Heatmap title="Difficulty-wise accuracy" data={[...diffAgg.entries()]} />
+        <div className="card card-pad md:col-span-2">
+          <h3 className="text-sm font-medium mb-2">Score distribution</h3>
+          <Histogram
+            values={submitted.map((a) => a.scoreObtained)}
+            max={exam.totalMarks}
+            passMark={exam.passMarks}
+            label="Score distribution"
+          />
+        </div>
+        <div className="card card-pad">
+          <h3 className="text-sm font-medium mb-2">Attempt status</h3>
+          <DonutChart
+            totalLabel="attempts"
+            data={[
+              { label: "Evaluated", value: exam.attemptsLog.filter((a) => a.status === "EVALUATED").length, color: "#10b981" },
+              { label: "Submitted", value: exam.attemptsLog.filter((a) => a.status === "SUBMITTED").length, color: "#1a73e8" },
+              { label: "In progress", value: exam.attemptsLog.filter((a) => a.status === "IN_PROGRESS").length, color: "#f59e0b" },
+              { label: "Not started", value: exam.attemptsLog.filter((a) => a.status === "NOT_STARTED").length, color: "#94a3b8" },
+            ].filter((s) => s.value > 0)}
+          />
+        </div>
+      </div>
+
+      {/* Topic / Bloom / difficulty charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+        <div className="card card-pad">
+          <h3 className="text-sm font-medium mb-2">Topic-wise correctness</h3>
+          <StackedBarChart
+            data={[...topicAgg.entries()].slice(0, 12).map(([label, s]) => ({ label, correct: s.correct, total: s.attempted }))}
+          />
+          <Heatmap title="" data={[...topicAgg.entries()]} />
+        </div>
+        <div className="card card-pad">
+          <h3 className="text-sm font-medium mb-2">Bloom-level mix</h3>
+          <DonutChart
+            totalLabel="questions"
+            data={[...bloomAgg.entries()].map(([label, s]) => ({ label: label === "—" ? "Untagged" : label, value: s.attempted }))}
+          />
+        </div>
+        <div className="card card-pad md:col-span-2">
+          <h3 className="text-sm font-medium mb-2">Difficulty mix vs accuracy</h3>
+          <BarChart
+            yLabel="% correct"
+            formatValue={(v) => `${v}%`}
+            data={[...diffAgg.entries()].map(([label, s]) => ({
+              label,
+              value: s.attempted ? Math.round((s.correct / s.attempted) * 100) : 0,
+              max: 100,
+              color: label === "EASY" ? "#10b981" : label === "HARD" ? "#ef4444" : "#f59e0b",
+            }))}
+          />
+        </div>
       </div>
 
       <h2 className="h-section mb-2">Item analysis</h2>
@@ -184,6 +273,15 @@ function bump(m: Map<string, { attempted: number; correct: number }>, key: strin
   cur.attempted += it.attempted;
   cur.correct += it.correct;
   m.set(key, cur);
+}
+
+function KPI({ label, value, positive, negative }: { label: string; value: string | number; positive?: boolean; negative?: boolean }) {
+  return (
+    <div className="card card-pad">
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className={`text-2xl font-medium tracking-tight tabular-nums ${positive ? "text-emerald-700" : negative ? "text-rose-700" : "text-slate-900"}`}>{value}</div>
+    </div>
+  );
 }
 
 function Heatmap({ title, data }: { title: string; data: [string, { attempted: number; correct: number }][] }) {

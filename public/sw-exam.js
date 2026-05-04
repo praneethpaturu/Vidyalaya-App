@@ -27,13 +27,23 @@ self.addEventListener("sync", (event) => {
   if (event.tag === "exam-sync") event.waitUntil(flushQueue());
 });
 
+// Whitelist of idempotent endpoints safe to queue + replay when offline.
+// Anything that creates resources (e.g. /from-blueprint) MUST stay off
+// this list to avoid duplicate creation on reconnect.
+const QUEUEABLE = [
+  /\/api\/online-exams\/[^/]+\/progress$/,
+  /\/api\/online-exams\/[^/]+\/submit$/,
+  /\/api\/offline-sync$/,
+];
+function isQueueable(pathname) {
+  return QUEUEABLE.some((re) => re.test(pathname));
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
-  // Only intercept exam-related POSTs for queueing.
-  if (req.method === "POST" && (
-        url.pathname.includes("/api/online-exams/") ||
-        url.pathname.includes("/api/offline-sync"))) {
+  // Only intercept idempotent exam POSTs for queueing.
+  if (req.method === "POST" && isQueueable(url.pathname)) {
     event.respondWith(networkOrQueue(req));
     return;
   }

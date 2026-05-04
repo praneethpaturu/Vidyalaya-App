@@ -104,13 +104,16 @@ export async function POST(req: Request) {
   // Pick by closest accuracy (use IRT calibration when available).
   const next = candidates[0];
 
-  // Materialise as a transient OnlineQuestion (or look up if it exists for this exam already).
+  // Materialise an OnlineQuestion tagged with attemptScope so it's hidden
+  // from the static paper view + teacher item-analysis. Lookup by
+  // (attemptScope, text) so a refresh doesn't double-insert.
   const exists = await prisma.onlineQuestion.findFirst({
-    where: { examId: attempt.exam.id, text: next.text },
+    where: { examId: attempt.exam.id, attemptScope: attempt.id, text: next.text },
   });
   const oq = exists ?? await prisma.onlineQuestion.create({
     data: {
       examId: attempt.exam.id,
+      attemptScope: attempt.id,
       text: next.text, type: next.type, options: next.options, correct: next.correct,
       marks: next.marks, difficulty: next.difficulty, topic: next.topic, subtopic: next.subtopic,
       bloomLevel: next.bloomLevel, rubric: next.rubric,
